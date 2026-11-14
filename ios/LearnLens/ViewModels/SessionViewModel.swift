@@ -246,7 +246,7 @@ final class SessionViewModel {
 
   // MARK: - Approval and deploy
 
-  /// The only way anything gets flashed: the user approves the sketch shown on the phone.
+  /// The only way anything gets flashed: the user approves, on the phone or with the glasses button.
   func approve() async {
     guard flow == .awaitingApproval, let build, let sketch = build.sketch else { return }
     deployError = nil
@@ -387,8 +387,15 @@ final class SessionViewModel {
     case .generating:
       return GlassesCards.card(caption: demo + "Generating", text: isDemoMode ? "Loading the prevalidated sketch…" : "Writing the sketch…")
     case .awaitingApproval:
-      // Approval stays on the phone, where the code can be read.
-      return GlassesCards.card(caption: "Approval needed", text: "Review and approve the code on your phone.")
+      // Flashing still needs an explicit yes, but it can be given on the glasses. The code itself
+      // stays readable on the phone for anyone who wants to check it first.
+      let compiled = generation?.compile.status == "ok" ? "Code is ready and compiled." : "Code is ready (not compiled)."
+      return GlassesCards.card(
+        caption: demo + (deployError == nil ? "Approve upload" : "Upload failed"),
+        text: deployError == nil ? compiled + " Flash it to the board?" : "The upload did not succeed. Try again?",
+        primary: action(deployError == nil ? "Start flash" : "Retry flash") { await $0.approve() },
+        secondary: action("Cancel") { await $0.reject() }
+      )
     case .deploying:
       return GlassesCards.card(caption: "Deploying", text: "Uploading to the board…")
     case .testing:

@@ -61,7 +61,8 @@ UI states: Disconnected, Connected, Capturing, Analyzing, Confirm your parts, Gu
 Awaiting approval, Deploying, Testing, Success, Error. "Confirm your parts" was added because the
 backend holds the wiring plan back until the user has checked the physical parts.
 
-Approval happens on the phone only, where the code is readable. The glasses show "review on your phone".
+Flashing always needs an explicit approval. It can be given on the glasses ("Start flash" button on
+the approval card) or on the phone, where the generated code is shown in full.
 
 The app reads `GET /health` and shows a banner when the backend runs in demo mode (saved AI answers),
 when the deploy agent simulates uploads (`--mock`), or when no agent is connected. Demo mode and
