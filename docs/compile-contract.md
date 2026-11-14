@@ -78,7 +78,9 @@ A build that was developed further (`behavior: custom`) is checked against every
 analog inputs with `analogRead` only, digital inputs as `INPUT` and never written, `LED_BUILTIN` as the
 only writable pin, both approved headers, loops allowed, `READY` required, and every input must be read
 at least once. There are no required parameter constants. Claude gets the running sketch as a starting
-point. Without AI, the only prevalidated combination is the level meter gated by the KY-032.
+point. Without AI there are three prevalidated sketches, all for the level meter plus the KY-032: show
+the level only while something is detected, freeze the bar while something is detected, and switch
+the display on and off each time something appears (`demo.EXTENSION_VARIANTS`).
 
 Not checked statically: whether the edge-detection logic is correct. The prompt requires it, the
 template implements it, and the user sees the code before approving.

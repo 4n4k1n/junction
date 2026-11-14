@@ -21,6 +21,26 @@ Timings are targets. If a step stalls for 10 seconds, use its fallback and keep 
 Timing note: after the board gets power, the LED matrix plays the board's own boot animation for about
 half a minute. Plug USB back in early (it is the last wiring step) so this is over before the upload.
 
+## Second act: add the infrared sensor (about 90 seconds)
+
+Works in `--demo` too: three ways to extend the meter have a prevalidated sketch, so no AI is needed.
+You need a breadboard or a Y-cable, because both sensors share the board's single +3V3 pin.
+
+| Presenter says | Presenter does | What must appear |
+|---|---|---|
+| "It works. Now let's keep building." | Selects **Continue building** | "Adding a part? Look at it and take a photo." |
+| "Here is my second sensor." | Looks at the KY-032, selects **Take photo** | "Listening…" |
+| "I want to add this sensor." | Speaks, then **Go** | "What should the KY-032 infrared obstacle sensor do in your build?" |
+| "I have no idea yet. What could it do?" | Selects **Ideas** | Three ideas: show only while a hand is near, hold a hand to freeze, wave to switch on and off |
+| "Let's switch it with a wave." | Selects the third idea | "Read the 4 pin labels on the infrared sensor…" → **Yes** |
+| "Only the new wires. The first sensor stays as it is." | Steps 6-10: unplug USB, GND→GND, +→+3V3 (shared), OUT→D2, plug in | "Step n of 10" |
+| "New code for both sensors, and again nothing is uploaded without my OK." | **Continue**, then **Start flash** | "How it works", then "Deploying" |
+| "Wave: off. Wave: on." | Waves a hand in front of the KY-032 | The level bar switches off and on |
+
+In demo mode every follow-up request adds the infrared sensor, whatever is said, and the photo is
+answered by a saved detection. In real mode Claude reads the request, looks at the photo and writes
+the sketch, which takes 40-60 seconds.
+
 ## Rules for the live run
 
 - **Say which mode you are in.** If the app shows "DEMO MODE" or "SIMULATED upload", say so out loud:

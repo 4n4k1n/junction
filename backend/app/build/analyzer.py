@@ -148,16 +148,18 @@ def keyword_extension(instruction: str, spec: ProjectSpec) -> ExtensionProposal:
 
     text = instruction.lower()
     wants_ir = re.search(r"\b(ir|infrared|infrarot|obstacle|hindernis|hand|proximity|distance|ky-?032)\b", text)
-    if wants_ir and "ky-032" in addable_sensors(spec):
+    # In demo mode every follow-up adds the infrared sensor, whatever words are used: it is the one
+    # extension that works without AI.
+    if (wants_ir or demo.enabled()) and "ky-032" in addable_sensors(spec):
         # A purpose is some instruction beyond naming the part ("... so it only shows when my hand is near").
-        states_purpose = re.search(r"\b(so|when|only|if|while|should|to show|to turn|until|damit|wenn|nur|soll|sobald)\b", text)
+        states_purpose = re.search(r"\b(so|when|only|if|while|should|to show|to turn|until|damit|wenn|nur|soll|sobald|"
+                                   r"freeze|hold|wave|toggle|switch)\b", text)
         if not states_purpose:
-            # Without AI, suggest only what the prevalidated sketch really does.
+            # Without AI, suggest only what a prevalidated sketch really does.
             return ExtensionProposal(kind="add_part", component_id="ky-032", needs_purpose=True,
-                                     ideas=facts.catalog()["ky-032"]["ideas_without_ai"])
+                                     ideas=[v["idea"] for v in demo.EXTENSION_VARIANTS.values()])
         return ExtensionProposal(kind="add_part", component_id="ky-032",
-                                 behavior="Keep the previous behaviour, but only while the infrared sensor detects "
-                                          "something in front of it. Otherwise all LEDs stay off.")
+                                 behavior=demo.EXTENSION_VARIANTS[demo.variant_for(text)]["behavior"])
     return ExtensionProposal(kind="change_behavior", behavior=instruction.strip())
 
 

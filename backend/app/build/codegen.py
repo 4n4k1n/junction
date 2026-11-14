@@ -454,12 +454,13 @@ def display_summary(sketch: GeneratedSketch, limit: int = 180) -> str:
 
 
 def gated_level_meter_template(ctx: CodegenContext) -> GeneratedSketch:
-    """Prevalidated sketch for one developed-further build: the level meter plus one digital sensor
-    that switches it on. Any other change needs the AI service."""
+    """Prevalidated sketches for the level meter plus one digital sensor, in the variants listed in
+    demo.EXTENSION_VARIANTS. Any other change needs the AI service."""
     kinds = [i.kind for i in ctx.inputs]
     if kinds != ["analog", "digital"]:
         raise RuntimeError("This change needs the AI service: there is no prevalidated sketch for it.")
     gate = ctx.inputs[1]
+    variant = demo.variant_for(ctx.custom_behavior)
     base = level_meter_template(ctx)
     code = base.source_code
 
@@ -473,17 +474,37 @@ def gated_level_meter_template(ctx: CodegenContext) -> GeneratedSketch:
           f"const int GATE_PIN = {gate.number};  // header {gate.header}: {gate.name}\n"
           f"const int GATE_ACTIVE_LEVEL = {gate.active_level};  // level while the sensor detects something\n")
     patch("  matrix.clear();\n", "  matrix.clear();\n  pinMode(GATE_PIN, INPUT);\n")
-    patch("  // Light whole columns up to the level",
-          "  // Show the meter only while the second sensor detects something.\n"
-          "  if (digitalRead(GATE_PIN) != GATE_ACTIVE_LEVEL) shown = 0;\n\n"
-          "  // Light whole columns up to the level")
     patch("// Wiring: sensor AO", f"// Wiring: {gate.name.split()[0]} OUT -> {gate.header}; microphone AO")
+    if variant == "freeze":
+        patch("  if (level > shown) shown = level; else shown -= 0.6f;\n",
+              "  // While the second sensor detects something, the bar is frozen where it is.\n"
+              "  if (digitalRead(GATE_PIN) != GATE_ACTIVE_LEVEL) {\n"
+              "    if (level > shown) shown = level; else shown -= 0.6f;\n"
+              "  }\n")
+        new = "While it detects something, the bar is not updated and stays where it is."
+    elif variant == "toggle":
+        patch("float shown = 0;     // bar length on the matrix, in columns\n",
+              "float shown = 0;     // bar length on the matrix, in columns\n"
+              "bool meterOn = true;         // switched by the second sensor\n"
+              "bool gateWasActive = false;  // to notice the moment something appears\n")
+        patch("  // Light whole columns up to the level",
+              "  // Each time something newly appears in front of the second sensor, switch the display on or off.\n"
+              "  bool gateActive = digitalRead(GATE_PIN) == GATE_ACTIVE_LEVEL;\n"
+              "  if (gateActive && !gateWasActive) meterOn = !meterOn;\n"
+              "  gateWasActive = gateActive;\n"
+              "  if (!meterOn) shown = 0;\n\n"
+              "  // Light whole columns up to the level")
+        new = "Each time it newly detects something, the display is switched on or off."
+    else:
+        patch("  // Light whole columns up to the level",
+              "  // Show the meter only while the second sensor detects something.\n"
+              "  if (digitalRead(GATE_PIN) != GATE_ACTIVE_LEVEL) shown = 0;\n\n"
+              "  // Light whole columns up to the level")
+        new = "While it detects nothing, the bar is forced to zero and the matrix stays dark."
     return GeneratedSketch(
         source_code=code,
-        display_summary="The sound level appears on the LED matrix only while the infrared sensor sees something "
-                        "in front of it.",
-        explanation=(base.explanation + f" New: the sketch also reads the {gate.name} on {gate.header}. While it "
-                     "detects nothing, the bar is forced to zero and the matrix stays dark."),
+        display_summary=demo.EXTENSION_VARIANTS[variant]["summary"],
+        explanation=base.explanation + f" New: the sketch also reads the {gate.name} on {gate.header}. {new}",
         assumptions=base.assumptions + [
             f"The {gate.name} reads {gate.active_level} on {gate.header} while it detects something.",
             "Both sensors share the board's single +3V3 pin.",

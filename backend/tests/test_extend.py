@@ -199,7 +199,8 @@ def test_a_part_without_a_purpose_gets_a_question_back_and_changes_nothing():
     assert s["clarification"] == "What should the KY-032 infrared obstacle sensor do in your build?"
     assert s["state"] == "code_generated" and s["build_id"] == first["build_id"]
     assert s["project"]["behavior"] == "level_meter" and len(s["wiring_steps"]) == 5
-    assert s["suggestions"] == ["Show the sound level only while a hand is near"]   # offline: only what is prevalidated
+    assert s["suggestions"] == ["Show the sound level only while a hand is near", "Hold a hand near to freeze the level",
+                                "Wave a hand to switch the meter on and off"]     # offline: only what is prevalidated
 
     s = extend(sid, "I want to add the infrared sensor. " + s["suggestions"][0])     # picking a suggestion is an answer
     assert s["clarification"] == "" and s["suggestions"] == [] and s["state"] == "needs_confirmation"
@@ -216,3 +217,58 @@ def test_a_part_without_a_purpose_gets_a_question_back_and_changes_nothing():
     assert s["suggestions"] == ["Show the meter only when a hand is near", "Wave to freeze the bar",
                                 "Blink when something blocks the sensor"]                  # at most three, tidied
     assert "Do not invent a\npurpose" in fake.requests[0]["system"][0]["text"]
+
+
+def variant_ctx(idea):
+    spec = planner.level_meter_spec()
+    steps = planner.plan_wiring(spec)
+    steps += planner.plan_extension(steps, "ky-032")
+    spec.behavior, spec.custom_behavior, spec.requests = Behavior.custom, idea, [idea]
+    spec.components.append("ky-032")
+    return codegen.build_context(spec, steps)
+
+
+@pytest.mark.parametrize("variant,marker", [
+    ("gate", "if (digitalRead(GATE_PIN) != GATE_ACTIVE_LEVEL) shown = 0;"),
+    ("freeze", "the bar is frozen where it is"),
+    ("toggle", "if (gateActive && !gateWasActive) meterOn = !meterOn;"),
+])
+def test_every_offered_idea_has_its_own_prevalidated_sketch(variant, marker, tmp_path, monkeypatch):
+    from app.build import demo
+
+    idea = demo.EXTENSION_VARIANTS[variant]["idea"]
+    assert len(idea) <= 60 and demo.variant_for("I want to add the infrared sensor. " + idea) == variant
+    ctx = variant_ctx(demo.EXTENSION_VARIANTS[variant]["behavior"])
+    sketch = codegen.template_sketch(ctx)
+    assert marker in sketch.source_code and codecheck.check_sketch(sketch.source_code, ctx) == []
+    assert sketch.display_summary == demo.EXTENSION_VARIANTS[variant]["summary"]
+    if os.getenv("LEARNLENS_REAL_COMPILE") == "1":
+        monkeypatch.delenv("LEARNLENS_ARDUINO_CLI")
+        monkeypatch.setattr(codegen, "PROJECTS_DIR", tmp_path)
+        report = compiler.ArduinoCliCompiler().compile(codegen.save_project("abc123", 0, sketch, ctx), ctx.fqbn)
+        assert report.status == CompileStatus.ok, report.log[-1500:]
+
+
+def test_demo_mode_runs_the_whole_second_sensor_flow_without_ai(monkeypatch):
+    monkeypatch.setenv("LEARNLENS_DEMO_MODE", "1")
+    monkeypatch.setattr(session_router, "analyzer", Analyzer())
+    monkeypatch.setattr(session_router, "generator", codegen.CodeGenerator())
+    sid, _ = finished_level_meter()
+
+    s = extend(sid, "I would like to connect one more sensor")          # no sensor name needed in demo mode
+    assert s["clarification"].startswith("What should the KY-032") and len(s["suggestions"]) == 3
+    s = extend(sid, "I would like to connect one more sensor. " + s["suggestions"][2])
+    assert s["state"] == "needs_confirmation" and s["project"]["components"][-1] == "ky-032"
+
+    photo = {"image": ("part.jpg", __import__("io").BytesIO(example.FAKE_JPEG), "image/jpeg")}
+    s = client.post(f"/sessions/{sid}/analyze", files=photo).json()     # the saved answer "sees" the new part
+    assert s["analysis_source"] == "demo" and [d["component_id"] for d in s["detected_components"]] == ["ky-032"]
+    assert [p["id"] for p in s["pending_confirmations"]] == ["ky032-pin-labels"]
+
+    confirmed = '[{"component_id": "ky-032", "confirmations": ["ky032-pin-labels"]}]'
+    s = client.post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": confirmed}).json()
+    for i in range(s["current_step"], len(s["wiring_steps"])):
+        client.post(f"/sessions/{sid}/confirm-step", json={"step_index": i})
+    g = client.post(f"/sessions/{sid}/generate").json()
+    assert g["source"] == "demo" and "meterOn = !meterOn" in g["sketch"]["code"]
+    assert g["display_summary"].startswith("Wave a hand past the infrared sensor")

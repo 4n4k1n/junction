@@ -54,7 +54,8 @@ is not in the build yet (currently the KY-032 infrared obstacle sensor) or only 
   should now do, `build_id` is cleared, and the client calls `generate` again. The new sketch is a new
   build that needs its own approval. The finished build is not modified.
 - 422 with a reason when the request cannot be built: an unknown part, or (without the AI service)
-  anything except adding the KY-032 to the level meter, for which a prevalidated sketch exists.
+  anything except adding the KY-032 to the level meter, for which three prevalidated sketches exist.
+  In demo mode every request is read as adding the KY-032.
 
 ### When the wiring plan is released
 

@@ -33,7 +33,7 @@ from pydantic import TypeAdapter, ValidationError
 from . import codegen, demo, facts, planner
 from .analyzer import Analyzer, to_spec
 from .models import (
-    AskRequest, StepAnswer, Behavior, BuildStatus, ConfirmationKind, ConfirmStepRequest, CreateGuideSessionRequest, ExtendRequest, GenerateRequest,
+    AskRequest, StepAnswer, Behavior, BuildStatus, DetectedComponent, ConfirmationKind, ConfirmStepRequest, CreateGuideSessionRequest, ExtendRequest, GenerateRequest,
     GenerationResult, GuideState, GuideStatus, InventoryItem, PendingConfirmation, Provenance, WiringReview,
 )
 from .router import ALLOWED_MEDIA, MAX_IMAGE_BYTES, builds, create_awaiting_approval
@@ -186,6 +186,10 @@ async def analyze(session_id: str, image: Optional[UploadFile] = File(None),
         s.detected_components = analysis.components
         if not (s.project and s.project.requests):
             s.project = to_spec(analysis.project)  # a build being developed further keeps its project
+        elif s.analysis_source == "demo":
+            # Demo mode: the saved answer for a photo of the added part.
+            s.detected_components = [DetectedComponent.model_validate(demo.SAVED_PART_DETECTION[c])
+                                     for c in s.project.components if c in demo.SAVED_PART_DETECTION]
     _advance(s)
     return s
 

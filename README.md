@@ -56,7 +56,7 @@ python3 scripts/demo_run.py --photo demo/desk.jpg  # send a real photo
 | Mode | AI | Board | How it is labelled |
 |---|---|---|---|
 | `./scripts/start.sh` | Claude | real upload | nothing extra |
-| `--demo` | saved answers, prevalidated sketch | real upload | "DEMO MODE" on every glasses card and in the app; `analysis_source: demo`, `source: demo` |
+| `--demo` | saved answers, prevalidated sketches (level meter, plus three ways to extend it with the KY-032) | real upload | "DEMO MODE" on every glasses card and in the app; `analysis_source: demo`, `source: demo` |
 | `--mock` | as chosen | no upload | "SIMULATED upload" in the app, on the glasses and in the log; `deploy.mock: true` |
 
 `GET /health` reports `demo_mode`, `agent_connected` and `agent_mock`.
