@@ -3,15 +3,37 @@
   "name": "KY-037 microphone sound sensor",
   "role": "sensor",
   "senses": "sound",
+  "projects": [
+    "level_meter",
+    "toggle_on_event",
+    "on_while_active"
+  ],
   "identification": "Small PCB (often red or black) with a large cylindrical electret microphone capsule at one end, a blue square trim potentiometer with a brass screw, a small 8-pin chip (LM393), two tiny LEDs, and 4 header pins at the other end. The KY-038 looks the same with a smaller microphone capsule; say so in the evidence if you cannot tell them apart.",
   "sources": {
     "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-037"
   },
   "pins": {
-    "AO": {"kind": "analog_out", "high_level": "supply", "fact": "ky037-outputs"},
-    "G": {"kind": "ground", "fact": "ky037-pins"},
-    "+": {"kind": "supply", "min_v": 3.3, "max_v": 5.0, "fact": "ky037-supply"},
-    "DO": {"kind": "digital_out", "high_level": "supply", "active_level": "HIGH", "fact": "ky037-outputs"}
+    "AO": {
+      "kind": "analog_out",
+      "high_level": "supply",
+      "fact": "ky037-outputs"
+    },
+    "G": {
+      "kind": "ground",
+      "fact": "ky037-pins"
+    },
+    "+": {
+      "kind": "supply",
+      "min_v": 3.3,
+      "max_v": 5.0,
+      "fact": "ky037-supply"
+    },
+    "DO": {
+      "kind": "digital_out",
+      "high_level": "supply",
+      "active_level": "HIGH",
+      "fact": "ky037-outputs"
+    }
   },
   "confirmations": [
     {

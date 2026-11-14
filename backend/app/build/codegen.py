@@ -24,7 +24,7 @@ from . import codecheck, demo, facts
 from .compiler import ArduinoCliCompiler
 from .llm import ask_json, make_client
 from .models import (
-    Behavior, CodegenContext, CodeIssue, CompileReport, CompileStatus, GeneratedSketch, GenerationAttempt,
+    Behavior, CodegenContext, CodeIssue, InputPin, CompileReport, CompileStatus, GeneratedSketch, GenerationAttempt,
     ProjectSpec, SerialEvent, WiringStep,
 )
 
@@ -80,35 +80,63 @@ assumptions (each thing that must be true about the hardware for the sketch to w
 expected_serial_events (each log line and when it appears)."""
 
 
+def signal_inputs(steps: List[WiringStep]) -> List[InputPin]:
+    """Every sensor signal in the confirmed wiring, in wiring order."""
+    cat = facts.catalog()
+    inputs = []
+    for step in steps:
+        c = step.connection
+        if c is None:
+            continue
+        pin = cat[c.from_pin.component]["pins"][c.from_pin.pin]
+        if pin["kind"] not in ("digital_out", "analog_out"):
+            continue
+        header, analog = c.to_pin.pin, pin["kind"] == "analog_out"
+        board_pin = cat[c.to_pin.component]["pins"][header]
+        if board_pin["kind"] != "gpio" or bool(board_pin.get("analog")) != analog or not re.fullmatch(r"[AD]\d+", header):
+            raise ValueError(f"{header} is not a usable {'analog' if analog else 'digital'} header pin")
+        inputs.append(InputPin(component=c.from_pin.component, name=cat[c.from_pin.component]["name"], header=header,
+                               number=None if analog else int(header[1:]), kind="analog" if analog else "digital",
+                               active_level=pin.get("active_level", "")))
+    return inputs
+
+
 def build_context(spec: ProjectSpec, steps: List[WiringStep], sensor_active_level: Optional[str] = None,
-                  debounce_ms: Optional[int] = None, sample_window_ms: Optional[int] = None) -> CodegenContext:
+                  debounce_ms: Optional[int] = None, sample_window_ms: Optional[int] = None,
+                  previous_code: str = "") -> CodegenContext:
     """Derive what the generator may use from the confirmed plan and the hardware database."""
     cat = facts.catalog()
-    board, sensor = cat[spec.board], cat[spec.input_component]
-    analog = spec.behavior == Behavior.level_meter
-    signal = next(s.connection for s in steps if s.connection
-                  and sensor["pins"][s.connection.from_pin.pin]["kind"] == ("analog_out" if analog else "digital_out"))
-    header = signal.to_pin.pin
-    pin = board["pins"][header]
-    if pin["kind"] != "gpio" or bool(pin.get("analog")) != analog or not re.fullmatch(r"[AD]\d+", header):
-        raise ValueError(f"{header} is not a usable {'analog' if analog else 'digital'} header pin")
-    led, logging_ = board["builtin_led"], board["logging"]
-    matrix = board["led_matrix"] if analog else {}
-    by_id = {f["id"]: f["statement"] for f in board["facts"] + sensor["facts"]}
-    quoted = [pin["fact"], *(matrix["facts"] if analog else led["facts"]), *logging_["facts"], "unoq-fqbn",
-              sensor["pins"][signal.from_pin.pin]["fact"]]
+    board = cat[spec.board]
+    inputs = signal_inputs(steps)
+    primary = inputs[0]
+    analog, custom = primary.kind == "analog", spec.behavior == Behavior.custom
+    led, logging_, matrix = board["builtin_led"], board["logging"], board["led_matrix"]
+    use_matrix = analog or custom
+
+    by_id = {f["id"]: f["statement"] for c in cat.values() for f in c["facts"]}
+    quoted: List[str] = []
+    for step in steps:  # the facts behind every signal connection
+        if step.connection and cat[step.connection.from_pin.component]["pins"][step.connection.from_pin.pin]["kind"] in (
+                "digital_out", "analog_out"):
+            quoted += [board["pins"][step.connection.to_pin.pin]["fact"],
+                       cat[step.connection.from_pin.component]["pins"][step.connection.from_pin.pin]["fact"]]
+    quoted += (matrix["facts"] if use_matrix else []) + (led["facts"] if custom or not analog else [])
+    quoted += [*logging_["facts"], "unoq-fqbn"]
     return CodegenContext(
-        project=spec, board_name=board["name"], fqbn=board["fqbn"]["value"], sensor_name=sensor["name"],
-        signal_kind="analog" if analog else "digital", output="led_matrix" if analog else "builtin_led",
-        sensor_pin=header, sensor_pin_number=None if analog else int(header[1:]),
-        sensor_active_level=sensor_active_level or sensor["pins"]["DO"]["active_level"],
+        project=spec, board_name=board["name"], fqbn=board["fqbn"]["value"], sensor_name=primary.name,
+        signal_kind=primary.kind, output="led_matrix" if analog else "builtin_led",
+        sensor_pin=primary.header, sensor_pin_number=primary.number,
+        sensor_active_level=sensor_active_level or primary.active_level or "HIGH",
         debounce_ms=debounce_ms or DEFAULT_DEBOUNCE_MS, sample_window_ms=sample_window_ms or DEFAULT_SAMPLE_WINDOW_MS,
         led_symbol=led["symbol"], led_on_level=led["on_level"],
-        matrix_type=matrix.get("type", ""), matrix_rows=matrix.get("rows", 0), matrix_columns=matrix.get("columns", 0),
-        matrix_max_brightness=matrix.get("max_brightness", 0),
+        matrix_type=matrix["type"] if use_matrix else "", matrix_rows=matrix["rows"] if use_matrix else 0,
+        matrix_columns=matrix["columns"] if use_matrix else 0,
+        matrix_max_brightness=matrix["max_brightness"] if use_matrix else 0,
+        inputs=inputs, custom_behavior=spec.custom_behavior if custom else "", previous_code=previous_code if custom else "",
         log_object=logging_["object"], log_setup=logging_["setup"],
-        allowed_includes=[logging_["include"]] + ([matrix["include"]] if analog else []),
-        required_events=["READY"] if analog else REQUIRED_EVENTS, facts=[by_id[f] for f in quoted])
+        allowed_includes=[logging_["include"]] + ([matrix["include"]] if use_matrix else []),
+        required_events=["READY"] if use_matrix else REQUIRED_EVENTS,
+        facts=[by_id[f] for f in dict.fromkeys(quoted)])
 
 
 COMMON_RULES = """- uses a pin other than the approved one, or passes a pin that is not a named constant or literal
@@ -126,6 +154,8 @@ BOARD FACTS (verified; the only truth about this hardware):
 """
     includes = ", ".join("<" + h + ">" for h in ctx.allowed_includes)
     logging_ = f"{ctx.log_object}.println(...), started in setup() with: {' '.join(ctx.log_setup)}"
+    if ctx.custom_behavior:
+        return head + custom_task(ctx, includes, logging_)
     if ctx.signal_kind == "analog":
         return head + f"""
 BEHAVIOR: A sound level meter. The louder it is, the more columns of the LED matrix light up, from
@@ -187,6 +217,45 @@ THE STATIC ANALYZER REJECTS A SKETCH THAT:
 - uses while or for (loop() must poll and return), or any analog I/O"""
 
 
+def custom_task(ctx: CodegenContext, includes: str, logging_: str) -> str:
+    """The task for a build that was developed further: several inputs, behaviour in the user's words."""
+    off = "HIGH" if ctx.led_on_level == "LOW" else "LOW"
+    lines = []
+    for i in ctx.inputs:
+        if i.kind == "analog":
+            lines.append(f"- Input: {i.name}, analog output on header {i.header}. Read it with analogRead({i.header}) only. "
+                         "It swings around a resting level; do not assume an ADC range.")
+        else:
+            lines.append(f"- Input: {i.name}, digital output on header {i.header}, Arduino pin number {i.number}. "
+                         f"pinMode INPUT, read with digitalRead. It reads {i.active_level} while the sensor reports its event.")
+    previous = (f"\n\nTHE SKETCH THAT IS RUNNING NOW (it works; keep what should stay, change what the new behaviour "
+                f"needs):\n{ctx.previous_code}" if ctx.previous_code else "")
+    return f"""
+THE BUILD WAS DEVELOPED FURTHER. WHAT IT MUST DO NOW:
+{ctx.custom_behavior}
+
+HOW IT GOT HERE (the user's requests, oldest first):
+{chr(10).join("- " + r for r in ctx.project.requests) or "- (none)"}
+
+APPROVED HARDWARE ACCESS (nothing else may be touched):
+{chr(10).join(lines)}
+- Output: the LED matrix, {ctx.matrix_rows} rows by {ctx.matrix_columns} columns, brightness 0 to {ctx.matrix_max_brightness}, through {ctx.matrix_type}.
+- Output: {ctx.led_symbol}. pinMode OUTPUT. {ctx.led_on_level} turns it on, {off} turns it off.
+- Approved #include: {includes}
+- Logging: {logging_}
+
+REQUIRED:
+- Read every input listed above at least once.
+- Print READY once at the end of setup(), exactly this text on its own line.
+- for and while loops are allowed. Every while loop must end by time (millis()), so loop() keeps running.
+
+THE STATIC ANALYZER REJECTS A SKETCH THAT:
+{COMMON_RULES}
+- reads an analog input with anything but analogRead, or uses analogRead on any other pin
+- sets a digital input to anything but INPUT, or writes to it
+- uses digitalWrite on anything but {ctx.led_symbol}{previous}"""
+
+
 def repair_prompt(ctx: CodegenContext, previous: str, problems: str) -> str:
     return f"""{task_prompt(ctx)}
 
@@ -202,6 +271,8 @@ PREVIOUS SKETCH:
 
 def template_sketch(ctx: CodegenContext) -> GeneratedSketch:
     """Rule-based sketch for the same contract. Used without AI, and when no AI attempt passes."""
+    if ctx.custom_behavior:
+        return gated_level_meter_template(ctx)
     if ctx.signal_kind == "analog":
         return level_meter_template(ctx)
     off = "HIGH" if ctx.led_on_level == "LOW" else "LOW"
@@ -382,6 +453,44 @@ def display_summary(sketch: GeneratedSketch, limit: int = 180) -> str:
     return text if len(text) <= limit else text[:limit - 1].rsplit(" ", 1)[0] + "…"
 
 
+def gated_level_meter_template(ctx: CodegenContext) -> GeneratedSketch:
+    """Prevalidated sketch for one developed-further build: the level meter plus one digital sensor
+    that switches it on. Any other change needs the AI service."""
+    kinds = [i.kind for i in ctx.inputs]
+    if kinds != ["analog", "digital"]:
+        raise RuntimeError("This change needs the AI service: there is no prevalidated sketch for it.")
+    gate = ctx.inputs[1]
+    base = level_meter_template(ctx)
+    code = base.source_code
+
+    def patch(old: str, new: str) -> None:
+        nonlocal code
+        assert code.count(old) == 1, old
+        code = code.replace(old, new)
+
+    patch(f"const int MIC_PIN = {ctx.sensor_pin};\n",
+          f"const int MIC_PIN = {ctx.sensor_pin};\n"
+          f"const int GATE_PIN = {gate.number};  // header {gate.header}: {gate.name}\n"
+          f"const int GATE_ACTIVE_LEVEL = {gate.active_level};  // level while the sensor detects something\n")
+    patch("  matrix.clear();\n", "  matrix.clear();\n  pinMode(GATE_PIN, INPUT);\n")
+    patch("  // Light whole columns up to the level",
+          "  // Show the meter only while the second sensor detects something.\n"
+          "  if (digitalRead(GATE_PIN) != GATE_ACTIVE_LEVEL) shown = 0;\n\n"
+          "  // Light whole columns up to the level")
+    patch("// Wiring: sensor AO", f"// Wiring: {gate.name.split()[0]} OUT -> {gate.header}; microphone AO")
+    return GeneratedSketch(
+        source_code=code,
+        display_summary="The sound level appears on the LED matrix only while the infrared sensor sees something "
+                        "in front of it.",
+        explanation=(base.explanation + f" New: the sketch also reads the {gate.name} on {gate.header}. While it "
+                     "detects nothing, the bar is forced to zero and the matrix stays dark."),
+        assumptions=base.assumptions + [
+            f"The {gate.name} reads {gate.active_level} on {gate.header} while it detects something.",
+            "Both sensors share the board's single +3V3 pin.",
+        ],
+        expected_serial_events=base.expected_serial_events)
+
+
 def check_response(sketch: GeneratedSketch, ctx: CodegenContext) -> List[CodeIssue]:
     issues = codecheck.check_sketch(sketch.source_code, ctx)
     listed = {e.event for e in sketch.expected_serial_events}
@@ -470,7 +579,7 @@ class CodeGenerator:
                 prompt = repair_prompt(ctx, previous, problems)
 
         stage("Loading the prevalidated code")
-        sketch = template_sketch(ctx)
+        sketch = template_sketch(ctx)  # raises RuntimeError when there is none for this change
         attempt = self._gate(session_id, len(attempts), "template", sketch, [], ctx, stage)
         attempts.append(attempt)
         if attempt.issues:

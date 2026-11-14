@@ -18,6 +18,7 @@
         "toggle_on_event",
         "on_while_active",
         "level_meter",
+        "custom",
         "unsupported"
       ],
       "title": "Behavior",
@@ -527,6 +528,21 @@
       "title": "Diagnostic",
       "type": "object"
     },
+    "ExtendRequest": {
+      "description": "Develop a finished build further: add a known part, or change what it does.",
+      "properties": {
+        "instruction": {
+          "minLength": 1,
+          "title": "Instruction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "instruction"
+      ],
+      "title": "ExtendRequest",
+      "type": "object"
+    },
     "FactConfidence": {
       "enum": [
         "official_doc",
@@ -1000,6 +1016,11 @@
           "title": "Components",
           "type": "array"
         },
+        "custom_behavior": {
+          "default": "",
+          "title": "Custom Behavior",
+          "type": "string"
+        },
         "input_component": {
           "anyOf": [
             {
@@ -1016,6 +1037,14 @@
           "default": "builtin_led",
           "title": "Output",
           "type": "string"
+        },
+        "requests": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Requests",
+          "type": "array"
         },
         "summary": {
           "title": "Summary",

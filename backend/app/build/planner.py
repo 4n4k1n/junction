@@ -62,6 +62,38 @@ def plan_wiring(spec: ProjectSpec) -> List[WiringStep]:
     return steps
 
 
+def plan_extension(steps: List[WiringStep], component: str) -> List[WiringStep]:
+    """Wiring steps that add one more digital sensor to a finished build. The existing wiring stays.
+    The caller must run facts.check_safety on the old and new steps together."""
+    cat = facts.catalog()
+    pins, name = cat[component]["pins"], cat[component]["name"].split()[0]
+    used = {s.connection.to_pin.pin for s in steps if s.connection}
+    free = [p for p in cat[BOARD]["digital_input_preference"] if p not in used]
+    if not free:
+        raise ValueError("no free digital input pin left")
+    target = {"ground": "GND", "supply": "3V3", "digital_out": free[0]}
+    order = {"ground": 0, "supply": 1, "digital_out": 2}
+
+    new = [WiringStep(index=len(steps), display_text="Unplug the board's USB cable",
+                      spoken_text="Unplug the USB cable before you add the new part.")]
+    for pin in sorted((p for p in pins if pins[p]["kind"] in target), key=lambda p: order[pins[p]["kind"]]):
+        to = target[pins[pin]["kind"]]
+        label = cat[BOARD]["pins"][to].get("label", to)
+        shared = pins[pin]["kind"] == "supply"
+        new.append(WiringStep(
+            index=len(steps) + len(new),
+            display_text=f"{name} {pin} to board {label}" + (" (shared)" if shared else ""),
+            spoken_text=f"Connect the new sensor's pin labelled {pin} to {label} on the board."
+                        + (" The board has only one 3.3 volt pin. Share it with the first sensor, for example on "
+                           "a breadboard rail." if shared else ""),
+            connection=Connection(from_pin=PinRef(component=component, pin=pin),
+                                  to_pin=PinRef(component=BOARD, pin=to)),
+            fact_ids=[pins[pin]["fact"], cat[BOARD]["pins"][to]["fact"]]))
+    new.append(WiringStep(index=len(steps) + len(new), display_text="Plug USB back in",
+                          spoken_text="Plug the USB cable back in."))
+    return new
+
+
 def render_sketch(spec: ProjectSpec) -> Sketch:
     """The rule-based sketch for a spec (no AI), used by the offline POST /builds path."""
     from .codegen import build_context, template_sketch  # codegen builds on this module's plan

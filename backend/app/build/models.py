@@ -161,6 +161,7 @@ class Behavior(str, Enum):
     toggle_on_event = "toggle_on_event"  # each trigger flips the output
     on_while_active = "on_while_active"  # output follows the input
     level_meter = "level_meter"          # the louder the input, the more of the LED matrix lights up
+    custom = "custom"                    # a finished build that was developed further (see custom_behavior)
     unsupported = "unsupported"
 
 
@@ -174,6 +175,8 @@ class ProjectSpec(BaseModel):
     components: List[str] = []
     supported: bool = True
     unsupported_reason: str = ""
+    custom_behavior: str = ""   # what the whole build should do after it was developed further
+    requests: List[str] = []    # the user's follow-up requests, in order
 
 
 class InventoryItem(BaseModel):
@@ -235,6 +238,16 @@ class GuideStatus(BaseModel):
 
 # ---------- Code generation (POST /sessions/{id}/generate) ----------
 
+class InputPin(BaseModel):
+    """One sensor signal the sketch may read."""
+    component: str
+    name: str
+    header: str                  # "D2" or "A0"
+    number: Optional[int] = None  # Arduino pin number of a digital header
+    kind: str                    # digital | analog
+    active_level: str = ""       # digital: level on the pin while the sensor reports its event
+
+
 class CodegenContext(BaseModel):
     """Everything the generator may use. Built from the confirmed wiring plan and the hardware
     database, never from model output."""
@@ -255,6 +268,9 @@ class CodegenContext(BaseModel):
     matrix_rows: int = 0
     matrix_columns: int = 0
     matrix_max_brightness: int = 0
+    inputs: List[InputPin] = []   # every signal in the confirmed wiring, the first one is sensor_pin
+    custom_behavior: str = ""     # set when a finished build is developed further: free-form behaviour
+    previous_code: str = ""       # the sketch that was running before the change
     log_object: str          # e.g. Monitor
     log_setup: List[str]     # statements that start logging
     allowed_includes: List[str]
@@ -311,6 +327,11 @@ class GenerateRequest(BaseModel):
     sample_window_ms: Optional[int] = Field(default=None, ge=5, le=100)  # level meter only
 
 
+class ExtendRequest(BaseModel):
+    """Develop a finished build further: add a known part, or change what it does."""
+    instruction: str = Field(min_length=1)
+
+
 class GenerationResult(BaseModel):
     session_id: str
     build_id: str
@@ -343,4 +364,5 @@ class ConfirmStepRequest(BaseModel):
 API_MODELS = [
     Build, CreateBuildRequest, ApproveRequest, TestResultRequest, ClaimRequest, DeployJob, DeployResult,
     DeployEvent, GuideStatus, CreateGuideSessionRequest, ConfirmStepRequest, GenerateRequest, GenerationResult,
+    ExtendRequest,
 ]

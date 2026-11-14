@@ -115,11 +115,15 @@ def check_sketch(code: str, ctx: CodegenContext) -> List[CodeIssue]:
     for rule, pattern, message in DENYLIST:
         for m in re.finditer(pattern, bare):
             add(rule, f"{m.group(0).strip()}: {message}", m.start(), bare)
-    analog = ctx.signal_kind == "analog"
-    if not analog:
+    custom = bool(ctx.custom_behavior)
+    analog_in = {i.header for i in ctx.inputs if i.kind == "analog"}
+    digital_in = {name for i in ctx.inputs if i.kind == "digital" for name in (str(i.number), i.header)}
+    analog = bool(analog_in)
+    if not (analog or custom):
         # A digital project polls in loop(): no loops that could block, and no analog input.
         for m in re.finditer(r"\b(while|for)\b", bare):
             add("unsafe_loop", f"{m.group(0)}: loops are not allowed here: loop() must return quickly", m.start(), bare)
+    if not analog:
         for m in re.finditer(r"\banalogRead\b", bare):
             add("analog_io", "analogRead: this project uses digital I/O only", m.start(), bare)
 
@@ -135,22 +139,29 @@ def check_sketch(code: str, ctx: CodegenContext) -> List[CodeIssue]:
 
     # Pins: every pin argument must resolve, through const declarations, to an approved pin.
     constants = {name: value.strip() for name, value in CONST_DECL.findall(bare)}
-    sensor = {ctx.sensor_pin} if analog else {str(ctx.sensor_pin_number), ctx.sensor_pin}
-    led = {ctx.led_symbol} if ctx.output == "builtin_led" else set()
-    approved = f"{ctx.sensor_pin} as input" + (f", {ctx.led_symbol} as output" if led else "")
+    led = {ctx.led_symbol} if (ctx.output == "builtin_led" or custom) else set()
+    approved = ", ".join([f"{i.header} as input" for i in ctx.inputs] + [f"{name} as output" for name in led])
+    read_pins = set()
     for m in PIN_CALL.finditer(bare):
         call, arg, second = m.group(1), m.group(2).strip(), (m.group(3) or "").strip()
         if not (IDENT.match(arg) or arg.isdigit()):
             add("disallowed_pin", f"{call}({arg}): the pin must be a named constant", m.start(), bare)
             continue
         pin = _resolve(arg, constants)
-        if pin in sensor:
-            if analog and call != "analogRead":
+        if pin in analog_in:
+            if call != "analogRead":
                 add("disallowed_pin", f"{call}({arg}): read the analog sensor pin with analogRead only", m.start(), bare)
+            else:
+                read_pins.add(pin)
+        elif pin in digital_in:
+            if call == "analogRead":
+                add("disallowed_pin", f"analogRead({arg}): {pin} is a digital input", m.start(), bare)
             elif call == "digitalWrite":
                 add("unsafe_operation", f"digitalWrite on {arg}: the sensor output must never be driven", m.start(), bare)
             elif call == "pinMode" and _resolve(second, constants) != "INPUT":
                 add("unsafe_operation", f"pinMode({arg}, {second}): the sensor pin must be INPUT", m.start(), bare)
+            elif call == "digitalRead":
+                read_pins.add(pin)
         elif pin in led:
             if call == "pinMode" and _resolve(second, constants) != "OUTPUT":
                 add("unsafe_operation", f"pinMode({arg}, {second}): the LED pin must be OUTPUT", m.start(), bare)
@@ -162,12 +173,13 @@ def check_sketch(code: str, ctx: CodegenContext) -> List[CodeIssue]:
     for name in ("setup", "loop"):
         if not re.search(rf"\bvoid\s+{name}\s*\(\s*(void)?\s*\)", bare):
             add("missing_function", f"void {name}() is missing")
-    read = "analogRead" if analog else "digitalRead"
-    if not any(m.group(1) == read for m in PIN_CALL.finditer(bare)):
-        add("missing_input", f"the sensor pin is never read with {read}")
-    if ctx.output == "led_matrix" and not re.search(rf"\b{ctx.matrix_type}\s+\w+", bare):
+    for i in ctx.inputs:
+        if not ({i.header, str(i.number)} & read_pins):
+            add("missing_input", f"the sensor on {i.header} is never read with "
+                                 f"{'analogRead' if i.kind == 'analog' else 'digitalRead'}")
+    if ctx.output == "led_matrix" and not custom and not re.search(rf"\b{ctx.matrix_type}\s+\w+", bare):
         add("missing_output", f"no {ctx.matrix_type} object is declared")
-    expected = ({"SAMPLE_WINDOW_MS": str(ctx.sample_window_ms)} if analog
+    expected = ({} if custom else {"SAMPLE_WINDOW_MS": str(ctx.sample_window_ms)} if analog
                 else {"SENSOR_ACTIVE_LEVEL": ctx.sensor_active_level, "DEBOUNCE_MS": str(ctx.debounce_ms)})
     for name, value in expected.items():
         got = re.sub(r"(?<=\d)[uUlL]+$", "", constants.get(name, ""))
@@ -177,7 +189,7 @@ def check_sketch(code: str, ctx: CodegenContext) -> List[CodeIssue]:
             add("wrong_parameter", f"{name} is {got}, the confirmed value is {value}")
         elif len(re.findall(rf"\b{name}\b", bare)) < 2:
             add("unused_parameter", f"{name} is declared but never used")
-    if not re.search(r"\bmillis\s*\(\s*\)", bare):
+    if not custom and not re.search(r"\bmillis\s*\(\s*\)", bare):
         add("missing_debounce", "millis() is never used, so nothing is timed")
     if not re.search(rf"\b{ctx.log_object}\s*\.\s*begin\s*\(", bare):
         add("missing_logging", f"{ctx.log_object}.begin(...) is missing")

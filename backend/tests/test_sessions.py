@@ -76,7 +76,7 @@ def test_claude_request_carries_image_and_closed_component_enum():
     assert example.INSTRUCTION in text["text"]
     schema = req["output_config"]["format"]["schema"]
     ids = schema["properties"]["components"]["items"]["properties"]["component_id"]["enum"]
-    assert ids == ["ky-037", "uno-q", "unknown"] and schema["additionalProperties"] is False
+    assert ids == ["ky-032", "ky-037", "uno-q", "unknown"] and schema["additionalProperties"] is False
     system = " ".join(b["text"] for b in req["system"])
     assert "3.3" not in system and "D2" not in system  # the model is never handed specs to repeat
     assert req["model"] and req["fallbacks"] == "default"

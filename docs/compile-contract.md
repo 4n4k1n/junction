@@ -74,6 +74,12 @@ LED matrix through `<Arduino_LED_Matrix.h>`, `for` and `while` loops are allowed
 parameter is `SAMPLE_WINDOW_MS` (request field `sample_window_ms`, 5..100), and the only required log
 line is `READY`.
 
+A build that was developed further (`behavior: custom`) is checked against every input in the wiring:
+analog inputs with `analogRead` only, digital inputs as `INPUT` and never written, `LED_BUILTIN` as the
+only writable pin, both approved headers, loops allowed, `READY` required, and every input must be read
+at least once. There are no required parameter constants. Claude gets the running sketch as a starting
+point. Without AI, the only prevalidated combination is the level meter gated by the KY-032.
+
 Not checked statically: whether the edge-detection logic is correct. The prompt requires it, the
 template implements it, and the user sees the code before approving.
 

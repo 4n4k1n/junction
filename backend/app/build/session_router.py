@@ -6,10 +6,13 @@ POST /sessions/{id}/analyze       multipart: image and/or confirmed_inventory (J
                                   during/after wiring: review a photo of the wiring (never a verification)
 POST /sessions/{id}/confirm-step  the user confirms the current wiring step
 POST /sessions/{id}/generate      write, check and compile the sketch; never uploads
+POST /sessions/{id}/extend        develop a finished build further: add a known part or change what it does
 GET  /sessions/{id}/status
 
 State machine:
   awaiting_analysis -> needs_confirmation -> wiring -> wiring_complete -> code_generated (build awaiting approval)
+  code_generated -(extend: new part)-> needs_confirmation -> wiring (new steps only) -> wiring_complete -> ...
+  code_generated -(extend: behaviour only)-> wiring_complete -> ...
                     -> unsupported | blocked (terminal: start a new session)
 
 The plan is released only when every required part is either seen with high confidence or
@@ -29,7 +32,7 @@ from pydantic import TypeAdapter, ValidationError
 from . import codegen, demo, facts, planner
 from .analyzer import Analyzer, to_spec
 from .models import (
-    BuildStatus, ConfirmationKind, ConfirmStepRequest, CreateGuideSessionRequest, GenerateRequest,
+    Behavior, BuildStatus, ConfirmationKind, ConfirmStepRequest, CreateGuideSessionRequest, ExtendRequest, GenerateRequest,
     GenerationResult, GuideState, GuideStatus, InventoryItem, PendingConfirmation, Provenance, WiringReview,
 )
 from .router import ALLOWED_MEDIA, MAX_IMAGE_BYTES, builds, create_awaiting_approval
@@ -44,6 +47,7 @@ REVIEW_DISCLAIMER = ("A photo cannot verify an electrical connection. Check each
 
 # In-memory, like builds: sessions are lost on restart.
 sessions: Dict[str, GuideStatus] = {}
+running_code: Dict[str, str] = {}  # per session: the sketch before the build was developed further
 _inventory = TypeAdapter(List[InventoryItem])
 
 
@@ -115,14 +119,16 @@ def _advance(s: GuideStatus) -> None:
         first = s.pending_confirmations[0]
         _say(s, "Please confirm your parts", first.question)
         return
-    steps = planner.plan_wiring(s.project)
+    # A build that is being developed further keeps its confirmed wiring; only the added steps are open.
+    steps = s.wiring_steps if s.project.requests else planner.plan_wiring(s.project)
     s.safety_problems = facts.check_safety(steps)
     if s.safety_problems:
         s.state = GuideState.blocked
         _say(s, "Stopped: wiring not safe", "I stopped because the wiring plan failed a safety check.")
         return
-    s.wiring_steps, s.current_step, s.state = steps, 0, GuideState.wiring
-    _say(s, steps[0].display_text, steps[0].spoken_text)
+    first_open = next(i for i in range(len(steps)) if i not in s.confirmed_steps)
+    s.wiring_steps, s.current_step, s.state = steps, first_open, GuideState.wiring
+    _say(s, steps[first_open].display_text, steps[first_open].spoken_text)
 
 
 async def _read_image(image: Optional[UploadFile]):
@@ -217,7 +223,7 @@ def generate(session_id: str, req: Optional[GenerateRequest] = None):
         raise HTTPException(409, {"error": "wiring plan is not valid", "problems": problems})
 
     ctx = codegen.build_context(s.project, s.wiring_steps, req.sensor_active_level, req.debounce_ms,
-                                req.sample_window_ms)
+                                req.sample_window_ms, previous_code=running_code.get(s.session_id, ""))
     try:
         s.generation_progress = []
         # Runs in a worker thread; GET /status can be polled meanwhile to show the current stage.
@@ -239,13 +245,64 @@ def generate(session_id: str, req: Optional[GenerateRequest] = None):
         explanation=generated.explanation, display_summary=codegen.display_summary(generated),
         assumptions=generated.assumptions,
         expected_serial_events=generated.expected_serial_events,
-        parameters=({"SAMPLE_WINDOW_MS": ctx.sample_window_ms, "sensor_pin": ctx.sensor_pin, "output": ctx.output,
+        parameters=({"inputs": [f"{i.name} on {i.header}" for i in ctx.inputs], "fqbn": ctx.fqbn}
+                    if ctx.custom_behavior else
+                    {"SAMPLE_WINDOW_MS": ctx.sample_window_ms, "sensor_pin": ctx.sensor_pin, "output": ctx.output,
                      "fqbn": ctx.fqbn} if ctx.signal_kind == "analog" else
                     {"SENSOR_ACTIVE_LEVEL": ctx.sensor_active_level, "DEBOUNCE_MS": ctx.debounce_ms,
                      "sensor_pin": ctx.sensor_pin, "led": ctx.led_symbol, "led_on_level": ctx.led_on_level,
                      "fqbn": ctx.fqbn}),
         attempts=attempts, repairs_used=sum(a.kind == "repair" for a in attempts),
         compile=codegen.final_compile(attempts, ctx.fqbn), project_dir=attempts[-1].project_dir)
+
+
+@router.post("/sessions/{session_id}/extend", response_model=GuideStatus)
+def extend(session_id: str, req: ExtendRequest):
+    """Develop a finished build further. A new part goes through confirmation and its own wiring
+    steps; a behaviour change goes straight to code generation. Either way the new sketch needs
+    a new approval before anything is uploaded."""
+    s = _load(session_id, GuideState.code_generated)
+    build = builds.get(s.build_id) if s.build_id else None
+    if build is not None and build.status in (BuildStatus.approved, BuildStatus.deploying):
+        raise HTTPException(409, "an upload is in progress")
+
+    proposal, _ = analyzer.extend(req.instruction.strip(), s.project)
+    cat = facts.catalog()
+    if proposal.kind == "unsupported" or proposal.kind not in ("add_part", "change_behavior"):
+        raise HTTPException(422, proposal.reason or "I can't do that with the parts I know.")
+    steps = list(s.wiring_steps)
+    if proposal.kind == "add_part":
+        cid = proposal.component_id
+        if cid not in cat or cat[cid]["role"] != "sensor" or cid in s.project.components:
+            raise HTTPException(422, "I don't know a part for that yet.")
+        try:
+            steps += planner.plan_extension(steps, cid)
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+
+    project = s.project.model_copy(deep=True)
+    project.behavior = Behavior.custom
+    project.custom_behavior = proposal.behavior or req.instruction.strip()
+    project.requests.append(req.instruction.strip())
+    if proposal.kind == "add_part":
+        project.components.append(proposal.component_id)
+    if generator.client is None:
+        # Without the AI service only prevalidated combinations can be built.
+        try:
+            codegen.template_sketch(codegen.build_context(project, steps))
+        except RuntimeError as e:
+            raise HTTPException(422, str(e))
+
+    if build is not None and build.sketch is not None:
+        running_code[s.session_id] = build.sketch.code
+    s.project, s.wiring_steps = project, steps
+    s.build_id, s.review, s.generation_progress = None, None, []
+    if proposal.kind == "add_part":
+        _advance(s)  # confirmations for the new part, then only the new wiring steps
+    else:
+        s.current_step, s.state = None, GuideState.wiring_complete
+        _say(s, "Updating the code", "No new wiring needed. I am updating the code now.")
+    return s
 
 
 @router.get("/sessions/{session_id}/status", response_model=GuideStatus)

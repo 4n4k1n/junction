@@ -160,6 +160,11 @@ struct GuideView: View {
     case .success:
       Section("Success") {
         Text(model.isSimulatedDeploy ? "Flow complete with a SIMULATED upload. No board was flashed." : "The build works.")
+        // Keep developing the same build: add a known part, or change what it does.
+        TextField("Add a part or change what it does", text: $model.extensionText, axis: .vertical)
+          .onSubmit { Task { await model.pushCard() } }
+        Button("Continue building") { Task { await model.submitExtension() } }
+          .disabled(model.extensionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         Button("New build") { Task { await model.reset() } }
       }
     case .error(let message):
@@ -200,7 +205,7 @@ struct GuideView: View {
         }
       }
       .onChange(of: model.speech.transcript) { _, text in
-        if !text.isEmpty { model.goal = text }
+        if !text.isEmpty { model.heard(text) }
       }
       if let message = model.glassesSpeech.errorMessage ?? model.speech.errorMessage {
         Text(message).font(.footnote).foregroundStyle(.secondary)

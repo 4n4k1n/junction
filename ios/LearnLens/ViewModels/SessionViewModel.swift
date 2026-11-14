@@ -53,6 +53,8 @@ final class SessionViewModel {
   let glassesSpeech: GlassesSpeechService
 
   var goal = ""
+  /// After a finished build: what the user wants to add or change next.
+  var extensionText = ""
   var backendURL: String {
     didSet { UserDefaults.standard.set(backendURL, forKey: Self.backendURLKey) }
   }
@@ -123,10 +125,10 @@ final class SessionViewModel {
 
   /// Started from the glasses card. Uses the glasses microphone when possible, else the iPhone's.
   func startVoiceInput() async {
-    guard isIdle, !isListening else { return }
+    guard isIdle || flow == .success, !isListening else { return }
     if let session = glasses.session, !glasses.isSimulated {
       let started = await glassesSpeech.start(on: session) { [weak self] text in
-        self?.goal = text
+        self?.heard(text)
         Task { await self?.pushCard() }
       }
       if started {
@@ -143,9 +145,39 @@ final class SessionViewModel {
       glassesSpeech.finish()
     } else {
       speech.stop()
-      if !speech.transcript.isEmpty { goal = speech.transcript }
+      if !speech.transcript.isEmpty { heard(speech.transcript) }
     }
     await pushCard()
+  }
+
+  /// Spoken text is the goal before a build, and the follow-up request after a finished one.
+  func heard(_ text: String) {
+    if flow == .success {
+      extensionText = text
+    } else {
+      goal = text
+    }
+  }
+
+  // MARK: - Developing a finished build further
+
+  /// Sends the follow-up request. A new part leads to its confirmation and wiring steps; a behaviour
+  /// change goes straight to new code. Either way the new sketch needs a new approval.
+  func submitExtension() async {
+    let request = extensionText.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard flow == .success, let guide, !request.isEmpty else { return }
+    do {
+      let status = try await api.extend(guide.sessionId, instruction: request)
+      extensionText = ""
+      build = nil
+      generation = nil
+      await apply(status)
+    } catch {
+      // Not fatal: the finished build stays as it is.
+      glasses.errorMessage = error.localizedDescription
+      extensionText = ""
+      await pushCard()
+    }
   }
 
   /// "Photo & start" on the glasses: glasses camera when there is one, otherwise start without a photo.
@@ -397,6 +429,7 @@ final class SessionViewModel {
     build = nil
     generation = nil
     deployError = nil
+    extensionText = ""
     guide = nil
     await setFlow(.connected)
   }
@@ -502,10 +535,26 @@ final class SessionViewModel {
         secondary: action("No") { await $0.reportTest(passed: false) }
       )
     case .success:
+      if isListening {
+        return GlassesCards.card(
+          caption: "Listening…",
+          text: "Say what to add or change.",
+          primary: action("Done") { await $0.finishVoiceInput() }
+        )
+      }
+      if !extensionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        return GlassesCards.card(
+          caption: demo + "Next",
+          text: extensionText,
+          primary: action("Go") { await $0.submitExtension() },
+          secondary: action("Speak again") { await $0.startVoiceInput() }
+        )
+      }
       return GlassesCards.card(
         caption: isSimulatedDeploy ? "Success · SIMULATED upload" : demo + "Success",
-        text: isSimulatedDeploy ? "Flow complete. No board was flashed." : "It works. Nice build!",
-        primary: action("New build") { await $0.reset() }
+        text: isSimulatedDeploy ? "Flow complete. No board was flashed." : "It works. Add a part or change what it does?",
+        primary: action("Add or change") { await $0.startVoiceInput() },
+        secondary: action("New build") { await $0.reset() }
       )
     case .error(let message):
       return GlassesCards.card(

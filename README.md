@@ -7,6 +7,11 @@ your approval a local agent uploads it to the board.
 Demo: *"Build a sound level meter"* with an Arduino UNO Q and a KY-037 sound sensor. The louder it
 is, the more of the board's 8×13 LED matrix lights up (sensor AO → A0).
 
+After a finished build you can keep going: say "add the infrared sensor so it only shows when my hand
+is near" or "make the bar blink when it is loud". A new part gets its own confirmation and wiring
+steps, then the sketch is regenerated for all parts and needs a new approval. Known parts: Arduino
+UNO Q, KY-037 sound sensor, KY-032 infrared obstacle sensor.
+
 An earlier project, the clap-activated light, is still in the code and its tests but is no longer
 offered. `LEARNLENS_OFFERED_PROJECTS=level_meter,toggle_on_event` switches it back on.
 

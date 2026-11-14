@@ -63,6 +63,12 @@ struct APIClient: Sendable {
     try await decode(jsonRequest("/sessions/\(id)/confirm-step", ["step_index": index, "confirmed": confirmed]))
   }
 
+  /// Develops a finished build further: "add the infrared sensor", "make it blink when loud".
+  /// The backend answers 422 with a reason when it cannot do that.
+  func extend(_ id: String, instruction: String) async throws -> GuideStatus {
+    try await decode(jsonRequest("/sessions/\(id)/extend", ["instruction": instruction]))
+  }
+
   func status(_ id: String) async throws -> GuideStatus {
     try await decode(request("GET", "/sessions/\(id)/status"))
   }

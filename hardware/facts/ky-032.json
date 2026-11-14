@@ -1,0 +1,66 @@
+{
+  "component": "ky-032",
+  "name": "KY-032 infrared obstacle sensor",
+  "role": "sensor",
+  "senses": "an object or hand in front of it",
+  "projects": [],
+  "identification": "Small PCB with two LEDs side by side sticking out at the front (one clear infrared emitter, one dark receiver), two blue trim potentiometers, a small green or yellow jumper, and 4 header pins at the back.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-032"
+  },
+  "pins": {
+    "GND": {
+      "kind": "ground",
+      "fact": "ky032-pins"
+    },
+    "+": {
+      "kind": "supply",
+      "min_v": 3.3,
+      "max_v": 5.0,
+      "fact": "ky032-supply"
+    },
+    "OUT": {
+      "kind": "digital_out",
+      "high_level": "supply",
+      "active_level": "LOW",
+      "fact": "ky032-output"
+    },
+    "EN": {
+      "kind": "not_connected",
+      "fact": "ky032-enable"
+    }
+  },
+  "confirmations": [
+    {
+      "id": "ky032-pin-labels",
+      "question": "Read the 4 pin labels on the infrared sensor. Are they GND, +, OUT and EN, and is the small jumper plugged in?",
+      "reason": "Clone modules differ. The wiring plan is only valid for a module with these labels and with the EN jumper in place."
+    }
+  ],
+  "facts": [
+    {
+      "id": "ky032-pins",
+      "statement": "The module has four pins: ground (GND), supply (+ or +V), signal (OUT) and enable (EN). Go by the printed labels.",
+      "source": "Joy-IT SensorKit, KY-032 (vendor documentation for the Joy-IT module; clones may differ)",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky032-supply",
+      "statement": "The vendor wires the module to 3.3 V on Raspberry Pi and Pico and to 5 V on a classic Arduino. No supply rating is published.",
+      "source": "Joy-IT SensorKit, KY-032, wiring tables",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky032-output",
+      "statement": "The signal pin is LOW while an obstacle is detected and HIGH otherwise. An LED on the module lights while it detects something. Powered from 3.3 V the signal cannot rise above 3.3 V.",
+      "source": "Joy-IT SensorKit, KY-032, code example and description",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky032-enable",
+      "statement": "The EN pin stays unconnected. With the jumper in place, as delivered, the sensor is always active.",
+      "source": "Joy-IT SensorKit, KY-032, description of the EN jumper",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

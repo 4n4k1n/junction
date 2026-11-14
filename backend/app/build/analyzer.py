@@ -60,7 +60,63 @@ def offered() -> List[Behavior]:
 
 
 def _sensor_ids() -> List[str]:
-    return [cid for cid, c in facts.catalog().items() if c["role"] == "sensor"]
+    """Sensors a new project can start with. Others can only be added to a finished build."""
+    return [cid for cid, c in facts.catalog().items() if c["role"] == "sensor" and c.get("projects")]
+
+
+def addable_sensors(spec: ProjectSpec) -> List[str]:
+    return [cid for cid, c in facts.catalog().items() if c["role"] == "sensor" and cid not in spec.components]
+
+
+class ExtensionProposal(BaseModel):
+    kind: str                  # add_part | change_behavior | unsupported
+    component_id: str = "none"  # the part to add, from the hardware database
+    behavior: str = ""         # what the whole build should do afterwards
+    reason: str = ""           # for the user, when unsupported
+
+
+def extension_schema(spec: ProjectSpec) -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "kind": {"type": "string", "enum": ["add_part", "change_behavior", "unsupported"]},
+            "component_id": {"type": "string", "enum": addable_sensors(spec) + ["none"]},
+            "behavior": {"type": "string"},
+            "reason": {"type": "string"},
+        },
+        "required": ["kind", "component_id", "behavior", "reason"],
+        "additionalProperties": False,
+    }
+
+
+EXTEND_SYSTEM = """A beginner has finished a small hardware build with LearnLens and now wants to develop it
+further. Decide what their request means.
+
+kind:
+- add_part: they ask for something that needs one of the KNOWN PARTS that is not in the build yet.
+  Set component_id to that part.
+- change_behavior: the parts already wired are enough; only what the build does should change.
+  component_id is "none".
+- unsupported: it needs a part that is not a known part, or more than one new part at once.
+  Give a one-sentence reason for the user.
+
+behavior: one or two plain sentences describing what the whole build should do after the change,
+including what it did before if that should stay. This text is handed to the code generator.
+
+Never state pin names, voltages or wiring. Those come from a verified hardware database."""
+
+
+def keyword_extension(instruction: str, spec: ProjectSpec) -> ExtensionProposal:
+    """Offline stand-in for the model's reading of a follow-up request."""
+    import re
+
+    text = instruction.lower()
+    wants_ir = re.search(r"\b(ir|infrared|infrarot|obstacle|hindernis|hand|proximity|distance|ky-?032)\b", text)
+    if wants_ir and "ky-032" in addable_sensors(spec):
+        return ExtensionProposal(kind="add_part", component_id="ky-032",
+                                 behavior="Keep the previous behaviour, but only while the infrared sensor detects "
+                                          "something in front of it. Otherwise all LEDs stay off.")
+    return ExtensionProposal(kind="change_behavior", behavior=instruction.strip())
 
 
 def analysis_schema() -> dict:
@@ -246,6 +302,16 @@ class ClaudeAnalyzer:
                 c.component_id = UNKNOWN  # an id outside the database is never passed on
         return analysis
 
+    def extend(self, instruction: str, spec: ProjectSpec) -> ExtensionProposal:
+        cat = facts.catalog()
+        known = "\n".join(f"- {cid} ({cat[cid]['name']}): senses {cat[cid]['senses']}" for cid in addable_sensors(spec))
+        text = (f"THE BUILD SO FAR: {spec.title}. {spec.custom_behavior or spec.summary}\n"
+                f"PARTS ALREADY WIRED: {', '.join(cat[c]['name'] for c in spec.components)}\n"
+                f"KNOWN PARTS THAT COULD BE ADDED:\n{known or '(none)'}\n\n"
+                f"THE USER NOW SAYS: {instruction}")
+        return ExtensionProposal.model_validate(
+            self._ask([{"type": "text", "text": EXTEND_SYSTEM}], [{"type": "text", "text": text}], extension_schema(spec)))
+
     def review(self, image: bytes, media_type: str, steps: List[WiringStep]) -> ReviewFindings:
         content = [self._image(image, media_type), {"type": "text", "text": _steps_block(steps)}]
         return ReviewFindings.model_validate(
@@ -287,6 +353,16 @@ class Analyzer:
             log.exception("analysis call failed: %s", e)
         # Detect nothing rather than guess: the session then asks the user to confirm each part.
         return Analysis(components=[], project=keyword_project(instruction)), "fallback"
+
+    def extend(self, instruction: str, spec: ProjectSpec) -> Tuple[ExtensionProposal, str]:
+        """What a follow-up request on a finished build means. Falls back to keywords without AI."""
+        if self.claude is None or self.mode == "demo":
+            return keyword_extension(instruction, spec), "demo" if self.mode == "demo" else "mock"
+        try:
+            return self.claude.extend(instruction, spec), "llm"
+        except Exception as e:
+            log.exception("extension call failed: %s", e)
+        return keyword_extension(instruction, spec), "fallback"
 
     def review(self, image: bytes, media_type: str, steps: List[WiringStep]) -> Tuple[ReviewFindings, str]:
         if self.claude is None:
