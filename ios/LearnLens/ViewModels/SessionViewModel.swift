@@ -57,6 +57,8 @@ final class SessionViewModel {
   var extensionText = ""
   /// The backend asked what a new part should do. The answer is sent together with the first request.
   private(set) var extensionQuestion: String?
+  /// Why the last follow-up request cannot be built. Shown with ideas that would work.
+  private(set) var extensionProblem: String?
   /// Example answers to that question, for a user who has no idea yet.
   private(set) var extensionIdeas: [String] = []
   private var showingIdeas = false
@@ -183,6 +185,7 @@ final class SessionViewModel {
     guard isIdle || flow == .success || flow == .guiding, !isListening else { return }
     cancelAutoGo()
     speaker.stop()  // do not record our own voice
+    if flow == .success { extensionProblem = nil }  // a new attempt replaces the last rejection
     isAskingByVoice = flow == .guiding
     if let session = glasses.session, !glasses.isSimulated {
       let started = await glassesSpeech.start(on: session) { [weak self] text in
@@ -289,6 +292,18 @@ final class SessionViewModel {
     do {
       let status = try await api.extend(guide.sessionId, instruction: request)
       extensionText = ""
+      if !status.extensionProblem.isEmpty {
+        // Cannot be built: say why, and offer requests that would work. Nothing was changed.
+        extensionProblem = status.extensionProblem
+        extensionIdeas = status.suggestions
+        extensionQuestion = nil
+        extensionBase = ""
+        showingIdeas = false
+        say(status.extensionProblem + (status.suggestions.isEmpty ? "" : " Here are some ideas that would work."))
+        await pushCard()
+        return
+      }
+      extensionProblem = nil
       if !status.clarification.isEmpty {
         // The part is clear but not its job: ask, and keep the finished build as it is.
         extensionQuestion = status.clarification
@@ -317,8 +332,9 @@ final class SessionViewModel {
       partPhoto = nil
       await apply(status)
     } catch {
-      // Not fatal: the finished build stays as it is.
+      // Not fatal: the finished build stays as it is. Say what went wrong on the glasses too.
       glasses.errorMessage = error.localizedDescription
+      extensionProblem = "That did not go through: " + error.localizedDescription
       extensionText = ""
       extensionQuestion = nil
       extensionIdeas = []
@@ -428,6 +444,7 @@ final class SessionViewModel {
     extensionIdeas = []
     showingIdeas = false
     extensionQuestion = nil
+    extensionProblem = nil
     extensionBase = ""
     extensionText = ""
     isExtending = false
@@ -681,6 +698,7 @@ final class SessionViewModel {
     extensionIdeas = []
     showingIdeas = false
     extensionBase = ""
+    extensionProblem = nil
     retryAction = nil
     canRetry = false
     boardProof = nil
@@ -890,6 +908,29 @@ final class SessionViewModel {
           text: extensionText,
           primary: action(autoGoSeconds > 0 ? "Go now" : "Go") { await $0.submitExtension() },
           secondary: action("Speak again") { await $0.startVoiceInput() }
+        )
+      }
+      if let extensionProblem, !showingIdeas {
+        // The request cannot be built: the reason, and a way to requests that would work.
+        return GlassesCards.card(
+          caption: "That doesn't work",
+          text: extensionProblem,
+          primary: extensionIdeas.isEmpty
+            ? action("Speak again") { await $0.startVoiceInput() }
+            : action("Ideas") { await $0.showIdeas(true) },
+          secondary: extensionIdeas.isEmpty ? nil : action("Speak again") { await $0.startVoiceInput() },
+          tertiary: action("Cancel") { await $0.cancelExtension() }
+        )
+      }
+      if extensionQuestion != nil || extensionProblem != nil, showingIdeas {
+        return GlassesCards.choices(
+          caption: extensionProblem == nil ? "Ideas" : "These would work",
+          text: "Pick one, or go back and say your own.",
+          options: extensionIdeas.indices.map { index in
+            action(extensionIdeas[index]) { await $0.chooseIdea(index) }
+          },
+          primary: action("Back") { await $0.showIdeas(false) },
+          secondary: action("Cancel") { await $0.cancelExtension() }
         )
       }
       if let extensionQuestion {

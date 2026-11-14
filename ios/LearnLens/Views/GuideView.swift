@@ -184,6 +184,13 @@ struct GuideView: View {
           Button("Skip the photo") { Task { await model.skipPartPhoto() } }
           Button("Cancel", role: .destructive) { Task { await model.cancelExtension() } }
         } else {
+          if let problem = model.extensionProblem {
+            // The last request cannot be built: why, and requests that would work instead.
+            Text(problem).foregroundStyle(.red)
+            ForEach(Array(model.extensionIdeas.enumerated()), id: \.offset) { index, idea in
+              Button(idea) { Task { await model.chooseIdea(index) } }
+            }
+          }
           if let question = model.extensionQuestion {
             Text(question).font(.title3)  // the backend needs to know what the new part should do
             // Iterates over the values, not the indices: the list is emptied when an idea is chosen, and

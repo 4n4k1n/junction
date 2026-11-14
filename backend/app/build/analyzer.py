@@ -111,10 +111,14 @@ needs_purpose: true when they ask for a part but say nothing about what it shoul
 ("add the infrared sensor"). Then leave behavior empty: the user will be asked. Do not invent a
 purpose for them. Otherwise false.
 
-ideas: only with needs_purpose, otherwise empty. Three different things the new part could do in
-this particular build, for a user who has no idea yet. Each must work with the parts already wired
-plus the new one and nothing else, be a complete instruction they could have said themselves, and
-stay under 60 characters so it fits on a glasses display.
+ideas: with needs_purpose, three different things the new part could do in this particular build,
+for a user who has no idea yet. With unsupported, three requests that WOULD work instead and are as
+close as possible to what they wanted: each either adds one of the known parts that could be added
+and says what it should do, or changes the behaviour using only the parts already wired. Every idea
+must be a complete instruction they could have said themselves and stay under 60 characters so it
+fits on a glasses display. Otherwise empty.
+
+reason, with unsupported: say in one short sentence what is missing, in plain words.
 
 Never state pin names, voltages or wiring. Those come from a verified hardware database."""
 

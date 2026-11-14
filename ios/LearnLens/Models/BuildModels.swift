@@ -150,7 +150,8 @@ struct GuideStatus: Decodable, Sendable {
   let safetyProblems: [String]
   let generationProgress: [String]  // what code generation is doing; the last entry is current
   let clarification: String         // a question back to the user before a build can be developed further
-  let suggestions: [String]         // example answers to that question
+  let suggestions: [String]         // example answers to that question, or requests that would work
+  let extensionProblem: String      // why the last follow-up request cannot be built
   let buildId: String?
 }
 

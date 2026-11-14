@@ -236,7 +236,8 @@ class GuideStatus(BaseModel):
     safety_problems: List[str] = []
     generation_progress: List[str] = []  # what /generate is doing right now (last entry) and did before
     clarification: str = ""              # a question back to the user before /extend can go on
-    suggestions: List[str] = []          # 1-3 example answers to that question
+    suggestions: List[str] = []          # 1-3 example answers to that question, or requests that would work
+    extension_problem: str = ""          # why the last /extend request cannot be built (nothing was changed)
     build_id: Optional[str] = None
 
 

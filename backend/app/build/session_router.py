@@ -32,7 +32,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import TypeAdapter, ValidationError
 
 from . import codegen, demo, facts, planner
-from .analyzer import Analyzer, to_spec
+from .analyzer import Analyzer, addable_sensors, to_spec
 from .models import (
     AskRequest, StepAnswer, Behavior, BuildStatus, DetectedComponent, ConfirmationKind, ConfirmStepRequest, CreateGuideSessionRequest, ExtendRequest, GenerateRequest,
     GenerationResult, GuideState, GuideStatus, InventoryItem, PendingConfirmation, Provenance, WiringReview,
@@ -307,22 +307,34 @@ def extend(session_id: str, req: ExtendRequest):
 
     proposal, _ = analyzer.extend(req.instruction.strip(), s.project)
     cat = facts.catalog()
+
+    def cannot(reason: str) -> GuideStatus:
+        """The request cannot be built. Nothing changes; the user is told why and what would work."""
+        ideas = [" ".join(i.split())[:80] for i in proposal.ideas if i.strip()]
+        if not ideas and "ky-032" in addable_sensors(s.project):
+            ideas = [v["idea"] for v in demo.EXTENSION_VARIANTS.values()]  # these always work
+        s.extension_problem, s.suggestions, s.clarification = reason, ideas[:3], ""
+        return s
+
     if proposal.kind == "unsupported" or proposal.kind not in ("add_part", "change_behavior"):
-        raise HTTPException(422, proposal.reason or "I can't do that with the parts I know.")
+        return cannot(proposal.reason or "I can't do that with the parts I know.")
     steps = list(s.wiring_steps)
     if proposal.kind == "add_part":
         cid = proposal.component_id
-        if cid not in cat or cat[cid]["role"] != "sensor" or cid in s.project.components:
-            raise HTTPException(422, "I don't know a part for that yet.")
+        if cid not in cat or cat[cid]["role"] != "sensor":
+            return cannot("I don't know a part for that yet.")
+        if cid in s.project.components:
+            return cannot(f"The {cat[cid]['name']} is already part of this build.")
         if proposal.needs_purpose or not proposal.behavior.strip():
             # The part is clear, its job is not: ask instead of deciding for the user. Nothing changes yet.
             s.clarification = f"What should the {cat[cid]['name']} do in your build?"
             s.suggestions = [" ".join(i.split())[:80] for i in proposal.ideas if i.strip()][:3]
+            s.extension_problem = ""
             return s
         try:
             steps += planner.plan_extension(steps, cid)
-        except ValueError as e:
-            raise HTTPException(422, str(e))
+        except ValueError:
+            return cannot("There is no free pin left on the board for another sensor.")
 
     project = s.project.model_copy(deep=True)
     project.behavior = Behavior.custom
@@ -334,13 +346,14 @@ def extend(session_id: str, req: ExtendRequest):
         # Without the AI service only prevalidated combinations can be built.
         try:
             codegen.template_sketch(codegen.build_context(project, steps))
-        except RuntimeError as e:
-            raise HTTPException(422, str(e))
+        except RuntimeError:
+            return cannot("Changing what the build does needs the AI service, which is not available right now.")
 
     if build is not None and build.sketch is not None:
         running_code[s.session_id] = build.sketch.code
     s.project, s.wiring_steps = project, steps
     s.build_id, s.review, s.generation_progress, s.clarification, s.suggestions = None, None, [], "", []
+    s.extension_problem = ""
     if proposal.kind == "add_part":
         _advance(s)  # confirmations for the new part, then only the new wiring steps
     else:

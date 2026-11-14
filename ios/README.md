@@ -79,6 +79,9 @@ steps; a behaviour change goes directly to new code.
 Options on the phone: **Read steps aloud** (on by default) and **Voice commands while wiring**
 ("next", "back"; experimental, only after glasses speech has worked once in the session).
 
+A follow-up request that cannot be built is answered on the glasses with the reason ("That doesn't
+work: …") and **Ideas** that would work instead; picking one continues with it.
+
 A failed step shows **Retry** next to **Start over**. During the test, a `LOUD` line from the board
 confirms the build without a button press.
 

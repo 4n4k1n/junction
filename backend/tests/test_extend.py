@@ -104,9 +104,12 @@ def test_adding_a_part_keeps_the_old_wiring_and_asks_only_for_the_new_steps():
 
 def test_changing_behaviour_needs_the_ai_and_then_skips_wiring():
     sid, first = finished_level_meter()
-    r = extend(sid, "Make the bar blink when it is very loud", expect=422)
-    assert "needs the AI service" in r["detail"]
-    assert client.get(f"/sessions/{sid}/status").json()["state"] == "code_generated"      # nothing changed
+    r = extend(sid, "Make the bar blink when it is very loud")
+    assert "needs the AI service" in r["extension_problem"]                               # said why ...
+    assert r["suggestions"][0] == "Show the sound level only while a hand is near"        # ... and what would work
+    assert r["state"] == "code_generated" and r["project"]["behavior"] == "level_meter"   # nothing changed
+    assert extend(sid, r["suggestions"][0])["state"] == "needs_confirmation"              # a suggestion is a full request
+    sid, first = finished_level_meter()
 
     blinking = first["sketch"]["code"].replace("  matrix.draw(frame);", "  if (shown < COLUMNS || millis() % 200 < 100) matrix.draw(frame);")
     fake_ai = example.use_fake_ai({"kind": "change_behavior", "component_id": "none", "reason": "",
@@ -128,10 +131,17 @@ def test_changing_behaviour_needs_the_ai_and_then_skips_wiring():
 
 def test_requests_that_cannot_be_built_change_nothing():
     sid, g = generated_level_meter()
-    example.use_fake_ai({"kind": "unsupported", "component_id": "none", "behavior": "", "reason": "A servo is not a known part."},
-                        {"kind": "add_part", "component_id": "ky-037", "behavior": "x", "reason": ""})
-    assert "servo" in extend(sid, "add a servo", expect=422)["detail"].lower()
-    extend(sid, "add another microphone", expect=422)                    # a part that is already in the build
+    fake = example.use_fake_ai(
+        {"kind": "unsupported", "component_id": "none", "behavior": "", "reason": "A servo is not a known part.",
+         "needs_purpose": False, "ideas": ["Add the IR sensor: wave to pause the meter", "Blink the bar when it is loud"]},
+        {"kind": "add_part", "component_id": "ky-037", "behavior": "x", "reason": ""})
+    r = extend(sid, "add a servo")
+    assert r["extension_problem"] == "A servo is not a known part."      # the reason, in the model's words
+    assert r["suggestions"] == ["Add the IR sensor: wave to pause the meter", "Blink the bar when it is loud"]
+    assert r["clarification"] == "" and r["state"] == "code_generated"
+    assert "three requests that WOULD work instead" in fake.requests[0]["system"][0]["text"]
+    r = extend(sid, "add another microphone")                            # a part that is already in the build
+    assert "already part of this build" in r["extension_problem"] and len(r["suggestions"]) == 3   # fallback ideas
     assert client.get(f"/sessions/{sid}/status").json()["project"]["behavior"] == "level_meter"
 
     fresh = client.post("/sessions", json={"instruction": "Build a sound level meter"}).json()["session_id"]

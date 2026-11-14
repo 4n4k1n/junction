@@ -844,6 +844,11 @@
           "title": "Display Text",
           "type": "string"
         },
+        "extension_problem": {
+          "default": "",
+          "title": "Extension Problem",
+          "type": "string"
+        },
         "generation_progress": {
           "default": [],
           "items": {
