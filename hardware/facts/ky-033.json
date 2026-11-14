@@ -1,0 +1,62 @@
+{
+  "component": "ky-033",
+  "name": "KY-033 line tracking sensor",
+  "role": "sensor",
+  "senses": "a dark line or a bright surface under it",
+  "projects": [],
+  "add_on": {
+    "signals": [
+      "S"
+    ]
+  },
+  "identification": "Very narrow long black PCB with a small black infrared sensor block at one end, one white-and-blue round trim potentiometer, an 8-pin chip and 3 angled header pins.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-033"
+  },
+  "pins": {
+    "G": {
+      "kind": "ground",
+      "fact": "ky033-pins"
+    },
+    "+V": {
+      "kind": "supply",
+      "min_v": 3.3,
+      "max_v": 5.0,
+      "say": "pin labelled plus V",
+      "fact": "ky033-supply"
+    },
+    "S": {
+      "kind": "digital_out",
+      "high_level": "supply",
+      "active_level": "HIGH",
+      "fact": "ky033-signal"
+    }
+  },
+  "confirmations": [
+    {
+      "id": "ky033-pin-labels",
+      "question": "Read the 3 pin labels on the line tracking sensor. Are they G, +V and S?",
+      "reason": "Clone modules differ. The wiring plan is only valid for a module with these labels."
+    }
+  ],
+  "facts": [
+    {
+      "id": "ky033-pins",
+      "statement": "The module has three pins: ground (G), supply (+V) and signal (S). Go by the printed labels.",
+      "source": "Joy-IT SensorKit, KY-033, pin drawing (vendor documentation for the Joy-IT module; clones may differ)",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky033-supply",
+      "statement": "The vendor wires the module to 3.3 V on Raspberry Pi, Pico or micro:bit and to 5 V on a classic Arduino. No supply rating is published.",
+      "source": "Joy-IT SensorKit, KY-033, wiring tables",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky033-signal",
+      "statement": "The signal is HIGH while the sensor is over a line (a light-absorbing surface) and LOW over a reflecting surface, where the LED on the module lights. Powered from 3.3 V the signal cannot rise above 3.3 V. The vendor's Arduino example switches on the board's internal pull-up resistor for this pin; LearnLens sketches do not, so whether the signal is stable without it is not confirmed.",
+      "source": "Joy-IT SensorKit, KY-033, description and code example",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "component": "ky-052",
+  "name": "KY-052 pressure and temperature sensor (BMP280)",
+  "role": "sensor",
+  "senses": "air pressure and temperature",
+  "projects": [],
+  "add_on": null,
+  "not_buildable": "It talks over a data bus (I2C). It needs an extra Arduino library, and LearnLens only compiles sketches with its two approved libraries.",
+  "identification": "Small square black PCB printed BMP280 with a tiny silver sensor can and 6 header pins.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-052"
+  },
+  "pins": {},
+  "confirmations": [],
+  "facts": [
+    {
+      "id": "ky052-about",
+      "statement": "The BMP280 measures air pressure (300 to 1100 hPa) and temperature and reports them over I2C or SPI. The vendor's example uses the Adafruit BMP280 library.",
+      "source": "Joy-IT SensorKit, KY-052, technical data and code example",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

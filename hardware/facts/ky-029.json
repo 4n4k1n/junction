@@ -1,0 +1,23 @@
+{
+  "component": "ky-029",
+  "name": "KY-029 two-colour LED (3 mm)",
+  "role": "actuator",
+  "senses": "",
+  "projects": [],
+  "add_on": null,
+  "not_buildable": "Each colour needs a series resistor and an output pin. It is an output part, and LearnLens sketches may only switch the board's own LEDs so far.",
+  "identification": "Small black PCB with 3 angled header pins at one end and a small milky white 3 mm LED with three legs, bent to point away from the board. The KY-011 is the same with a larger LED.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-029"
+  },
+  "pins": {},
+  "confirmations": [],
+  "facts": [
+    {
+      "id": "ky029-about",
+      "statement": "Red and green LED with a common cathode; forward voltage 2.0 V to 2.5 V at 20 mA. The vendor lists a series resistor of 120 ohm at 3.3 V.",
+      "source": "Joy-IT SensorKit, KY-029, technical data and series resistors",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

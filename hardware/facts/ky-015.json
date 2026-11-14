@@ -1,0 +1,23 @@
+{
+  "component": "ky-015",
+  "name": "KY-015 temperature and humidity sensor (DHT11)",
+  "role": "sensor",
+  "senses": "temperature and humidity",
+  "projects": [],
+  "add_on": null,
+  "not_buildable": "The sensor sends its readings as a coded data stream. It needs an extra Arduino library, and LearnLens only compiles sketches with its two approved libraries.",
+  "identification": "Small black PCB with 3 angled header pins at one end and a light blue plastic box with a grid of holes covering most of the board.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-015"
+  },
+  "pins": {},
+  "confirmations": [],
+  "facts": [
+    {
+      "id": "ky015-about",
+      "statement": "The DHT11 reports temperature (0 to 50 C) and humidity digitally, with a new reading about every 2 seconds. The vendor's example uses the Adafruit DHT sensor libraries.",
+      "source": "Joy-IT SensorKit, KY-015, technical data and code example",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

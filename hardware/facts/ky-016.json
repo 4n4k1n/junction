@@ -1,0 +1,23 @@
+{
+  "component": "ky-016",
+  "name": "KY-016 RGB LED (5 mm)",
+  "role": "actuator",
+  "senses": "",
+  "projects": [],
+  "add_on": null,
+  "not_buildable": "Each colour needs its own series resistor and an output pin. It is an output part, and LearnLens sketches may only switch the board's own LEDs so far.",
+  "identification": "Small black PCB with a clear 5 mm LED standing upright and 4 angled header pins labelled R, G, B, -.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-016"
+  },
+  "pins": {},
+  "confirmations": [],
+  "facts": [
+    {
+      "id": "ky016-about",
+      "statement": "Red, green and blue LED with a common cathode; forward voltage 1.8 V (red) and 2.8 V (green, blue) at 20 mA.",
+      "source": "Joy-IT SensorKit, KY-016, technical data",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

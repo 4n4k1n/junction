@@ -1,0 +1,23 @@
+{
+  "component": "ky-003",
+  "name": "KY-003 hall magnetic field switch",
+  "role": "sensor",
+  "senses": "a magnet",
+  "projects": [],
+  "add_on": null,
+  "not_buildable": "The vendor specifies it for 5 volts only, and its signal could then exceed what the board's inputs are rated for.",
+  "identification": "Small black PCB with 3 angled header pins at one end and a tiny flat black three-legged chip bent out past the board edge. The KY-035 looks the same; without a readable marking they cannot be told apart.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-003"
+  },
+  "pins": {},
+  "confirmations": [],
+  "facts": [
+    {
+      "id": "ky003-about",
+      "statement": "The vendor's technical data gives an operating voltage of 5 V and treats the module as a sensor with 5 V logic level that needs a level shifter on 3.3 V boards.",
+      "source": "Joy-IT SensorKit, KY-003, technical data and Raspberry Pi notes",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

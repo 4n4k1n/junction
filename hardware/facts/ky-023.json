@@ -1,0 +1,80 @@
+{
+  "component": "ky-023",
+  "name": "KY-023 joystick",
+  "role": "sensor",
+  "senses": "the stick's left-right and up-down position and a press on the stick",
+  "projects": [],
+  "add_on": {
+    "signals": [
+      "VRx",
+      "VRy",
+      "SW"
+    ]
+  },
+  "identification": "Square black PCB with a large black mushroom-shaped thumb stick and 5 angled header pins labelled GND, +5V, VRx, VRy, SW.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-023"
+  },
+  "pins": {
+    "GND": {
+      "kind": "ground",
+      "fact": "ky023-pins"
+    },
+    "+5V": {
+      "kind": "supply",
+      "min_v": 3.3,
+      "max_v": 5.0,
+      "say": "pin labelled plus 5V",
+      "fact": "ky023-supply"
+    },
+    "VRx": {
+      "kind": "analog_out",
+      "high_level": "supply",
+      "fact": "ky023-axes"
+    },
+    "VRy": {
+      "kind": "analog_out",
+      "high_level": "supply",
+      "fact": "ky023-axes"
+    },
+    "SW": {
+      "kind": "digital_out",
+      "high_level": "supply",
+      "active_level": "LOW",
+      "fact": "ky023-button"
+    }
+  },
+  "confirmations": [
+    {
+      "id": "ky023-pin-labels",
+      "question": "Read the 5 pin labels on the joystick. Are they GND, +5V, VRx, VRy and SW?",
+      "reason": "Clone modules differ. The wiring plan is only valid for a module with exactly these labels."
+    }
+  ],
+  "facts": [
+    {
+      "id": "ky023-pins",
+      "statement": "The module has five pins: ground (GND), supply (+5V), the two axis signals (VRx, VRy) and the button (SW).",
+      "source": "Joy-IT SensorKit, KY-023, pin drawing (vendor documentation for the Joy-IT module; clones may differ)",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky023-supply",
+      "statement": "Although the supply pin is labelled +5V, the vendor wires it to 3.3 V on Raspberry Pi and micro:bit and to 5 V on a classic Arduino. No supply rating is published.",
+      "source": "Joy-IT SensorKit, KY-023, wiring tables",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky023-axes",
+      "statement": "Each axis is a potentiometer between supply and ground. VRx and VRy carry a voltage that is about half the supply at rest and moves towards ground or supply as the stick moves. Powered from 3.3 V they cannot rise above 3.3 V.",
+      "source": "Joy-IT SensorKit, KY-023, description",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky023-button",
+      "statement": "Pressing the stick operates a button on SW. The vendor's example reads 1 as not pressed and 0 as pressed, with the board's internal pull-up switched on; LearnLens sketches do not switch it on, so whether the button reads reliably is not confirmed.",
+      "source": "Joy-IT SensorKit, KY-023, code example",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

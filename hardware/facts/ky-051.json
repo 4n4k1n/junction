@@ -1,0 +1,23 @@
+{
+  "component": "ky-051",
+  "name": "KY-051 voltage translator (level shifter)",
+  "role": "module",
+  "senses": "",
+  "projects": [],
+  "add_on": null,
+  "not_buildable": "It is not a sensor: it converts signals between two voltage levels, and LearnLens does not plan wiring with it yet.",
+  "identification": "Small black PCB with a 14-pin chip in the middle and two rows of 6 upright pins along the long edges.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-051"
+  },
+  "pins": {},
+  "confirmations": [],
+  "facts": [
+    {
+      "id": "ky051-about",
+      "statement": "Four-channel level shifter between a lower voltage side (Vcca, A1 to A4) and a higher one (Vccb, B1 to B4). Vccb must be greater than or equal to Vcca.",
+      "source": "Joy-IT SensorKit, KY-051, description",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

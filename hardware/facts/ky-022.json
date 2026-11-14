@@ -1,0 +1,23 @@
+{
+  "component": "ky-022",
+  "name": "KY-022 infrared receiver",
+  "role": "sensor",
+  "senses": "infrared remote-control signals",
+  "projects": [],
+  "add_on": null,
+  "not_buildable": "It receives remote-control codes that have to be decoded. It needs an extra Arduino library, and LearnLens only compiles sketches with its two approved libraries.",
+  "identification": "Small black PCB with 3 angled header pins at one end and a receiver in a silver metal cage with a dark dome at the front.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-022"
+  },
+  "pins": {},
+  "confirmations": [],
+  "facts": [
+    {
+      "id": "ky022-about",
+      "statement": "The receiver turns 38 kHz infrared remote-control signals into a digital sequence; operating voltage 3.3 V to 5 V. The vendor's example uses the IRremote library.",
+      "source": "Joy-IT SensorKit, KY-022, technical data and code example",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

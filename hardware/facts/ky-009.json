@@ -1,0 +1,23 @@
+{
+  "component": "ky-009",
+  "name": "KY-009 RGB SMD LED",
+  "role": "actuator",
+  "senses": "",
+  "projects": [],
+  "add_on": null,
+  "not_buildable": "Each colour needs its own series resistor and an output pin. It is an output part, and LearnLens sketches may only switch the board's own LEDs so far.",
+  "identification": "Small black PCB with a flat square white LED chip in the middle and 4 angled header pins labelled -, R, G, B.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-009"
+  },
+  "pins": {},
+  "confirmations": [],
+  "facts": [
+    {
+      "id": "ky009-about",
+      "statement": "Red, green and blue LED with a common cathode; forward voltage 1.8 V (red) and 2.8 V (green, blue) at 20 mA. The vendor lists series resistors of 180 ohm (red) and 100 ohm (green, blue).",
+      "source": "Joy-IT SensorKit, KY-009, technical data and series resistors",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

@@ -85,7 +85,10 @@ For the compile check, install the board core once (see `agent/README.md`, Setup
 
 1. Add `hardware/facts/<id>.json` with `role`, `identification` (appearance only), `pins` (each with
    `kind`, limits and a `fact` id), `facts` (each with `source` and `confidence`), and `confirmations`
-   for anything only the user can check on the part.
+   for anything only the user can check on the part. A sensor that can be added to a build also gets
+   `add_on.signals` (the signal pins to wire). A pin without a printed label gets `show` and `say`
+   (how the wiring step names it on the display and in speech). A part that is only recognised gets
+   `not_buildable` (the reason, as told to the user), `add_on: null` and no pins.
 2. Values come from the maker's documentation. If there is none, mark the fact `vendor_doc` or
    `secondary` and add a confirmation question.
 3. Run the tests. `test_hardware_database_is_internally_consistent` checks the cross-references.

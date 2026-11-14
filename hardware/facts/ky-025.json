@@ -1,0 +1,67 @@
+{
+  "component": "ky-025",
+  "name": "KY-025 reed magnetic sensor",
+  "role": "sensor",
+  "senses": "a magnet nearby",
+  "projects": [],
+  "add_on": {
+    "signals": [
+      "DO"
+    ]
+  },
+  "identification": "Long narrow black PCB with a blue box-shaped trim potentiometer with a brass screw, an 8-pin chip and 4 angled header pins, and a thin greenish glass tube on two wires at the far end. The KY-021 has the same glass tube on a small 3-pin board.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-025"
+  },
+  "pins": {
+    "AO": {
+      "kind": "analog_out",
+      "high_level": "supply",
+      "fact": "ky025-signal"
+    },
+    "G": {
+      "kind": "ground",
+      "fact": "ky025-pins"
+    },
+    "+": {
+      "kind": "supply",
+      "min_v": 3.3,
+      "max_v": 5.0,
+      "say": "pin marked with a plus",
+      "fact": "ky025-supply"
+    },
+    "DO": {
+      "kind": "digital_out",
+      "high_level": "supply",
+      "active_level": "HIGH",
+      "fact": "ky025-signal"
+    }
+  },
+  "confirmations": [
+    {
+      "id": "ky025-pin-labels",
+      "question": "Read the 4 pin labels printed on the reed magnetic sensor. Are they AO, G, + and DO?",
+      "reason": "Clone modules differ. The wiring plan is only valid for a module with exactly these labels."
+    }
+  ],
+  "facts": [
+    {
+      "id": "ky025-pins",
+      "statement": "The module has four pins: analog signal (AO), ground (G), supply (+) and digital signal (DO). Go by the printed labels.",
+      "source": "Joy-IT SensorKit, KY-025, pin drawing (vendor documentation for the Joy-IT module; clones may differ)",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky025-supply",
+      "statement": "The vendor wires the module to 3.3 V on Raspberry Pi, Pico or micro:bit and to 5 V on a classic Arduino. No supply rating is published.",
+      "source": "Joy-IT SensorKit, KY-025, wiring tables",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky025-signal",
+      "statement": "A comparator drives DO high when the magnetic field at the reed contact exceeds the threshold set with the trim potentiometer, and a second LED on the module lights. AO carries the direct measurement, inverted: a higher measured value gives a lower voltage. Powered from 3.3 V, neither output can rise above 3.3 V.",
+      "source": "Joy-IT SensorKit, KY-025, 'Functionality of the sensor'",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

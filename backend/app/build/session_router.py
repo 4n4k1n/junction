@@ -321,8 +321,10 @@ def extend(session_id: str, req: ExtendRequest):
     steps = list(s.wiring_steps)
     if proposal.kind == "add_part":
         cid = proposal.component_id
-        if cid not in cat or cat[cid]["role"] != "sensor":
+        if cid not in cat:
             return cannot("I don't know a part for that yet.")
+        if not cat[cid].get("add_on"):
+            return cannot(cat[cid].get("not_buildable") or f"I can't build with the {cat[cid]['name']} yet.")
         if cid in s.project.components:
             return cannot(f"The {cat[cid]['name']} is already part of this build.")
         if proposal.needs_purpose or not proposal.behavior.strip():
@@ -334,7 +336,7 @@ def extend(session_id: str, req: ExtendRequest):
         try:
             steps += planner.plan_extension(steps, cid)
         except ValueError:
-            return cannot("There is no free pin left on the board for another sensor.")
+            return cannot(f"There is no free input pin left on the board for the {cat[cid]['name']}.")
 
     project = s.project.model_copy(deep=True)
     project.behavior = Behavior.custom

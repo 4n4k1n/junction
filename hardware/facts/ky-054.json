@@ -1,0 +1,65 @@
+{
+  "component": "ky-054",
+  "name": "KY-054 phototransistor",
+  "role": "sensor",
+  "senses": "brightness",
+  "projects": [],
+  "add_on": {
+    "signals": [
+      "S"
+    ]
+  },
+  "identification": "Small black PCB with 3 angled header pins at one end and a dark blue round cap on two legs, sticking out past the board edge.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-054"
+  },
+  "pins": {
+    "S": {
+      "kind": "analog_out",
+      "high_level": "supply",
+      "say": "pin marked S",
+      "fact": "ky054-signal"
+    },
+    "middle": {
+      "kind": "supply",
+      "min_v": 3.3,
+      "max_v": 5.0,
+      "show": "middle pin",
+      "say": "middle pin, the one between S and minus",
+      "fact": "ky054-supply"
+    },
+    "-": {
+      "kind": "ground",
+      "show": "minus pin",
+      "say": "pin marked with a minus",
+      "fact": "ky054-pins"
+    }
+  },
+  "confirmations": [
+    {
+      "id": "ky054-pin-labels",
+      "question": "Look at the 3 pins of the phototransistor. Is one marked S and one marked with a minus, with the third pin between them?",
+      "reason": "The pin order differs between modules. The wiring plan is only valid if S and minus are the outer pins and the supply pin is the one in the middle."
+    }
+  ],
+  "facts": [
+    {
+      "id": "ky054-pins",
+      "statement": "The module has three pins: signal (printed S), supply (+V, the middle pin) and ground (printed -). The vendor's drawing shows them in the order S, supply, -. Go by the printed markings.",
+      "source": "Joy-IT SensorKit, KY-054, pin drawing (vendor documentation for the Joy-IT module; clones may differ)",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky054-supply",
+      "statement": "The vendor's technical data gives an operating voltage of 3.3 V to 5 V.",
+      "source": "Joy-IT SensorKit, KY-054, technical data",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky054-signal",
+      "statement": "A phototransistor and a fixed 10 kilohm resistor form a voltage divider between supply and ground; the signal pin carries the divided voltage, which changes with brightness. Powered from 3.3 V the signal cannot rise above 3.3 V.",
+      "source": "Joy-IT SensorKit, KY-054, description and code example",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

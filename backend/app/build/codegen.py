@@ -96,7 +96,10 @@ def signal_inputs(steps: List[WiringStep]) -> List[InputPin]:
         board_pin = cat[c.to_pin.component]["pins"][header]
         if board_pin["kind"] != "gpio" or bool(board_pin.get("analog")) != analog or not re.fullmatch(r"[AD]\d+", header):
             raise ValueError(f"{header} is not a usable {'analog' if analog else 'digital'} header pin")
-        inputs.append(InputPin(component=c.from_pin.component, name=cat[c.from_pin.component]["name"], header=header,
+        part = cat[c.from_pin.component]
+        several = len((part.get("add_on") or {}).get("signals", [])) > 1  # then the pin says which signal this is
+        inputs.append(InputPin(component=c.from_pin.component,
+                               name=part["name"] + (f", its {c.from_pin.pin} signal" if several else ""), header=header,
                                number=None if analog else int(header[1:]), kind="analog" if analog else "digital",
                                active_level=pin.get("active_level", "")))
     return inputs
@@ -228,10 +231,12 @@ def custom_task(ctx: CodegenContext, includes: str, logging_: str) -> str:
     for i in ctx.inputs:
         if i.kind == "analog":
             lines.append(f"- Input: {i.name}, analog output on header {i.header}. Read it with analogRead({i.header}) only. "
-                         "It swings around a resting level; do not assume an ADC range.")
+                         "What its voltage means is in the facts below; do not assume an ADC range or a resting level.")
         else:
+            level = (f"It reads {i.active_level} while the sensor reports its event." if i.active_level else
+                     "No level is documented for it: react to changes of the level, as the facts below describe.")
             lines.append(f"- Input: {i.name}, digital output on header {i.header}, Arduino pin number {i.number}. "
-                         f"pinMode INPUT, read with digitalRead. It reads {i.active_level} while the sensor reports its event.")
+                         f"pinMode INPUT, read with digitalRead. {level}")
     previous = (f"\n\nTHE SKETCH THAT IS RUNNING NOW (it works; keep what should stay, change what the new behaviour "
                 f"needs):\n{ctx.previous_code}" if ctx.previous_code else "")
     return f"""

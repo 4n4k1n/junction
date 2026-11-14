@@ -1,0 +1,65 @@
+{
+  "component": "ky-013",
+  "name": "KY-013 temperature sensor (NTC)",
+  "role": "sensor",
+  "senses": "temperature",
+  "projects": [],
+  "add_on": {
+    "signals": [
+      "S"
+    ]
+  },
+  "identification": "Small black PCB with 3 angled header pins at one end and a tiny black bead on two thin wires sticking out past the board edge.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-013"
+  },
+  "pins": {
+    "S": {
+      "kind": "analog_out",
+      "high_level": "supply",
+      "say": "pin marked S",
+      "fact": "ky013-signal"
+    },
+    "middle": {
+      "kind": "supply",
+      "min_v": 3.3,
+      "max_v": 5.0,
+      "show": "middle pin",
+      "say": "middle pin, the one between S and minus",
+      "fact": "ky013-supply"
+    },
+    "-": {
+      "kind": "ground",
+      "show": "minus pin",
+      "say": "pin marked with a minus",
+      "fact": "ky013-pins"
+    }
+  },
+  "confirmations": [
+    {
+      "id": "ky013-pin-labels",
+      "question": "Look at the 3 pins of the temperature sensor (NTC). Is one marked S and one marked with a minus, with the third pin between them?",
+      "reason": "The pin order differs between modules. The wiring plan is only valid if S and minus are the outer pins and the supply pin is the one in the middle."
+    }
+  ],
+  "facts": [
+    {
+      "id": "ky013-pins",
+      "statement": "The module has three pins: signal (printed S), supply (+V, the middle pin) and ground (printed -). The vendor's drawing shows them in the order S, supply, -. Go by the printed markings.",
+      "source": "Joy-IT SensorKit, KY-013, pin drawing (vendor documentation for the Joy-IT module; clones may differ)",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky013-supply",
+      "statement": "The vendor's technical data gives an operating voltage of 3.3 V to 5 V.",
+      "source": "Joy-IT SensorKit, KY-013, technical data",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky013-signal",
+      "statement": "A thermistor and a fixed 10 kilohm resistor form a voltage divider between supply and ground; the signal pin carries the divided voltage, which changes with temperature. Powered from 3.3 V the signal cannot rise above 3.3 V.",
+      "source": "Joy-IT SensorKit, KY-013, description and code example",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

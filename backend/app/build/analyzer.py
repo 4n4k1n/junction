@@ -13,7 +13,7 @@ import base64
 import json
 import logging
 import os
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -65,7 +65,28 @@ def _sensor_ids() -> List[str]:
 
 
 def addable_sensors(spec: ProjectSpec) -> List[str]:
-    return [cid for cid, c in facts.catalog().items() if c["role"] == "sensor" and cid not in spec.components]
+    """Parts with wiring rules for adding them to a finished build (`add_on` in the hardware database)."""
+    return [cid for cid, c in facts.catalog().items() if c.get("add_on") and cid not in spec.components]
+
+
+def not_buildable() -> Dict[str, str]:
+    """Known parts LearnLens recognises but cannot build with yet, each with the reason for the user."""
+    return {cid: c["not_buildable"] for cid, c in facts.catalog().items() if c.get("not_buildable")}
+
+
+def _mentioned(text: str) -> Optional[str]:
+    """The known part a request names by its number ("KY-004", "ky 4") or its name ("the tilt switch")."""
+    import re
+
+    cat = facts.catalog()
+    number = re.search(r"\bky[\s-]?0*(\d{1,3})\b", text)
+    if number and f"ky-{int(number.group(1)):03d}" in cat:
+        return f"ky-{int(number.group(1)):03d}"
+    for cid, c in cat.items():
+        name = re.sub(r"\(.*?\)", "", c["name"].lower().split(" ", 1)[1]).strip() if cid.startswith("ky-") else ""
+        if name and name in text:
+            return cid
+    return None
 
 
 class ExtensionProposal(BaseModel):
@@ -101,8 +122,8 @@ kind:
   Set component_id to that part.
 - change_behavior: the parts already wired are enough; only what the build does should change.
   component_id is "none".
-- unsupported: it needs a part that is not a known part, or more than one new part at once.
-  Give a one-sentence reason for the user.
+- unsupported: it needs a part that is not a known part, a part from the list of parts that
+  cannot be built with yet, or more than one new part at once. Give a one-sentence reason for the user.
 
 behavior: one or two plain sentences describing what the whole build should do after the change,
 including what it did before if that should stay. This text is handed to the code generator.
@@ -118,7 +139,8 @@ and says what it should do, or changes the behaviour using only the parts alread
 must be a complete instruction they could have said themselves and stay under 60 characters so it
 fits on a glasses display. Otherwise empty.
 
-reason, with unsupported: say in one short sentence what is missing, in plain words.
+reason, with unsupported: say in one short sentence what is missing, in plain words. For a part
+that cannot be built with yet, give the reason listed for it, in your own short words.
 
 Never state pin names, voltages or wiring. Those come from a verified hardware database."""
 
@@ -164,6 +186,12 @@ def keyword_extension(instruction: str, spec: ProjectSpec) -> ExtensionProposal:
                                      ideas=[v["idea"] for v in demo.EXTENSION_VARIANTS.values()])
         return ExtensionProposal(kind="add_part", component_id="ky-032",
                                  behavior=demo.EXTENSION_VARIANTS[demo.variant_for(text)]["behavior"])
+    part = _mentioned(text)
+    if part in not_buildable():
+        return ExtensionProposal(kind="unsupported", reason=not_buildable()[part])
+    if part in addable_sensors(spec):
+        # Offline nobody can judge whether the words state a purpose, so the user is asked.
+        return ExtensionProposal(kind="add_part", component_id=part, needs_purpose=True)
     return ExtensionProposal(kind="change_behavior", behavior=instruction.strip())
 
 
@@ -353,9 +381,11 @@ class ClaudeAnalyzer:
     def extend(self, instruction: str, spec: ProjectSpec) -> ExtensionProposal:
         cat = facts.catalog()
         known = "\n".join(f"- {cid} ({cat[cid]['name']}): senses {cat[cid]['senses']}" for cid in addable_sensors(spec))
+        blocked = "\n".join(f"- {cat[cid]['name']}: {why}" for cid, why in not_buildable().items())
         text = (f"THE BUILD SO FAR: {spec.title}. {spec.custom_behavior or spec.summary}\n"
                 f"PARTS ALREADY WIRED: {', '.join(cat[c]['name'] for c in spec.components)}\n"
-                f"KNOWN PARTS THAT COULD BE ADDED:\n{known or '(none)'}\n\n"
+                f"KNOWN PARTS THAT COULD BE ADDED:\n{known or '(none)'}\n"
+                f"PARTS THAT CANNOT BE BUILT WITH YET, AND WHY:\n{blocked}\n\n"
                 f"THE USER NOW SAYS: {instruction}")
         return ExtensionProposal.model_validate(
             self._ask([{"type": "text", "text": EXTEND_SYSTEM}], [{"type": "text", "text": text}], extension_schema(spec)))
