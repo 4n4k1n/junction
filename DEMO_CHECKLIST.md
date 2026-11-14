@@ -30,7 +30,7 @@
 - [x] Xcode installed; app builds and runs
 - [x] Real glasses: tested by the team, reported working (note here which steps: speech, photo, flash)
 - [ ] Desk photo saved as `demo/desk.jpg` and in the iPhone photo library
-- [ ] Backup video of the working level meter recorded
+- [ ] Backup video of the working Pong game recorded
 - [ ] Three consecutive full runs logged below
 
 ## Three consecutive runs
@@ -50,14 +50,14 @@ Use `python3 scripts/demo_run.py` (or the app). A run counts only with a real bo
 - [ ] App: backend URL set, status "reachable", **no** red "No deploy agent" banner
 - [ ] App banner matches what you intend to say (none / DEMO MODE / SIMULATED)
 - [ ] Glasses charged, connected, display card visible; phone mirrored to the projector
-- [ ] Board plugged in with a data cable; sensor unwired; three jumper wires ready
+- [ ] Board plugged in with a data cable; joystick and infrared sensor unwired; breadboard and seven jumper wires ready
 - [ ] One full rehearsal run, then unwire again
 - [ ] Phone on Do Not Disturb, screen lock off, volume up
 
 ## Manual hardware verification still needed
 
-2. The LED matrix shows the level bar, and the bar follows the volume.
-3. KY-037 analog output at 3.3 V gives a usable signal on A0.
+2. Pong and Snake are playable on the LED matrix, and the joystick directions are the right way round.
+3. The KY-023 joystick powered from 3.3 V gives a usable signal on A0 and A1; the KY-032 on D2 restarts the game.
 4. Reading `Monitor` output on the Mac.
 5. Glasses: registration, display, buttons, photo capture while the display is active.
 6. iPhone: push-to-talk with glasses connected, camera fallback, LAN access to the backend.

@@ -26,8 +26,8 @@ Every endpoint returns the full `GuideStatus`, except `generate`, which returns 
 (see `docs/compile-contract.md`). `generate` writes the sketch with Claude, checks and compiles it, and
 never uploads. It can take a minute.
 
-- `analyze` needs an image, a `confirmed_inventory`, or both. Send `confirmed_inventory=[]` to say
-  "no photo, ask me about every part".
+- `analyze` needs nothing: without an image every part is confirmed by the user. An image is an
+  optional check of the parts on the desk; `confirmed_inventory` adds parts the user has confirmed.
 - `InventoryItem` is `{"component_id": "ky-037", "confirmations": ["ky037-pin-labels"]}`. Listing a
   component confirms it is present. `confirmations` are the ids of the `variant` questions the user
   answered yes to.
@@ -35,6 +35,29 @@ never uploads. It can take a minute.
   keeps the step.
 - Errors: 404 unknown session, 409 wrong state or step, 413 image over 5 MB, 415 not JPEG/PNG/WebP/GIF,
   422 unknown component or confirmation id.
+
+### Goal first: the parts list
+
+A session starts from the spoken goal alone. The first `analyze` (no image needed) decides the project:
+
+- **A game** (`pong`, `snake`; `LEARNLENS_OFFERED_PROJECTS`): named in plain words it is recognised
+  without a model call (`analysis_source: rules`), otherwise Claude may name it. `project.game` is set,
+  `project.behavior` is `custom`, and `project.components` comes from rules (board and KY-023 joystick),
+  never from the model. `parts_needed` carries the part names for the parts-list card.
+- **Anything else:** `state` is `unsupported` and `project.unsupported_reason` says what can be built.
+
+The state is then `needs_confirmation`. Without a photo there is one `presence` question per part; a
+client may answer them all at once by sending every `component_id` in `confirmed_inventory` after the
+user said "I have them". The `variant` questions (pin labels) are still asked one by one.
+
+When wiring starts, the sketch is generated in the background and `background_notice` carries the
+sentence for the user ("I am writing the code in the background while you wire."). It is empty again
+once the wiring is complete, and always empty with `LEARNLENS_PREGENERATE=0`.
+
+`project.game` keeps a prevalidated sketch behind the build, used without the AI service, in demo mode
+and when no AI attempt passes the checks. It survives exactly two kinds of `extend`: switching to the
+other game, and adding the KY-032 to restart the game. Any other change clears it; without the AI
+service such a change is refused with `extension_problem`.
 
 ### Developing a finished build further
 

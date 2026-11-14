@@ -171,9 +171,10 @@ struct GuideView: View {
           Label("Confirmed by the board: it reported \(proof).", systemImage: "checkmark.seal").foregroundStyle(.green)
         }
         if !model.isExtending {
-          // Keep developing the same build: add a known part, or change what it does.
-          Button("Continue building") { Task { await model.beginExtension() } }
-          Button("New build") { Task { await model.reset() } }
+          // Same parts with new behaviour, a new project, or one more known part.
+          Button("Change this build") { Task { await model.beginChange() } }
+          Button("Build something new") { Task { await model.reset() } }
+          Button("Add a part") { Task { await model.beginExtension() } }
         } else if model.awaitingPartPhoto {
           // Asked right away, before the request: a photo of the part that should be added.
           Text("Adding a part? Take a photo of it. Otherwise skip.").font(.title3)
@@ -228,8 +229,8 @@ struct GuideView: View {
   }
 
   private var goalSection: some View {
-    Section("What do you want to build?") {
-      TextField("Build a sound level meter", text: $model.goal, axis: .vertical)
+    Section("What do you want to build today?") {
+      TextField("A Pong game", text: $model.goal, axis: .vertical)
         .onSubmit { Task { await model.pushCard() } }  // show the typed goal on the glasses too
 
       Label(
@@ -254,12 +255,17 @@ struct GuideView: View {
         Text(message).font(.footnote).foregroundStyle(.secondary)
       }
 
-      Button("Capture with glasses and start") { Task { await model.captureAndStart() } }
-        .disabled(!model.canCaptureFromGlasses)
-      Button("Take a photo with the iPhone and start") { showPhoneCamera = true }
-        .disabled(!PhoneCameraPicker.isAvailable)
-      PhotosPicker("Pick a saved photo and start", selection: $pickedPhoto, matching: .images)
-      Button("Start without a photo") { Task { await model.start(withPhoneJPEG: nil) } }
+      // No photo is needed: the parts are listed and confirmed by hand.
+      Button("Start") { Task { await model.start(withPhoneJPEG: nil) } }
+        .disabled(model.goal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+      // Optional: a photo of the desk, so the parts can be checked against it.
+      DisclosureGroup("Start with a photo of your parts") {
+        Button("Capture with glasses and start") { Task { await model.captureAndStart() } }
+          .disabled(!model.canCaptureFromGlasses)
+        Button("Take a photo with the iPhone and start") { showPhoneCamera = true }
+          .disabled(!PhoneCameraPicker.isAvailable)
+        PhotosPicker("Pick a saved photo and start", selection: $pickedPhoto, matching: .images)
+      }
     }
   }
 
@@ -274,10 +280,15 @@ struct GuideView: View {
           }
         }
         if guide.detectedComponents.isEmpty {
-          Text("No parts were detected from a photo (\(guide.analysisSource)).").font(.footnote)
+          Text("No photo was looked at (\(guide.analysisSource)).").font(.footnote)
         }
       }
-      if let pending = model.pendingConfirmation {
+      if model.showsPartsList {
+        Text(model.partsListText).font(.title3)
+        Text("Do you have them on the desk? Each part's pin labels are checked next.").font(.footnote).foregroundStyle(.secondary)
+        Button("Yes, I have them") { Task { await model.answerPartsList(true) } }
+        Button("No", role: .destructive) { Task { await model.answerPartsList(false) } }
+      } else if let pending = model.pendingConfirmation {
         Text(pending.question).font(.title3)
         Text(pending.reason).font(.footnote).foregroundStyle(.secondary)
         Button("Yes") { Task { await model.answerConfirmation(true) } }
@@ -293,6 +304,9 @@ struct GuideView: View {
           .font(.footnote)
           .foregroundStyle(.secondary)
         Text(step.displayText).font(.title3)
+        if model.noticeStep == model.stepIndex, !guide.backgroundNotice.isEmpty {
+          Label(guide.backgroundNotice, systemImage: "hammer").font(.footnote).foregroundStyle(.secondary)
+        }
         if let connection = step.connection {
           Text(
             "\(connection.fromPin.component) \(connection.fromPin.pin) → \(connection.toPin.component) \(connection.toPin.pin)"

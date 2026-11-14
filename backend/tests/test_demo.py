@@ -69,7 +69,8 @@ def test_outside_demo_mode_nothing_is_labelled_demo():
     health = client.get("/health").json()
     assert health["demo_mode"] is False and health["analyzer"] == "mock"
     sid = client.post("/sessions", json={"instruction": "clap light"}).json()["session_id"]
-    assert client.post(f"/sessions/{sid}/analyze").status_code == 422   # a photo or an inventory is required
+    s = client.post(f"/sessions/{sid}/analyze").json()                  # no photo needed: the parts are asked for
+    assert s["analysis_source"] == "mock" and s["state"] == "needs_confirmation"
 
 
 def test_health_reports_whether_an_agent_is_polling_and_if_it_is_a_mock():

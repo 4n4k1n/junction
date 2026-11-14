@@ -787,6 +787,11 @@
           "title": "Analysis Source",
           "type": "string"
         },
+        "background_notice": {
+          "default": "",
+          "title": "Background Notice",
+          "type": "string"
+        },
         "build_id": {
           "anyOf": [
             {
@@ -868,6 +873,14 @@
         "instruction": {
           "title": "Instruction",
           "type": "string"
+        },
+        "parts_needed": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Parts Needed",
+          "type": "array"
         },
         "pending_confirmations": {
           "default": [],
@@ -1069,6 +1082,11 @@
         "custom_behavior": {
           "default": "",
           "title": "Custom Behavior",
+          "type": "string"
+        },
+        "game": {
+          "default": "",
+          "title": "Game",
           "type": "string"
         },
         "input_component": {

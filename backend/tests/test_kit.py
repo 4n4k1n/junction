@@ -84,12 +84,14 @@ def test_unmarked_pins_are_described_and_several_signals_are_told_apart():
                                              "KY-004 S to board D2. Plug USB in"]
     assert "the one between S and minus" in new[1].spoken_text and "labelled" not in new[1].spoken_text
     spec, steps, new = level_meter_plus("ky-023")
-    assert [s.connection.to_pin.pin for s in new] == ["GND", "3V3", "A1", "A2", "D2"]
+    assert [s.connection.to_pin.pin for s in new] == ["GND", "3V3", "A1", "A2"]      # the button stays unconnected
     names = [i.name for i in codegen.build_context(spec, steps + new).inputs]
-    assert names[1:] == ["KY-023 joystick, its VRx signal", "KY-023 joystick, its VRy signal",
-                         "KY-023 joystick, its SW signal"]
+    assert names[1:] == ["KY-023 joystick, its VRx signal", "KY-023 joystick, its VRy signal"]
+    assert "analogRead(A2) only" in codegen.task_prompt(codegen.build_context(spec, steps + new))
+    spec, steps, new = level_meter_plus("ky-040")
     task = codegen.task_prompt(codegen.build_context(spec, steps + new))
-    assert "analogRead(A2) only" in task and "It reads LOW while the sensor reports its event" in task
+    assert "its SW signal, digital output on header D7" in task and "It reads LOW while the sensor reports its event" in task
+    assert "No level is documented for it" in task                                   # CLK and DT
 
 
 def test_a_part_without_wiring_rules_is_never_planned():

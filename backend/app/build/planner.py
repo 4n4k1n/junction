@@ -76,8 +76,15 @@ def _connection_steps(component: str, target: Dict[str, str], start: int, added:
 
 
 def plan_wiring(spec: ProjectSpec) -> List[WiringStep]:
-    """Wiring steps for a sensor on the board: its digital output, or for a level meter its analog
-    output. The caller must run facts.check_safety."""
+    """Wiring steps for a new project. A free-form project (a game) wires every part it names, each
+    with the signals the hardware database lists for it. The fixed projects wire one sensor: its
+    digital output, or for a level meter its analog output. The caller must run facts.check_safety."""
+    if spec.behavior == Behavior.custom:
+        steps: List[WiringStep] = []
+        for component in spec.components:
+            if component != spec.board:
+                steps += plan_extension(steps, component, added=bool(steps))
+        return steps
     analog = spec.behavior == Behavior.level_meter
     pins = facts.catalog()[spec.input_component]["pins"]
     signal = next(p for p in pins if pins[p]["kind"] == ("analog_out" if analog else "digital_out"))
@@ -85,7 +92,7 @@ def plan_wiring(spec: ProjectSpec) -> List[WiringStep]:
                              0, added=False)
 
 
-def plan_extension(steps: List[WiringStep], component: str) -> List[WiringStep]:
+def plan_extension(steps: List[WiringStep], component: str, added: bool = True) -> List[WiringStep]:
     """Wiring steps that add one more sensor to a finished build: its ground, its supply and every
     signal the hardware database lists for it under `add_on`, each on the next free board input of
     its kind. The existing wiring stays. The caller must run facts.check_safety on the old and new
@@ -104,7 +111,7 @@ def plan_extension(steps: List[WiringStep], component: str) -> List[WiringStep]:
             raise ValueError(f"no free {'analog' if analog else 'digital'} input pin left")
         target[signal] = free[0]
         used.add(free[0])
-    return _connection_steps(component, target, len(steps), added=True)
+    return _connection_steps(component, target, len(steps), added=added)
 
 
 def render_sketch(spec: ProjectSpec) -> Sketch:

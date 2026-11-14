@@ -31,7 +31,7 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import TypeAdapter, ValidationError
 
-from . import codegen, demo, facts, planner
+from . import codegen, demo, facts, games, planner
 from .analyzer import Analyzer, addable_sensors, to_spec
 from .models import (
     AskRequest, StepAnswer, Behavior, BuildStatus, DetectedComponent, ConfirmationKind, ConfirmStepRequest, CreateGuideSessionRequest, ExtendRequest, GenerateRequest,
@@ -61,10 +61,15 @@ def _plan_key(s: GuideStatus) -> str:
                       sort_keys=True)
 
 
+BACKGROUND_NOTICE = "I am writing the code in the background while you wire."
+
+
 def _pregenerate(s: GuideStatus) -> None:
-    """Start writing, checking and compiling the sketch in the background. Nothing is uploaded."""
+    """Start writing, checking and compiling the sketch in the background, and say so. Nothing is uploaded."""
+    s.background_notice = ""
     if not PREGENERATE:
         return
+    s.background_notice = BACKGROUND_NOTICE
     ctx = codegen.build_context(s.project, s.wiring_steps, previous_code=running_code.get(s.session_id, ""))
     s.generation_progress = []
     future: Future = _background.submit(generator.generate, s.session_id, ctx, s.generation_progress.append)
@@ -110,7 +115,13 @@ def _pending(s: GuideStatus) -> List[PendingConfirmation]:
         name = cat[cid]["name"]
         if cid not in confirmed:
             best = max((d.confidence for d in s.detected_components if d.component_id == cid), default=None)
-            if best is None:
+            if best is None and not s.detected_components:
+                # Goal first: no photo was looked at, so the user says whether the part is there.
+                pending.append(PendingConfirmation(
+                    id=f"{cid}-present", component_id=cid, kind=ConfirmationKind.presence,
+                    question=f"For this you need the {name}. Do you have one on the desk?",
+                    reason="No photo was taken."))
+            elif best is None:
                 pending.append(PendingConfirmation(
                     id=f"{cid}-present", component_id=cid, kind=ConfirmationKind.presence,
                     question=f"I could not find the {name} in the photo. Do you have one on the desk?",
@@ -135,6 +146,7 @@ def _advance(s: GuideStatus) -> None:
         _say(s, "I can't build that yet", s.project.unsupported_reason)
         return
     s.hardware_facts = facts.facts_for(s.project.components)
+    s.parts_needed = [facts.catalog()[c]["name"] for c in s.project.components]
     s.pending_confirmations = _pending(s)
     if s.pending_confirmations:
         s.state = GuideState.needs_confirmation
@@ -169,8 +181,8 @@ async def _read_image(image: Optional[UploadFile]):
 @router.post("/sessions", response_model=GuideStatus)
 def create_session(req: CreateGuideSessionRequest):
     s = GuideStatus(session_id=uuid.uuid4().hex[:12], state=GuideState.awaiting_analysis,
-                    instruction=req.instruction.strip(), display_text="Look at your parts and take a photo",
-                    spoken_text="Look at your parts and take a photo.")
+                    instruction=req.instruction.strip(), display_text="Checking what you need",
+                    spoken_text="Let me check which parts you need.")
     _merge_inventory(s, req.confirmed_inventory)
     sessions[s.session_id] = s
     return s
@@ -193,8 +205,7 @@ async def analyze(session_id: str, image: Optional[UploadFile] = File(None),
                                 electrically_verified=False, disclaimer=REVIEW_DISCLAIMER)
         return s
 
-    if data is None and confirmed_inventory is None and not demo.enabled():
-        raise HTTPException(422, "send an image, a confirmed_inventory (\"[]\" for none), or both")
+    # Goal first: a photo is optional. Without one, every part is confirmed by the user.
     if confirmed_inventory:
         try:
             items = _inventory.validate_python(json.loads(confirmed_inventory))
@@ -233,7 +244,7 @@ def confirm_step(session_id: str, req: ConfirmStepRequest):
         _say(s, nxt.display_text, nxt.spoken_text)
         return s
 
-    s.current_step, s.state = None, GuideState.wiring_complete
+    s.current_step, s.state, s.background_notice = None, GuideState.wiring_complete, ""
     _say(s, "Wiring done. Writing the code", "Wiring is done. I am writing the code now.")
     return s
 
@@ -311,7 +322,12 @@ def extend(session_id: str, req: ExtendRequest):
     def cannot(reason: str) -> GuideStatus:
         """The request cannot be built. Nothing changes; the user is told why and what would work."""
         ideas = [" ".join(i.split())[:80] for i in proposal.ideas if i.strip()]
-        if not ideas and "ky-032" in addable_sensors(s.project):
+        if not ideas and s.project.game:
+            # What always works for a game: the other game, and the restart by hand.
+            ideas = [f"Play {games.GAMES[g]['title']} instead" for g in games.offered() if g != s.project.game]
+            if games.RESET_SENSOR in addable_sensors(s.project):
+                ideas.append("Add the infrared sensor to restart the game")
+        elif not ideas and "ky-032" in addable_sensors(s.project):
             ideas = [v["idea"] for v in demo.EXTENSION_VARIANTS.values()]  # these always work
         s.extension_problem, s.suggestions, s.clarification = reason, ideas[:3], ""
         return s
@@ -344,6 +360,18 @@ def extend(session_id: str, req: ExtendRequest):
     project.requests.append(req.instruction.strip())
     if proposal.kind == "add_part":
         project.components.append(proposal.component_id)
+    if project.game:
+        # A game keeps its prevalidated sketch only for the changes that sketch covers: the other
+        # game, and a restart by the infrared sensor. Anything else is free-form and needs the AI.
+        other = games.game_for(req.instruction, project.game)
+        asked = req.instruction + " " + proposal.behavior
+        if proposal.kind == "change_behavior" and other and other != project.game:
+            project.game, project.title, project.summary = other, games.GAMES[other]["title"], games.GAMES[other]["summary"]
+            project.custom_behavior = games.behavior(other, reset=games.RESET_SENSOR in project.components)
+        elif proposal.kind == "add_part" and proposal.component_id == games.RESET_SENSOR and games.wants_reset(asked):
+            project.custom_behavior = games.behavior(project.game, reset=True)
+        else:
+            project.game = ""
     if generator.client is None:
         # Without the AI service only prevalidated combinations can be built.
         try:

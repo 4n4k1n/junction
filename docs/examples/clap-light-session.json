@@ -9,11 +9,11 @@
       }
     },
     "response": {
-      "session_id": "c9936245541f",
+      "session_id": "d6b9331e6983",
       "state": "awaiting_analysis",
       "instruction": "Build a clap-activated light",
-      "display_text": "Look at your parts and take a photo",
-      "spoken_text": "Look at your parts and take a photo.",
+      "display_text": "Checking what you need",
+      "spoken_text": "Let me check which parts you need.",
       "analysis_source": "",
       "detected_components": [],
       "confirmed_inventory": [],
@@ -29,6 +29,8 @@
       "clarification": "",
       "suggestions": [],
       "extension_problem": "",
+      "parts_needed": [],
+      "background_notice": "",
       "build_id": null
     }
   },
@@ -36,13 +38,13 @@
     "step": "2. Analyze the desk photo: the sensor is uncertain, so the plan is held back",
     "request": {
       "method": "POST",
-      "path": "/sessions/c9936245541f/analyze",
+      "path": "/sessions/d6b9331e6983/analyze",
       "files": {
         "image": "<desk photo, image/jpeg>"
       }
     },
     "response": {
-      "session_id": "c9936245541f",
+      "session_id": "d6b9331e6983",
       "state": "needs_confirmation",
       "instruction": "Build a clap-activated light",
       "display_text": "Please confirm your parts",
@@ -99,7 +101,8 @@
         "supported": true,
         "unsupported_reason": "",
         "custom_behavior": "",
-        "requests": []
+        "requests": [],
+        "game": ""
       },
       "hardware_facts": [
         {
@@ -231,6 +234,11 @@
       "clarification": "",
       "suggestions": [],
       "extension_problem": "",
+      "parts_needed": [
+        "Arduino UNO Q",
+        "KY-037 microphone sound sensor"
+      ],
+      "background_notice": "",
       "build_id": null
     }
   },
@@ -238,13 +246,13 @@
     "step": "3. The user confirms the sensor and its pin labels: wiring plan released",
     "request": {
       "method": "POST",
-      "path": "/sessions/c9936245541f/analyze",
+      "path": "/sessions/d6b9331e6983/analyze",
       "data": {
         "confirmed_inventory": "[{\"component_id\": \"ky-037\", \"confirmations\": [\"ky037-pin-labels\"]}]"
       }
     },
     "response": {
-      "session_id": "c9936245541f",
+      "session_id": "d6b9331e6983",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
       "display_text": "Unplug USB. KY-037 G to board GND",
@@ -293,7 +301,8 @@
         "supported": true,
         "unsupported_reason": "",
         "custom_behavior": "",
-        "requests": []
+        "requests": [],
+        "game": ""
       },
       "hardware_facts": [
         {
@@ -486,6 +495,11 @@
       "clarification": "",
       "suggestions": [],
       "extension_problem": "",
+      "parts_needed": [
+        "Arduino UNO Q",
+        "KY-037 microphone sound sensor"
+      ],
+      "background_notice": "I am writing the code in the background while you wire.",
       "build_id": null
     }
   },
@@ -493,14 +507,14 @@
     "step": "4.0 Confirm wiring step 0",
     "request": {
       "method": "POST",
-      "path": "/sessions/c9936245541f/confirm-step",
+      "path": "/sessions/d6b9331e6983/confirm-step",
       "json": {
         "step_index": 0,
         "confirmed": true
       }
     },
     "response": {
-      "session_id": "c9936245541f",
+      "session_id": "d6b9331e6983",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
       "display_text": "KY-037 + to board +3V3",
@@ -549,7 +563,8 @@
         "supported": true,
         "unsupported_reason": "",
         "custom_behavior": "",
-        "requests": []
+        "requests": [],
+        "game": ""
       },
       "hardware_facts": [
         {
@@ -745,6 +760,11 @@
       "clarification": "",
       "suggestions": [],
       "extension_problem": "",
+      "parts_needed": [
+        "Arduino UNO Q",
+        "KY-037 microphone sound sensor"
+      ],
+      "background_notice": "I am writing the code in the background while you wire.",
       "build_id": null
     }
   },
@@ -752,14 +772,14 @@
     "step": "4.1 Confirm wiring step 1",
     "request": {
       "method": "POST",
-      "path": "/sessions/c9936245541f/confirm-step",
+      "path": "/sessions/d6b9331e6983/confirm-step",
       "json": {
         "step_index": 1,
         "confirmed": true
       }
     },
     "response": {
-      "session_id": "c9936245541f",
+      "session_id": "d6b9331e6983",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
       "display_text": "KY-037 DO to board D2. Plug USB in",
@@ -808,7 +828,8 @@
         "supported": true,
         "unsupported_reason": "",
         "custom_behavior": "",
-        "requests": []
+        "requests": [],
+        "game": ""
       },
       "hardware_facts": [
         {
@@ -1005,6 +1026,11 @@
       "clarification": "",
       "suggestions": [],
       "extension_problem": "",
+      "parts_needed": [
+        "Arduino UNO Q",
+        "KY-037 microphone sound sensor"
+      ],
+      "background_notice": "I am writing the code in the background while you wire.",
       "build_id": null
     }
   },
@@ -1012,13 +1038,13 @@
     "step": "   Optional photo review mid-wiring (never an electrical verification)",
     "request": {
       "method": "POST",
-      "path": "/sessions/c9936245541f/analyze",
+      "path": "/sessions/d6b9331e6983/analyze",
       "files": {
         "image": "<desk photo, image/jpeg>"
       }
     },
     "response": {
-      "session_id": "c9936245541f",
+      "session_id": "d6b9331e6983",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
       "display_text": "KY-037 DO to board D2. Plug USB in",
@@ -1067,7 +1093,8 @@
         "supported": true,
         "unsupported_reason": "",
         "custom_behavior": "",
-        "requests": []
+        "requests": [],
+        "game": ""
       },
       "hardware_facts": [
         {
@@ -1274,6 +1301,11 @@
       "clarification": "",
       "suggestions": [],
       "extension_problem": "",
+      "parts_needed": [
+        "Arduino UNO Q",
+        "KY-037 microphone sound sensor"
+      ],
+      "background_notice": "I am writing the code in the background while you wire.",
       "build_id": null
     }
   },
@@ -1281,14 +1313,14 @@
     "step": "4.2 Confirm wiring step 2",
     "request": {
       "method": "POST",
-      "path": "/sessions/c9936245541f/confirm-step",
+      "path": "/sessions/d6b9331e6983/confirm-step",
       "json": {
         "step_index": 2,
         "confirmed": true
       }
     },
     "response": {
-      "session_id": "c9936245541f",
+      "session_id": "d6b9331e6983",
       "state": "wiring_complete",
       "instruction": "Build a clap-activated light",
       "display_text": "Wiring done. Writing the code",
@@ -1337,7 +1369,8 @@
         "supported": true,
         "unsupported_reason": "",
         "custom_behavior": "",
-        "requests": []
+        "requests": [],
+        "game": ""
       },
       "hardware_facts": [
         {
@@ -1545,6 +1578,11 @@
       "clarification": "",
       "suggestions": [],
       "extension_problem": "",
+      "parts_needed": [
+        "Arduino UNO Q",
+        "KY-037 microphone sound sensor"
+      ],
+      "background_notice": "",
       "build_id": null
     }
   },
@@ -1552,14 +1590,14 @@
     "step": "5. Generate the sketch (here: canned AI answer; static checks; compile if arduino-cli is set up)",
     "request": {
       "method": "POST",
-      "path": "/sessions/c9936245541f/generate",
+      "path": "/sessions/d6b9331e6983/generate",
       "json": {
         "debounce_ms": 300
       }
     },
     "response": {
-      "session_id": "c9936245541f",
-      "build_id": "08b9abcac9c5",
+      "session_id": "d6b9331e6983",
+      "build_id": "46925afda6eb",
       "source": "template",
       "sketch": {
         "filename": "learnlens_sketch.ino",
@@ -1631,12 +1669,12 @@
               "--warnings",
               "default",
               "--no-color",
-              "/Users/robinstumpf/Desktop/learnlens/backend/generated/c9936245541f/attempt-1/learnlens_sketch"
+              "/Users/robinstumpf/Desktop/learnlens/backend/generated/d6b9331e6983/attempt-1/learnlens_sketch"
             ],
             "log": "Sketch uses 87032 bytes (11%) of program storage space. Maximum is 786432 bytes.\nGlobal variables use 36988 bytes (14%) of dynamic memory, leaving 225156 bytes for local variables. Maximum is 262144 bytes.\n",
             "detail": ""
           },
-          "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/c9936245541f/attempt-1/learnlens_sketch"
+          "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/d6b9331e6983/attempt-1/learnlens_sketch"
         }
       ],
       "repairs_used": 0,
@@ -1651,12 +1689,12 @@
           "--warnings",
           "default",
           "--no-color",
-          "/Users/robinstumpf/Desktop/learnlens/backend/generated/c9936245541f/attempt-1/learnlens_sketch"
+          "/Users/robinstumpf/Desktop/learnlens/backend/generated/d6b9331e6983/attempt-1/learnlens_sketch"
         ],
         "log": "Sketch uses 87032 bytes (11%) of program storage space. Maximum is 786432 bytes.\nGlobal variables use 36988 bytes (14%) of dynamic memory, leaving 225156 bytes for local variables. Maximum is 262144 bytes.\n",
         "detail": ""
       },
-      "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/c9936245541f/attempt-1/learnlens_sketch",
+      "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/d6b9331e6983/attempt-1/learnlens_sketch",
       "flashed": false,
       "hardware_verified": false
     }
@@ -1665,10 +1703,10 @@
     "step": "   Status",
     "request": {
       "method": "GET",
-      "path": "/sessions/c9936245541f/status"
+      "path": "/sessions/d6b9331e6983/status"
     },
     "response": {
-      "session_id": "c9936245541f",
+      "session_id": "d6b9331e6983",
       "state": "code_generated",
       "instruction": "Build a clap-activated light",
       "display_text": "Code ready. Review it on your phone",
@@ -1717,7 +1755,8 @@
         "supported": true,
         "unsupported_reason": "",
         "custom_behavior": "",
-        "requests": []
+        "requests": [],
+        "game": ""
       },
       "hardware_facts": [
         {
@@ -1927,17 +1966,22 @@
       "clarification": "",
       "suggestions": [],
       "extension_problem": "",
-      "build_id": "08b9abcac9c5"
+      "parts_needed": [
+        "Arduino UNO Q",
+        "KY-037 microphone sound sensor"
+      ],
+      "background_notice": "",
+      "build_id": "46925afda6eb"
     }
   },
   {
     "step": "6. The generated sketch, waiting for approval",
     "request": {
       "method": "GET",
-      "path": "/builds/08b9abcac9c5"
+      "path": "/builds/46925afda6eb"
     },
     "response": {
-      "build_id": "08b9abcac9c5",
+      "build_id": "46925afda6eb",
       "goal": "Build a clap-activated light",
       "status": "awaiting_approval",
       "provenance": "rules",
@@ -2149,13 +2193,13 @@
     "step": "7. Explicit approval of that exact sketch",
     "request": {
       "method": "POST",
-      "path": "/builds/08b9abcac9c5/approve",
+      "path": "/builds/46925afda6eb/approve",
       "json": {
         "sketch_sha256": "bf22cdeca759f0ea7ffce702f42ef919ae7c48deee2e18a5ef21b254a392ee28"
       }
     },
     "response": {
-      "build_id": "08b9abcac9c5",
+      "build_id": "46925afda6eb",
       "goal": "Build a clap-activated light",
       "status": "approved",
       "provenance": "rules",
@@ -2367,10 +2411,10 @@
     "step": "8. After the (mock) deploy agent ran",
     "request": {
       "method": "GET",
-      "path": "/builds/08b9abcac9c5"
+      "path": "/builds/46925afda6eb"
     },
     "response": {
-      "build_id": "08b9abcac9c5",
+      "build_id": "46925afda6eb",
       "goal": "Build a clap-activated light",
       "status": "awaiting_test",
       "provenance": "rules",
@@ -2581,31 +2625,31 @@
           "stage": "validate",
           "status": "ok",
           "message": "artifact accepted",
-          "ts": 1794690665.645807
+          "ts": 1794694915.15869
         },
         {
           "stage": "compile",
           "status": "started",
           "message": "compiling for arduino:zephyr:unoq",
-          "ts": 1794690665.6484458
+          "ts": 1794694915.161442
         },
         {
           "stage": "compile",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794690665.650199
+          "ts": 1794694915.163126
         },
         {
           "stage": "approval",
           "status": "ok",
           "message": "approval token accepted",
-          "ts": 1794690665.65182
+          "ts": 1794694915.164865
         },
         {
           "stage": "upload",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794690665.653397
+          "ts": 1794694915.1668348
         }
       ],
       "precompiled": null,
@@ -2623,13 +2667,13 @@
     "step": "9. The user claps and reports the result",
     "request": {
       "method": "POST",
-      "path": "/builds/08b9abcac9c5/test-result",
+      "path": "/builds/46925afda6eb/test-result",
       "json": {
         "passed": true
       }
     },
     "response": {
-      "build_id": "08b9abcac9c5",
+      "build_id": "46925afda6eb",
       "goal": "Build a clap-activated light",
       "status": "done",
       "provenance": "rules",
@@ -2840,31 +2884,31 @@
           "stage": "validate",
           "status": "ok",
           "message": "artifact accepted",
-          "ts": 1794690665.645807
+          "ts": 1794694915.15869
         },
         {
           "stage": "compile",
           "status": "started",
           "message": "compiling for arduino:zephyr:unoq",
-          "ts": 1794690665.6484458
+          "ts": 1794694915.161442
         },
         {
           "stage": "compile",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794690665.650199
+          "ts": 1794694915.163126
         },
         {
           "stage": "approval",
           "status": "ok",
           "message": "approval token accepted",
-          "ts": 1794690665.65182
+          "ts": 1794694915.164865
         },
         {
           "stage": "upload",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794690665.653397
+          "ts": 1794694915.1668348
         }
       ],
       "precompiled": null,

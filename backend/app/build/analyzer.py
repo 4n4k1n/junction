@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field, ValidationError
 
-from . import demo, facts
+from . import demo, facts, games
 from .llm import MODEL, ask_json, make_client  # noqa: F401  (MODEL re-exported for scripts)
 from .models import Behavior, DetectedComponent, ProjectSpec, WiringStep
 from .planner import BOARD
@@ -34,6 +34,7 @@ class ProjectProposal(BaseModel):
     behavior: Behavior
     input_component: str  # a sensor id from the hardware database, or "none"
     unsupported_reason: str = ""
+    game: str = ""        # "pong" | "snake": a game from games.py; its parts are chosen by rules
 
 
 class Analysis(BaseModel):
@@ -54,8 +55,9 @@ BEHAVIOR_HELP = {
 
 
 def offered() -> List[Behavior]:
-    """Projects users can get. The clap light still exists in the code but is not offered by default."""
-    names = os.getenv("LEARNLENS_OFFERED_PROJECTS", "level_meter").split(",")
+    """Fixed projects users can get. By default none: the games in games.py are offered instead. The
+    level meter and the clap light still exist in the code."""
+    names = os.getenv("LEARNLENS_OFFERED_PROJECTS", "pong,snake").split(",")
     return [b for b in BEHAVIOR_HELP if b.value in {n.strip() for n in names}]
 
 
@@ -173,6 +175,11 @@ def keyword_extension(instruction: str, spec: ProjectSpec) -> ExtensionProposal:
     import re
 
     text = instruction.lower()
+    other = games.game_for(text, spec.game)
+    if spec.game and other and other != spec.game:
+        # "Snake instead": same parts, the other game.
+        return ExtensionProposal(kind="change_behavior",
+                                 behavior=games.behavior(other, reset=games.RESET_SENSOR in spec.components))
     wants_ir = re.search(r"\b(ir|infrared|infrarot|obstacle|hindernis|hand|proximity|distance|ky-?032)\b", text)
     # In demo mode every follow-up adds the infrared sensor, whatever words are used: it is the one
     # extension that works without AI.
@@ -180,6 +187,12 @@ def keyword_extension(instruction: str, spec: ProjectSpec) -> ExtensionProposal:
         # A purpose is some instruction beyond naming the part ("... so it only shows when my hand is near").
         states_purpose = re.search(r"\b(so|when|only|if|while|should|to show|to turn|until|damit|wenn|nur|soll|sobald|"
                                    r"freeze|hold|wave|toggle|switch)\b", text)
+        if spec.game:
+            if not (states_purpose or games.wants_reset(text)):
+                return ExtensionProposal(kind="add_part", component_id="ky-032", needs_purpose=True,
+                                         ideas=[games.RESET_IDEA])
+            return ExtensionProposal(kind="add_part", component_id="ky-032",
+                                     behavior=games.behavior(spec.game, reset=True))
         if not states_purpose:
             # Without AI, suggest only what a prevalidated sketch really does.
             return ExtensionProposal(kind="add_part", component_id="ky-032", needs_purpose=True,
@@ -222,8 +235,9 @@ def analysis_schema() -> dict:
                     "behavior": {"type": "string", "enum": [b.value for b in offered()] + [Behavior.unsupported.value]},
                     "input_component": {"type": "string", "enum": _sensor_ids() + ["none"]},
                     "unsupported_reason": {"type": "string"},
+                    "game": {"type": "string", "enum": games.offered() + ["none"]},
                 },
-                "required": ["title", "summary", "behavior", "input_component", "unsupported_reason"],
+                "required": ["title", "summary", "behavior", "input_component", "unsupported_reason", "game"],
                 "additionalProperties": False,
             },
         },
@@ -272,6 +286,9 @@ project: what the user wants, restricted to what the known parts can do.
 - behavior: {BEHAVIORS},
   or unsupported when the request is for anything else or needs parts that are not known parts.
 - input_component: the known sensor that detects the trigger, or "none".
+- game: when the user asks for one of the games the schema lists, in whatever words, that game.
+  Then behavior is unsupported and input_component is "none": the parts a game needs are chosen by
+  rules. Otherwise "none".
 - unsupported_reason: one sentence for the user when unsupported, otherwise empty.
 - title: at most 5 words. summary: one sentence.
 
@@ -290,9 +307,16 @@ observations: up to 4 short factual statements about what is visible.
 possible_issues: up to 4 short things for the user to re-check by hand. Empty if nothing stands out."""
 
 
+def game_proposal(game: str) -> ProjectProposal:
+    return ProjectProposal(title=games.GAMES[game]["title"], summary=games.GAMES[game]["summary"],
+                           behavior=Behavior.unsupported, input_component="none", game=game)
+
+
 def keyword_project(instruction: str) -> ProjectProposal:
     """Offline stand-in for the model's project proposal."""
     text = instruction.lower()
+    if games.game_for(text):
+        return game_proposal(games.game_for(text))
     meter_words = ("level", "meter", "volume", "loud", "matrix", "lautst", "pegel", "lauter", "leds", "more led",
                    "many led", "viele led", "mehr led", "analog", "aout", " ao ", "higher", "stronger", "bar")
     if any(w in text for w in meter_words):
@@ -304,18 +328,26 @@ def keyword_project(instruction: str) -> ProjectProposal:
                                behavior=Behavior.toggle_on_event, input_component="ky-037")
     return ProjectProposal(title="Unsupported project", summary=instruction[:80], behavior=Behavior.unsupported,
                            input_component="none",
-                           unsupported_reason="Without the AI service I can only set up the clap-activated light "
-                                              "and the sound level meter.")
+                           unsupported_reason=games.offer() if games.offered() else
+                           "Without the AI service I can only set up the clap-activated light and the sound level meter.")
 
 
 def to_spec(p: ProjectProposal) -> ProjectSpec:
     """Check the proposal against the hardware database and turn it into a project spec."""
+    if p.game in games.offered() and facts.catalog()[games.JOYSTICK].get("add_on"):
+        # A game: the parts and the behaviour text come from games.py, the wiring from the planner.
+        return ProjectSpec(title=games.GAMES[p.game]["title"], summary=games.GAMES[p.game]["summary"],
+                           behavior=Behavior.custom, custom_behavior=games.behavior(p.game), game=p.game, board=BOARD,
+                           input_component=games.JOYSTICK, components=[BOARD, games.JOYSTICK], output="led_matrix")
     sensors = _sensor_ids()
     reason = p.unsupported_reason
     if p.behavior == Behavior.unsupported:
         reason = reason or "This project needs parts I do not support yet."
+        if games.offered() and games.offer() not in reason:
+            reason = f"{reason} {games.offer()}"
     elif p.behavior not in offered():
-        reason = "With these parts I can build a sound level meter on the board's LED matrix. Ask me for that."
+        reason = games.offer() if games.offered() else \
+            "With these parts I can build a sound level meter on the board's LED matrix. Ask me for that."
     elif p.input_component not in sensors:
         reason = "I need a supported sensor for that. Right now I know: " + ", ".join(sensors) + "."
     elif ("led_matrix" if p.behavior == Behavior.level_meter else "builtin_led") not in facts.catalog()[BOARD]:
@@ -419,17 +451,29 @@ class Analyzer:
 
     def analyze(self, instruction: str, image: Optional[bytes] = None,
                 media_type: str = "image/jpeg") -> Tuple[Analysis, str]:
+        game = games.game_for(instruction)
+        if game and image is None:
+            # A game named in plain words, and no photo to look at: nothing for a model to decide.
+            return Analysis(components=[], project=game_proposal(game)), "demo" if self.mode == "demo" else "rules"
         if self.mode == "demo":
             # Saved detection; the project follows the instruction by keyword, so it stays deterministic.
             saved = Analysis.model_validate(demo.SAVED_ANALYSIS)
             proposal = keyword_project(instruction)
-            if proposal.behavior in offered():
+            if proposal.game or proposal.behavior in offered():
                 saved.project = proposal
+            elif games.offered():
+                saved.project = proposal  # says which projects work without the AI service
             return saved, "demo"
         if self.claude is None:
-            return self.mock.analyze(instruction, image, media_type), "mock"
+            analysis = self.mock.analyze(instruction, image, media_type)
+            if game:
+                analysis.project = game_proposal(game)
+            return analysis, "mock"
         try:
-            return self.claude.analyze(instruction, image, media_type), "llm"
+            analysis = self.claude.analyze(instruction, image, media_type)
+            if game:
+                analysis.project = game_proposal(game)
+            return analysis, "llm"
         except (ValidationError, json.JSONDecodeError, StopIteration) as e:
             log.error("invalid analysis JSON: %s", e)
         except Exception as e:

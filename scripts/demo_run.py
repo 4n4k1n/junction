@@ -18,7 +18,7 @@ import urllib.error
 import urllib.request
 import uuid
 
-GOAL = "Build a sound level meter."
+GOAL = "Build a Pong game."
 
 
 class Api:

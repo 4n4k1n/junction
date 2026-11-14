@@ -165,7 +165,8 @@ def test_inventory_confirmed_up_front_needs_no_photo():
     sid = new_session(inventory=[{"component_id": "uno-q"}] + PIN_LABELS)
     assert client.post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": "[]"}).json()["state"] == "wiring"
     sid = new_session()
-    analyze(sid, image=False, expect=422)                             # nothing sent at all
+    s = analyze(sid, image=False)                                     # nothing sent at all: every part is asked for
+    assert s["pending_confirmations"][0]["question"].startswith("For this you need the Arduino UNO Q")
     s = client.post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": "[]"}).json()
     assert s["state"] == "needs_confirmation" and len(s["pending_confirmations"]) == 3
 

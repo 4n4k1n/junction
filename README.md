@@ -1,19 +1,23 @@
 # LearnLens
 
 An AI hardware-building assistant for Meta Ray-Ban Display glasses. You say what you want to build,
-the glasses show wiring steps for the parts on your desk, Claude writes the Arduino sketch, and after
-your approval a local agent uploads it to the board.
+the glasses tell you which parts you need and show the wiring steps, Claude writes the Arduino sketch
+while you wire, and after your approval a local agent uploads it to the board.
 
-Demo: *"Build a sound level meter"* with an Arduino UNO Q and a KY-037 sound sensor. The louder it
-is, the more of the board's 8×13 LED matrix lights up (sensor AO → A0).
+Demo: *"A Pong game"* with an Arduino UNO Q and a KY-023 joystick, played on the board's 8×13 LED
+matrix (VRx → A0, VRy → A1). No photo is needed to start; one can be taken as an extra check.
 
-After a finished build you can keep going: say "add the infrared sensor so it only shows when my hand
-is near" or "make the bar blink when it is loud". A new part gets its own confirmation and wiring
-steps, then the sketch is regenerated for all parts and needs a new approval. Known parts: Arduino
-UNO Q, KY-037 sound sensor, KY-032 infrared obstacle sensor.
+After a finished build the glasses offer three ways on:
 
-An earlier project, the clap-activated light, is still in the code and its tests but is no longer
-offered. `LEARNLENS_OFFERED_PROJECTS=level_meter,toggle_on_event` switches it back on.
+- **Change this build**: same parts, new behaviour ("Snake instead"). No new wiring, new code, new approval.
+- **Add a part**: "add the infrared sensor so the game restarts when I hold my hand over it". The part
+  gets its own confirmation and wiring steps, then the sketch is regenerated for all parts.
+- **Build something new**: back to the question, with a new session.
+
+Offered projects are Pong and Snake. The hardware database knows the whole 41-part KY sensor kit; 22
+of those parts can be added to a build, the others are refused with the reason. The earlier projects
+(sound level meter, clap-activated light) are still in the code and its tests:
+`LEARNLENS_OFFERED_PROJECTS=pong,snake,level_meter` offers the level meter again.
 
 ```
 Glasses ── iOS app ──HTTP──▶ Backend (FastAPI) ◀──polls── Deploy agent (Mac) ──USB──▶ Arduino UNO Q ── KY-037
@@ -56,20 +60,21 @@ python3 scripts/demo_run.py --photo demo/desk.jpg  # send a real photo
 | Mode | AI | Board | How it is labelled |
 |---|---|---|---|
 | `./scripts/start.sh` | Claude | real upload | nothing extra |
-| `--demo` | saved answers, prevalidated sketches (level meter, plus three ways to extend it with the KY-032) | real upload | "DEMO MODE" on every glasses card and in the app; `analysis_source: demo`, `source: demo` |
+| `--demo` | no AI: prevalidated sketches for Pong and Snake, each also with a restart by the KY-032. Any other wish is refused with what works | real upload | "DEMO MODE" on every glasses card and in the app; `analysis_source: demo`, `source: demo` |
 | `--mock` | as chosen | no upload | "SIMULATED upload" in the app, on the glasses and in the log; `deploy.mock: true` |
 
 `GET /health` reports `demo_mode`, `agent_connected` and `agent_mock`.
 
 ## What keeps the flow short
 
-- The sketch is written, checked and compiled in the background while you wire. When the last wire is
-  confirmed it is usually ready (`LEARNLENS_PREGENERATE=0` switches this off).
+- The sketch is written, checked and compiled in the background while you wire, and the glasses say so
+  on the first wiring step. When the last wire is confirmed it is usually ready
+  (`LEARNLENS_PREGENERATE=0` switches this off).
 - The deploy agent compiles a sketch as soon as it waits for approval, so "Start flash" only uploads.
 - A failed step offers **Retry** and keeps everything confirmed so far. Sessions and builds are saved
   to `backend/learnlens_state.json` and survive a backend restart.
 - Steps are read aloud. Optional voice commands ("next", "back") during wiring are experimental.
-- If the board reports `LOUD` in its log during the test, the test confirms itself.
+- If the board reports a reaction in its log during the test (`HIT`, `FOOD`, …), the test confirms itself.
 
 ## Tests
 

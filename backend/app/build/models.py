@@ -179,6 +179,7 @@ class ProjectSpec(BaseModel):
     unsupported_reason: str = ""
     custom_behavior: str = ""   # what the whole build should do after it was developed further
     requests: List[str] = []    # the user's follow-up requests, in order
+    game: str = ""              # "pong" | "snake" while the build is one of the prevalidated games
 
 
 class InventoryItem(BaseModel):
@@ -238,6 +239,8 @@ class GuideStatus(BaseModel):
     clarification: str = ""              # a question back to the user before /extend can go on
     suggestions: List[str] = []          # 1-3 example answers to that question, or requests that would work
     extension_problem: str = ""          # why the last /extend request cannot be built (nothing was changed)
+    parts_needed: List[str] = []         # names of the parts the project needs, for the parts-list card
+    background_notice: str = ""          # set while the code is being written in the background during wiring
     build_id: Optional[str] = None
 
 

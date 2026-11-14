@@ -152,6 +152,8 @@ struct GuideStatus: Decodable, Sendable {
   let clarification: String         // a question back to the user before a build can be developed further
   let suggestions: [String]         // example answers to that question, or requests that would work
   let extensionProblem: String      // why the last follow-up request cannot be built
+  let partsNeeded: [String]         // names of the parts the project needs
+  let backgroundNotice: String      // set while the code is written in the background during wiring
   let buildId: String?
 }
 

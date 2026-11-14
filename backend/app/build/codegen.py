@@ -20,7 +20,7 @@ from typing import Callable, List, Optional, Tuple
 
 from pydantic import ValidationError
 
-from . import codecheck, demo, facts
+from . import codecheck, demo, facts, games
 from .compiler import ArduinoCliCompiler
 from .llm import ask_json, make_client
 from .models import (
@@ -262,7 +262,8 @@ THE STATIC ANALYZER REJECTS A SKETCH THAT:
 {COMMON_RULES}
 - reads an analog input with anything but analogRead, or uses analogRead on any other pin
 - sets a digital input to anything but INPUT, or writes to it
-- uses digitalWrite on anything but {ctx.led_symbol}{previous}"""
+- uses digitalWrite on anything but {ctx.led_symbol}
+- is longer than {codecheck.MAX_SOURCE_CHARS} characters, comments included: keep comments short{previous}"""
 
 
 def repair_prompt(ctx: CodegenContext, previous: str, problems: str) -> str:
@@ -281,7 +282,7 @@ PREVIOUS SKETCH:
 def template_sketch(ctx: CodegenContext) -> GeneratedSketch:
     """Rule-based sketch for the same contract. Used without AI, and when no AI attempt passes."""
     if ctx.custom_behavior:
-        return gated_level_meter_template(ctx)
+        return games.template(ctx) if ctx.project.game else gated_level_meter_template(ctx)
     if ctx.signal_kind == "analog":
         return level_meter_template(ctx)
     off = "HIGH" if ctx.led_on_level == "LOW" else "LOW"
