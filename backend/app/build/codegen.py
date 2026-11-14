@@ -36,6 +36,7 @@ SKETCH_NAME = "learnlens_sketch"  # arduino-cli needs <name>/<name>.ino
 PROJECTS_DIR = Path(os.getenv("LEARNLENS_PROJECTS_DIR", Path(__file__).resolve().parents[2] / "generated"))
 REQUIRED_EVENTS = ["READY", "SOUND_DETECTED", "LED_ON", "LED_OFF"]
 DEFAULT_DEBOUNCE_MS = 300
+DEFAULT_SAMPLE_WINDOW_MS = 25
 
 SKETCH_SCHEMA = {
     "type": "object",
@@ -68,14 +69,8 @@ running the Arduino core on Zephyr, and several habits from the classic UNO are 
 BOARD FACTS in the request come from a verified hardware database. Treat them as the only truth
 about pins, levels and logging, even where they contradict what you remember about Arduino boards.
 
-The static analyzer rejects a sketch that does any of the following, because each one either
-touches hardware outside the wiring plan or can hang the board:
-- uses a pin other than the approved ones, or passes a pin that is not a named constant or literal
-- sets the sensor pin to anything but INPUT, or writes to it
-- includes a header that is not on the approved list, or uses any preprocessor directive except #include
-- uses while, for, do or goto, or a delay longer than 50 ms (loop() must poll and return)
-- uses interrupts, analog I/O, dynamic memory, registers, Zephyr or HAL calls, Bridge RPC calls,
-  Serial, or any other bus or peripheral
+The request lists what the static analyzer rejects for this project. Each rule exists because the
+thing it forbids either touches hardware outside the wiring plan or can hang the board.
 
 Return source_code (the complete .ino file), explanation (3-5 sentences a beginner can follow),
 assumptions (each thing that must be true about the hardware for the sketch to work), and
@@ -83,46 +78,92 @@ expected_serial_events (each log line and when it appears)."""
 
 
 def build_context(spec: ProjectSpec, steps: List[WiringStep], sensor_active_level: Optional[str] = None,
-                  debounce_ms: Optional[int] = None) -> CodegenContext:
+                  debounce_ms: Optional[int] = None, sample_window_ms: Optional[int] = None) -> CodegenContext:
     """Derive what the generator may use from the confirmed plan and the hardware database."""
     cat = facts.catalog()
     board, sensor = cat[spec.board], cat[spec.input_component]
+    analog = spec.behavior == Behavior.level_meter
     signal = next(s.connection for s in steps if s.connection
-                  and sensor["pins"][s.connection.from_pin.pin]["kind"] == "digital_out")
+                  and sensor["pins"][s.connection.from_pin.pin]["kind"] == ("analog_out" if analog else "digital_out"))
     header = signal.to_pin.pin
-    if not re.fullmatch(r"D\d+", header) or board["pins"][header]["kind"] != "gpio":
-        raise ValueError(f"{header} is not a digital header pin")
+    pin = board["pins"][header]
+    if pin["kind"] != "gpio" or bool(pin.get("analog")) != analog or not re.fullmatch(r"[AD]\d+", header):
+        raise ValueError(f"{header} is not a usable {'analog' if analog else 'digital'} header pin")
     led, logging_ = board["builtin_led"], board["logging"]
+    matrix = board["led_matrix"] if analog else {}
     by_id = {f["id"]: f["statement"] for f in board["facts"] + sensor["facts"]}
-    quoted = [board["pins"][header]["fact"], *led["facts"], *logging_["facts"], "unoq-fqbn",
+    quoted = [pin["fact"], *(matrix["facts"] if analog else led["facts"]), *logging_["facts"], "unoq-fqbn",
               sensor["pins"][signal.from_pin.pin]["fact"]]
     return CodegenContext(
         project=spec, board_name=board["name"], fqbn=board["fqbn"]["value"], sensor_name=sensor["name"],
-        sensor_pin=header, sensor_pin_number=int(header[1:]),
-        sensor_active_level=sensor_active_level or sensor["pins"][signal.from_pin.pin]["active_level"],
-        debounce_ms=debounce_ms or DEFAULT_DEBOUNCE_MS,
+        signal_kind="analog" if analog else "digital", output="led_matrix" if analog else "builtin_led",
+        sensor_pin=header, sensor_pin_number=None if analog else int(header[1:]),
+        sensor_active_level=sensor_active_level or sensor["pins"]["DO"]["active_level"],
+        debounce_ms=debounce_ms or DEFAULT_DEBOUNCE_MS, sample_window_ms=sample_window_ms or DEFAULT_SAMPLE_WINDOW_MS,
         led_symbol=led["symbol"], led_on_level=led["on_level"],
-        log_object=logging_["object"], log_setup=logging_["setup"], allowed_includes=[logging_["include"]],
-        required_events=REQUIRED_EVENTS, facts=[by_id[f] for f in quoted])
+        matrix_type=matrix.get("type", ""), matrix_rows=matrix.get("rows", 0), matrix_columns=matrix.get("columns", 0),
+        matrix_max_brightness=matrix.get("max_brightness", 0),
+        log_object=logging_["object"], log_setup=logging_["setup"],
+        allowed_includes=[logging_["include"]] + ([matrix["include"]] if analog else []),
+        required_events=["READY"] if analog else REQUIRED_EVENTS, facts=[by_id[f] for f in quoted])
+
+
+COMMON_RULES = """- uses a pin other than the approved one, or passes a pin that is not a named constant or literal
+- includes a header that is not on the approved list, or uses any preprocessor directive except #include
+- uses do or goto, or a delay longer than 50 ms
+- uses interrupts, analogWrite or tone, dynamic memory, registers, Zephyr or HAL calls, Bridge RPC calls,
+  Serial, or any other bus or peripheral"""
 
 
 def task_prompt(ctx: CodegenContext) -> str:
+    head = f"""PROJECT: {ctx.project.title}. {ctx.project.summary}
+
+BOARD FACTS (verified; the only truth about this hardware):
+{chr(10).join("- " + f for f in ctx.facts)}
+"""
+    includes = ", ".join("<" + h + ">" for h in ctx.allowed_includes)
+    logging_ = f"{ctx.log_object}.println(...), started in setup() with: {' '.join(ctx.log_setup)}"
+    if ctx.signal_kind == "analog":
+        return head + f"""
+BEHAVIOR: A sound level meter. The louder it is, the more columns of the LED matrix light up, from
+left to right. Silence shows nothing. The bar rises at once and falls back gently.
+
+APPROVED HARDWARE ACCESS (nothing else may be touched):
+- Sensor signal: {ctx.sensor_name} analog output on header {ctx.sensor_pin}. Read it with analogRead({ctx.sensor_pin}). No pinMode needed.
+- Output: the LED matrix, {ctx.matrix_rows} rows by {ctx.matrix_columns} columns, brightness 0 to {ctx.matrix_max_brightness}, through {ctx.matrix_type}.
+- Approved #include: {includes}
+- Logging: {logging_}
+
+REQUIRED PARAMETER (declare once near the top as a const, with exactly this value, and use it):
+- const unsigned long SAMPLE_WINDOW_MS = {ctx.sample_window_ms};   // length of one loudness measurement
+
+REQUIRED LOGIC:
+- The microphone signal swings around a resting level. Loudness is the highest minus the lowest
+  analogRead value within one SAMPLE_WINDOW_MS window, timed with millis().
+- Do not assume an ADC range or a fixed threshold: track the quietest and the loudest swing seen and
+  scale between them, so the meter calibrates itself.
+- for and while loops are allowed here. Every while loop must end by time (millis()).
+
+REQUIRED LOG LINE (exactly this text on its own line):
+- READY   once, at the end of setup()
+
+THE STATIC ANALYZER REJECTS A SKETCH THAT:
+{COMMON_RULES}
+- uses digitalRead, digitalWrite or pinMode on any pin, or analogRead on any pin but {ctx.sensor_pin}"""
+
     behavior = {
         Behavior.toggle_on_event: "Each new sound event flips the LED: off -> on -> off.",
         Behavior.on_while_active: "The LED is on while the sensor reports sound and off otherwise.",
     }[ctx.project.behavior]
     off = "HIGH" if ctx.led_on_level == "LOW" else "LOW"
-    return f"""PROJECT: {ctx.project.title}. {ctx.project.summary}
+    return head + f"""
 BEHAVIOR: {behavior}
-
-BOARD FACTS (verified; the only truth about this hardware):
-{chr(10).join("- " + f for f in ctx.facts)}
 
 APPROVED HARDWARE ACCESS (nothing else may be touched):
 - Sensor signal: {ctx.sensor_name} digital output on header {ctx.sensor_pin}, Arduino pin number {ctx.sensor_pin_number}. pinMode INPUT, read with digitalRead.
 - Output: {ctx.led_symbol}. pinMode OUTPUT. {ctx.led_on_level} turns it on, {off} turns it off. Start with it off.
-- Approved #include: {", ".join("<" + h + ">" for h in ctx.allowed_includes)}
-- Logging: {ctx.log_object}.println(...), started in setup() with: {" ".join(ctx.log_setup)}
+- Approved #include: {includes}
+- Logging: {logging_}
 
 REQUIRED PARAMETERS (declare each once near the top as a const, with exactly these values, and use them):
 - const int SENSOR_ACTIVE_LEVEL = {ctx.sensor_active_level};   // level on the pin while the sensor reports sound
@@ -135,7 +176,12 @@ REQUIRED LOGIC:
 REQUIRED LOG LINES (each exactly this text on its own line):
 - READY            once, at the end of setup()
 - SOUND_DETECTED   on each accepted sound event
-- LED_ON / LED_OFF whenever the LED changes, after the change"""
+- LED_ON / LED_OFF whenever the LED changes, after the change
+
+THE STATIC ANALYZER REJECTS A SKETCH THAT:
+{COMMON_RULES}
+- sets the sensor pin to anything but INPUT, or writes to it
+- uses while or for (loop() must poll and return), or any analog I/O"""
 
 
 def repair_prompt(ctx: CodegenContext, previous: str, problems: str) -> str:
@@ -153,6 +199,8 @@ PREVIOUS SKETCH:
 
 def template_sketch(ctx: CodegenContext) -> GeneratedSketch:
     """Rule-based sketch for the same contract. Used without AI, and when no AI attempt passes."""
+    if ctx.signal_kind == "analog":
+        return level_meter_template(ctx)
     off = "HIGH" if ctx.led_on_level == "LOW" else "LOW"
     title = " ".join(re.sub(r"[^\w .,'-]", " ", ctx.project.title).split())[:60]
     if ctx.project.behavior == Behavior.toggle_on_event:
@@ -230,6 +278,92 @@ void loop() {{
             SerialEvent(event="LED_ON", when="right after the LED was switched on"),
             SerialEvent(event="LED_OFF", when="right after the LED was switched off"),
         ])
+
+
+def level_meter_template(ctx: CodegenContext) -> GeneratedSketch:
+    title = " ".join(re.sub(r"[^\w .,'-]", " ", ctx.project.title).split())[:60]
+    code = f"""\
+// LearnLens: {title}
+// Board: {ctx.board_name} (FQBN {ctx.fqbn}). Not a classic Arduino UNO.
+// Wiring: sensor AO -> {ctx.sensor_pin}, + -> +3V3, G -> GND. The sensor must stay on 3.3 V.
+#include <{ctx.allowed_includes[0]}>
+#include <{ctx.allowed_includes[1]}>
+
+const int MIC_PIN = {ctx.sensor_pin};
+const int ROWS = {ctx.matrix_rows};
+const int COLUMNS = {ctx.matrix_columns};
+const int BRIGHTEST = {ctx.matrix_max_brightness};
+const unsigned long SAMPLE_WINDOW_MS = {ctx.sample_window_ms};  // length of one loudness measurement
+const int MIN_RANGE = 12;  // smallest loud-quiet span, so silence does not flicker
+
+{ctx.matrix_type} matrix;
+uint8_t frame[{ctx.matrix_rows * ctx.matrix_columns}];
+
+float quiet = 1e9f;  // smallest swing seen: the room's noise floor
+float loud = 0;      // largest swing seen recently
+float shown = 0;     // bar length on the matrix, in columns
+
+void setup() {{
+  matrix.begin();
+  matrix.setGrayscaleBits(3);
+  matrix.clear();
+  {" ".join(ctx.log_setup)}
+  {ctx.log_object}.println("READY");
+}}
+
+void loop() {{
+  // The microphone signal swings around a resting level. Loudness = how far it swings in one window.
+  int lowest = 100000;
+  int highest = 0;
+  unsigned long start = millis();
+  while (millis() - start < SAMPLE_WINDOW_MS) {{
+    int value = analogRead(MIC_PIN);
+    if (value < lowest) lowest = value;
+    if (value > highest) highest = value;
+  }}
+  float swing = highest - lowest;
+
+  // Self-calibration: the floor creeps up slowly, the ceiling creeps down slowly.
+  if (swing < quiet) quiet = swing; else quiet += 0.002f * (swing - quiet);
+  if (swing > loud) loud = swing; else loud -= 0.01f * (loud - quiet);
+  float range = loud - quiet;
+  if (range < MIN_RANGE) range = MIN_RANGE;
+
+  // 0 = silence, COLUMNS = as loud as it has been. Rise at once, fall gently.
+  float level = (swing - quiet) / range * COLUMNS;
+  if (level < 0) level = 0;
+  if (level > COLUMNS) level = COLUMNS;
+  if (level > shown) shown = level; else shown -= 0.6f;
+  if (shown < 0) shown = 0;
+
+  // Light whole columns up to the level; the last, partly reached column is dimmer.
+  int full = (int)shown;
+  int partial = (int)((shown - full) * BRIGHTEST);
+  for (int row = 0; row < ROWS; row++) {{
+    for (int column = 0; column < COLUMNS; column++) {{
+      uint8_t brightness = 0;
+      if (column < full) brightness = BRIGHTEST;
+      else if (column == full) brightness = partial;
+      frame[row * COLUMNS + column] = brightness;
+    }}
+  }}
+  matrix.draw(frame);
+}}
+"""
+    return GeneratedSketch(
+        source_code=code,
+        explanation=(f"The sketch reads the microphone's analog output on {ctx.sensor_pin} many times during a short "
+                     f"window of {ctx.sample_window_ms} ms and takes the difference between the highest and lowest "
+                     "reading as the loudness. It keeps track of the quietest and loudest values it has seen and "
+                     "scales between them, so it adjusts to the room by itself. The loudness is drawn on the board's "
+                     "LED matrix as a bar that grows from left to right."),
+        assumptions=[
+            f"The sensor's AO pin is wired to {ctx.sensor_pin} and the sensor is powered from +3V3, never from 5 V.",
+            "The matrix shows the board's boot animation for about half a minute after power-up before the meter appears.",
+            "The first seconds are used for calibration, so the bar can jump at the start.",
+            f"The READY line is visible only where {ctx.log_object} output is shown (App Lab or IDE console).",
+        ],
+        expected_serial_events=[SerialEvent(event="READY", when="once after power-up, when setup() has finished")])
 
 
 def check_response(sketch: GeneratedSketch, ctx: CodegenContext) -> List[CodeIssue]:

@@ -4,15 +4,14 @@ SwiftUI iPhone app for Meta Ray-Ban Display, built on the Meta Wearables Device 
 (`MWDATCore`, `MWDATDisplay`, `MWDATCamera`, `MWDATMockDevice`). It follows the official DisplayAccess,
 CameraAccess and BirdSpotter samples.
 
-**Status: not yet built with Xcode.** This Mac only has the Command Line Tools, so `xcodebuild` could not
-run. What was checked instead:
+**Status (2026-11-14): builds with Xcode 27.2**, for the iOS Simulator and for a physical iPhone
+(unsigned), with no errors or warnings in the app's sources. The hand-written project file loads and
+the SDK package resolves at 1.0.1. It launches in the iPhone 18 Pro simulator (iOS 27.2), reaches the
+backend and shows the demo-mode and simulated-upload banners. **Not yet exercised:** tapping through
+the flow, simulated glasses, a real iPhone, and real glasses.
 
-- Every SDK symbol used was read from the 1.0.1 `.swiftinterface` files in the SDK package.
-- `typecheck/typecheck.sh` compiles the sources for macOS against stub modules copied from those
-  interfaces. It passes in Swift 5 and Swift 6 mode. It does not cover `MockDisplayPreview.swift`,
-  `PhotoEncoding.swift` (UIKit) or the `#if os(iOS)` audio-session lines.
-- `LearnLens.xcodeproj` was written by hand (modelled on BirdSpotter's project) and passes `plutil -lint`.
-  Opening it in Xcode is untested.
+`typecheck/typecheck.sh` still works without Xcode, and `typecheck/contract_check.sh` checks that
+backend responses decode with the app's models.
 
 ## Build
 
@@ -70,9 +69,11 @@ simulated uploads are also written on the glasses cards.
 
 ## Hardware verification checklist (all unverified)
 
-Nothing below has run on physical glasses or in Xcode. Tick each one on a real device.
+Apart from the build, nothing below has been run. Tick each one on a real device.
 
-- [ ] Project opens and builds in Xcode 26.4+; the app launches in the Simulator.
+- [x] Project builds with Xcode 27.2 (simulator and device).
+- [x] The app launches in the Simulator and reads the backend's `/health`.
+- [ ] The app launches on an iPhone.
 - [ ] Simulated glasses: toggle on, the display preview shows the LearnLens card, the buttons react.
 - [ ] Registration: Developer Mode on in Meta AI, tap Register, return to the app, state is `registered`.
 - [ ] Device list shows the glasses with link state `connected`.

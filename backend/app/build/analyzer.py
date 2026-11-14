@@ -106,7 +106,7 @@ def _catalog_block() -> str:
 
 ANALYZE_SYSTEM = """You are the vision step of LearnLens, a hardware-building assistant on smart glasses.
 A beginner shows you a photo of the parts on their desk and says what they want to build.
-The only output is the built-in LED of the board. Your answer feeds a rule-based planner, and a
+The outputs are the board's built-in LED or its LED matrix. Your answer feeds a rule-based planner, and a
 person will then confirm every part by hand, so being honest about doubt matters more than being helpful.
 
 components: one entry for each electronic part you can see.
@@ -120,6 +120,7 @@ If there is no photo, return an empty components list.
 
 project: what the user wants, restricted to what the known parts can do.
 - behavior: toggle_on_event (each event flips the LED), on_while_active (LED follows the sensor),
+  level_meter (the louder the sound, the more LEDs of the board's LED matrix light up),
   or unsupported when the request needs parts or outputs that are not known parts.
 - input_component: the known sensor that detects the trigger, or "none".
 - unsupported_reason: one sentence for the user when unsupported, otherwise empty.
@@ -143,12 +144,19 @@ possible_issues: up to 4 short things for the user to re-check by hand. Empty if
 def keyword_project(instruction: str) -> ProjectProposal:
     """Offline stand-in for the model's project proposal."""
     text = instruction.lower()
+    meter_words = ("level", "meter", "volume", "loud", "matrix", "lautst", "pegel", "lauter", "leds", "more led",
+                   "many led", "viele led", "mehr led", "analog", "aout", " ao ", "higher", "stronger", "bar")
+    if any(w in text for w in meter_words):
+        return ProjectProposal(title="Sound level meter",
+                               summary="The louder it gets, the more of the LED matrix lights up.",
+                               behavior=Behavior.level_meter, input_component="ky-037")
     if any(w in text for w in ("clap", "sound", "noise", "klatsch")):
         return ProjectProposal(title="Clap-activated light", summary="A clap toggles the board's built-in LED.",
                                behavior=Behavior.toggle_on_event, input_component="ky-037")
     return ProjectProposal(title="Unsupported project", summary=instruction[:80], behavior=Behavior.unsupported,
                            input_component="none",
-                           unsupported_reason="Without the AI service I can only set up the clap-activated light.")
+                           unsupported_reason="Without the AI service I can only set up the clap-activated light "
+                                              "and the sound level meter.")
 
 
 def to_spec(p: ProjectProposal) -> ProjectSpec:
@@ -159,13 +167,14 @@ def to_spec(p: ProjectProposal) -> ProjectSpec:
         reason = reason or "This project needs parts I do not support yet."
     elif p.input_component not in sensors:
         reason = "I need a supported sensor for that. Right now I know: " + ", ".join(sensors) + "."
-    elif "builtin_led" not in facts.catalog()[BOARD]:
-        reason = "The board's built-in LED is not verified in the hardware database."
+    elif ("led_matrix" if p.behavior == Behavior.level_meter else "builtin_led") not in facts.catalog()[BOARD]:
+        reason = "The board output this needs is not verified in the hardware database."
     else:
         reason = ""
     sensor = p.input_component if p.input_component in sensors else None
     return ProjectSpec(title=p.title, summary=p.summary, behavior=p.behavior if not reason else Behavior.unsupported,
                        board=BOARD, input_component=sensor, components=[BOARD] + ([sensor] if sensor else []),
+                       output="led_matrix" if p.behavior == Behavior.level_meter else "builtin_led",
                        supported=not reason, unsupported_reason=reason)
 
 
@@ -243,7 +252,12 @@ class Analyzer:
     def analyze(self, instruction: str, image: Optional[bytes] = None,
                 media_type: str = "image/jpeg") -> Tuple[Analysis, str]:
         if self.mode == "demo":
-            return Analysis.model_validate(demo.SAVED_ANALYSIS), "demo"
+            # Saved detection; the project follows the instruction by keyword, so it stays deterministic.
+            saved = Analysis.model_validate(demo.SAVED_ANALYSIS)
+            proposal = keyword_project(instruction)
+            if proposal.behavior != Behavior.unsupported:
+                saved.project = proposal
+            return saved, "demo"
         if self.claude is None:
             return self.mock.analyze(instruction, image, media_type), "mock"
         try:

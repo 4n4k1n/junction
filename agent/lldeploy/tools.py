@@ -57,7 +57,7 @@ class Config:
     cli: Optional[str] = field(default_factory=resolve_cli)
     adb: Optional[str] = field(default_factory=resolve_adb)
     fqbn: str = FQBN
-    allowed_includes: Tuple[str, ...] = ("Arduino_RouterBridge.h",)
+    allowed_includes: Tuple[str, ...] = ("Arduino_RouterBridge.h", "Arduino_LED_Matrix.h")
     compile_timeout_s: float = float(os.getenv("LEARNLENS_COMPILE_TIMEOUT", "300"))
     upload_timeout_s: float = float(os.getenv("LEARNLENS_UPLOAD_TIMEOUT", "120"))
     log_transport: str = os.getenv("LEARNLENS_LOG_TRANSPORT", "cli-monitor")  # cli-monitor | adb-app-cli | none

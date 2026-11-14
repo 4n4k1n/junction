@@ -328,3 +328,9 @@ def test_follow_logs_sends_only_lines_that_were_read(agent, monkeypatch):
                                     agent, job, seconds=5, chunk_s=0.1)
     assert [m for _, _, m in sent] == ["READY", "SOUND_DETECTED", "LED_ON"] and n == 3   # stopped early: all expected seen
     assert all(path == "/agent/jobs/j1/events" and stage == "runtime" for path, stage, _ in sent)
+
+
+def test_led_matrix_header_is_accepted(agent, monkeypatch):
+    FakeTools(monkeypatch)
+    code = "#include <Arduino_RouterBridge.h>\n#include <Arduino_LED_Matrix.h>\nvoid setup(){}\nvoid loop(){}\n"
+    assert agent.compile(artifact(code=code))["status"] == "ok"

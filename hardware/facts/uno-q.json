@@ -248,6 +248,18 @@
       "statement": "Sketches are uploaded with the core's 'remoteocd' tool through the board's Linux side, not through a serial bootloader as on the classic UNO.",
       "source": "arduino:zephyr 1.1.0 boards.txt (unoq.upload.tool)",
       "confidence": "official_doc"
+    },
+    {
+      "id": "unoq-led-matrix",
+      "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
+      "source": "Arduino UNO Q datasheet, section 'LEDs'",
+      "confidence": "official_doc"
+    },
+    {
+      "id": "unoq-led-matrix-api",
+      "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
+      "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
+      "confidence": "official_doc"
     }
   ],
   "logging": {
@@ -265,5 +277,19 @@
   "upload": {
     "tool": "remoteocd",
     "fact": "unoq-upload"
+  },
+  "analog_input_preference": [
+    "A0"
+  ],
+  "led_matrix": {
+    "include": "Arduino_LED_Matrix.h",
+    "type": "Arduino_LED_Matrix",
+    "rows": 8,
+    "columns": 13,
+    "max_brightness": 7,
+    "facts": [
+      "unoq-led-matrix",
+      "unoq-led-matrix-api"
+    ]
   }
 }

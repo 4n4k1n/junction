@@ -160,6 +160,7 @@ class DetectedComponent(BaseModel):
 class Behavior(str, Enum):
     toggle_on_event = "toggle_on_event"  # each trigger flips the output
     on_while_active = "on_while_active"  # output follows the input
+    level_meter = "level_meter"          # the louder the input, the more of the LED matrix lights up
     unsupported = "unsupported"
 
 
@@ -240,12 +241,19 @@ class CodegenContext(BaseModel):
     board_name: str
     fqbn: str
     sensor_name: str
-    sensor_pin: str          # header name, e.g. "D2"
-    sensor_pin_number: int   # Arduino pin number of that header
-    sensor_active_level: str = Field(pattern="^(HIGH|LOW)$")  # level on the pin while the sensor reports an event
-    debounce_ms: int = Field(ge=20, le=2000)
+    signal_kind: str = "digital"  # digital (digitalRead on a D pin) | analog (analogRead on an A pin)
+    output: str = "builtin_led"   # builtin_led | led_matrix
+    sensor_pin: str          # header name, e.g. "D2" or "A0"
+    sensor_pin_number: Optional[int] = None  # Arduino pin number of a digital header
+    sensor_active_level: str = Field(default="HIGH", pattern="^(HIGH|LOW)$")  # digital: level while the sensor reports an event
+    debounce_ms: int = Field(default=300, ge=20, le=2000)                     # digital
+    sample_window_ms: int = Field(default=25, ge=5, le=100)                   # analog: one loudness measurement
     led_symbol: str          # e.g. LED_BUILTIN
     led_on_level: str        # level that turns the LED on
+    matrix_type: str = ""    # e.g. Arduino_LED_Matrix
+    matrix_rows: int = 0
+    matrix_columns: int = 0
+    matrix_max_brightness: int = 0
     log_object: str          # e.g. Monitor
     log_setup: List[str]     # statements that start logging
     allowed_includes: List[str]
@@ -298,6 +306,7 @@ class GenerationAttempt(BaseModel):
 class GenerateRequest(BaseModel):
     sensor_active_level: Optional[str] = Field(default=None, pattern="^(HIGH|LOW)$")
     debounce_ms: Optional[int] = Field(default=None, ge=20, le=2000)
+    sample_window_ms: Optional[int] = Field(default=None, ge=5, le=100)  # level meter only
 
 
 class GenerationResult(BaseModel):

@@ -216,7 +216,8 @@ def generate(session_id: str, req: Optional[GenerateRequest] = None):
     if problems:
         raise HTTPException(409, {"error": "wiring plan is not valid", "problems": problems})
 
-    ctx = codegen.build_context(s.project, s.wiring_steps, req.sensor_active_level, req.debounce_ms)
+    ctx = codegen.build_context(s.project, s.wiring_steps, req.sensor_active_level, req.debounce_ms,
+                                req.sample_window_ms)
     try:
         generated, source, attempts = generator.generate(s.session_id, ctx)
     except RuntimeError as e:
@@ -234,9 +235,11 @@ def generate(session_id: str, req: Optional[GenerateRequest] = None):
         session_id=s.session_id, build_id=build.build_id, source=source, sketch=sketch,
         explanation=generated.explanation, assumptions=generated.assumptions,
         expected_serial_events=generated.expected_serial_events,
-        parameters={"SENSOR_ACTIVE_LEVEL": ctx.sensor_active_level, "DEBOUNCE_MS": ctx.debounce_ms,
-                    "sensor_pin": ctx.sensor_pin, "led": ctx.led_symbol, "led_on_level": ctx.led_on_level,
-                    "fqbn": ctx.fqbn},
+        parameters=({"SAMPLE_WINDOW_MS": ctx.sample_window_ms, "sensor_pin": ctx.sensor_pin, "output": ctx.output,
+                     "fqbn": ctx.fqbn} if ctx.signal_kind == "analog" else
+                    {"SENSOR_ACTIVE_LEVEL": ctx.sensor_active_level, "DEBOUNCE_MS": ctx.debounce_ms,
+                     "sensor_pin": ctx.sensor_pin, "led": ctx.led_symbol, "led_on_level": ctx.led_on_level,
+                     "fqbn": ctx.fqbn}),
         attempts=attempts, repairs_used=sum(a.kind == "repair" for a in attempts),
         compile=codegen.final_compile(attempts, ctx.fqbn), project_dir=attempts[-1].project_dir)
 

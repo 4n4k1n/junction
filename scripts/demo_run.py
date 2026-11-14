@@ -7,6 +7,7 @@ It does what the phone app does, so the flow can be rehearsed and timed without 
 
     python3 scripts/demo_run.py --photo demo/desk.jpg     # send a real photo (normal mode: analyzed by Claude)
     python3 scripts/demo_run.py --auto                    # answer every prompt except the upload approval
+    python3 scripts/demo_run.py --goal "Build a sound level meter on the LED matrix"   # the second project
 
 The upload approval is always typed by a person. Standard library only.
 """
@@ -138,7 +139,7 @@ def main():
     print("   SIMULATED: no board was flashed." if simulated else f"   uploaded to {build['deploy']['port']} (the upload tool reported success)")
 
     print("8. Test")
-    glasses("Clap now. Does the LED toggle?")
+    glasses("Make some noise. Does it react?")
     if not simulated:
         seen, deadline = 0, time.time() + 20
         while time.time() < deadline:
@@ -151,8 +152,8 @@ def main():
                 break
             time.sleep(1)
         else:
-            print("   no clap was reported in the board log within 20 s (the LED is the ground truth)")
-    answer = "y" if simulated and args.auto else input("   Did the LED toggle on your clap? [y/n] ").strip().lower()
+            print("   no sound event was reported in the board log within 20 s (the LEDs are the ground truth)")
+    answer = "y" if simulated and args.auto else input("   Did the board react to sound as described? [y/n] ").strip().lower()
     build = api.call("POST", f"/builds/{bid}/test-result", body={"passed": answer == "y"})
 
     label = "SIMULATED upload" if simulated else "real board"

@@ -395,7 +395,7 @@ final class SessionViewModel {
       let seen = build?.deploy?.observedEvents ?? []
       return GlassesCards.card(
         caption: isSimulatedDeploy ? "Test it · SIMULATED upload" : demo + "Test it",
-        text: seen.isEmpty ? "Clap now. Does the LED toggle?" : "Board reports: " + seen.joined(separator: ", "),
+        text: seen.isEmpty ? "Make some noise. Does it react?" : "Board reports: " + seen.joined(separator: ", "),
         primary: action("Yes") { await $0.reportTest(passed: true) },
         secondary: action("No") { await $0.reportTest(passed: false) }
       )

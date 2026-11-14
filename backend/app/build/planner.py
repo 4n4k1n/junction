@@ -25,17 +25,26 @@ def make_sketch(code: str, provenance: Provenance, filename: str = "learnlens_bu
                   sha256=hashlib.sha256(code.encode()).hexdigest())
 
 
-def _signal_pin() -> str:
-    return facts.catalog()[BOARD]["digital_input_preference"][0]
+def level_meter_spec() -> ProjectSpec:
+    return ProjectSpec(title="Sound level meter", summary="The louder it gets, the more of the LED matrix lights up.",
+                       behavior=Behavior.level_meter, board=BOARD, input_component="ky-037", output="led_matrix",
+                       components=[BOARD, "ky-037"])
+
+
+def _signal_pin(analog: bool = False) -> str:
+    return facts.catalog()[BOARD]["analog_input_preference" if analog else "digital_input_preference"][0]
 
 
 def plan_wiring(spec: ProjectSpec) -> List[WiringStep]:
-    """Wiring steps for a digital sensor on the board. The caller must run facts.check_safety."""
+    """Wiring steps for a sensor on the board: its digital output, or for a level meter its analog
+    output. The caller must run facts.check_safety."""
     cat = facts.catalog()
     sensor, name = spec.input_component, cat[spec.input_component]["name"].split()[0]
     pins = cat[sensor]["pins"]
-    target = {"ground": "GND", "supply": "3V3", "digital_out": _signal_pin()}
-    order = {"ground": 0, "supply": 1, "digital_out": 2}
+    analog = spec.behavior == Behavior.level_meter
+    signal = "analog_out" if analog else "digital_out"
+    target = {"ground": "GND", "supply": "3V3", signal: _signal_pin(analog)}
+    order = {"ground": 0, "supply": 1, signal: 2}
 
     steps = [WiringStep(index=0, display_text="Unplug the board's USB cable",
                         spoken_text="Unplug the USB cable before you wire anything.")]

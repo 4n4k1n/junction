@@ -4,7 +4,11 @@ An AI hardware-building assistant for Meta Ray-Ban Display glasses. You say what
 the glasses show wiring steps for the parts on your desk, Claude writes the Arduino sketch, and after
 your approval a local agent uploads it to the board.
 
-Demo: *"I want to build a clap-activated light"* with an Arduino UNO Q and a KY-037 sound sensor.
+Two projects are supported, both with an Arduino UNO Q and a KY-037 sound sensor:
+
+- *"I want to build a clap-activated light"*: a clap toggles the board's red LED (sensor DO → D2).
+- *"Build a sound level meter"*: the louder it is, the more of the board's 8×13 LED matrix lights up
+  (sensor AO → A0).
 
 ```
 Glasses ── iOS app ──HTTP──▶ Backend (FastAPI) ◀──polls── Deploy agent (Mac) ──USB──▶ Arduino UNO Q ── KY-037
@@ -40,6 +44,7 @@ Then either run the iPhone app (`ios/README.md`), or drive the same flow from a 
 ```bash
 python3 scripts/demo_run.py                        # asks at each step; you type "approve" before the upload
 python3 scripts/demo_run.py --photo demo/desk.jpg  # send a real photo
+python3 scripts/demo_run.py --goal "Build a sound level meter on the LED matrix"
 ```
 
 ## Modes, and how to tell them apart

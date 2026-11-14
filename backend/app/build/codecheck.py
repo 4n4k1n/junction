@@ -16,7 +16,7 @@ MAX_DELAY_MS = 50
 
 # (rule, pattern, message). Matched against the code with comments and string literals blanked.
 DENYLIST = [
-    ("unsafe_loop", r"\b(while|for|do|goto)\b", "loops and goto are not allowed: loop() must return quickly"),
+    ("unsafe_loop", r"\b(do|goto)\b", "do-while and goto are not allowed"),
     ("dynamic_memory", r"\b(malloc|calloc|realloc|free|new|delete)\b", "dynamic memory is not allowed"),
     ("inline_asm", r"\b(asm|__asm__?|__attribute__)\b", "inline assembly and attributes are not allowed"),
     ("raw_register", r"\b(GPIO[A-K]|RCC|SCB|NVIC|EXTI|TIM\d+|ADC\d+|DAC\d*|PWR|FLASH)\b|\bHAL_\w+|\bLL_\w+|\b__HAL\w+",
@@ -27,8 +27,8 @@ DENYLIST = [
      "Zephyr kernel and driver calls are not allowed: use the Arduino API"),
     ("interrupts", r"\b(attachInterrupt|detachInterrupt|noInterrupts|interrupts|__disable_irq|__enable_irq)\b",
      "interrupt control is not allowed: poll the pin in loop()"),
-    ("analog_io", r"\b(analogRead|analogWrite|analogReference|analogReadResolution|tone|noTone|pulseIn|shiftOut|shiftIn)\b",
-     "this project uses digital I/O only"),
+    ("analog_io", r"\b(analogWrite|analogReference|analogReadResolution|tone|noTone|pulseIn|shiftOut|shiftIn)\b",
+     "analog and pulse output are not allowed"),
     ("bridge_rpc", r"\bBridge\s*\.\s*(?!begin\b)\w+", "RPC calls to the board's Linux side are not allowed"),
     ("other_bus", r"\b(Serial\d+|Wire\d*|SPI\d*|CAN\d*|EEPROM|WiFi\w*|BLE\w*|SD|Servo|Keyboard|Mouse)\b",
      "buses and peripherals outside the wiring plan are not allowed"),
@@ -39,7 +39,7 @@ DENYLIST = [
 CONST_DECL = re.compile(
     r"\b(?:static\s+)?(?:const|constexpr)\s+(?:static\s+)?(?:unsigned\s+)?(?:int|long|bool|byte|uint8_t|uint16_t|uint32_t|"
     r"pin_size_t|PinStatus)(?:\s+long)?\s+(\w+)\s*=\s*([^;]+);")
-PIN_CALL = re.compile(r"\b(pinMode|digitalRead|digitalWrite)\s*\(\s*([^,()]*)\s*(?:,\s*([^()]*?)\s*)?\)")
+PIN_CALL = re.compile(r"\b(pinMode|digitalRead|digitalWrite|analogRead)\s*\(\s*([^,()]*)\s*(?:,\s*([^()]*?)\s*)?\)")
 IDENT = re.compile(r"^[A-Za-z_]\w*$")
 
 
@@ -115,6 +115,13 @@ def check_sketch(code: str, ctx: CodegenContext) -> List[CodeIssue]:
     for rule, pattern, message in DENYLIST:
         for m in re.finditer(pattern, bare):
             add(rule, f"{m.group(0).strip()}: {message}", m.start(), bare)
+    analog = ctx.signal_kind == "analog"
+    if not analog:
+        # A digital project polls in loop(): no loops that could block, and no analog input.
+        for m in re.finditer(r"\b(while|for)\b", bare):
+            add("unsafe_loop", f"{m.group(0)}: loops are not allowed here: loop() must return quickly", m.start(), bare)
+        for m in re.finditer(r"\banalogRead\b", bare):
+            add("analog_io", "analogRead: this project uses digital I/O only", m.start(), bare)
 
     if ctx.log_object != "Serial":
         for m in re.finditer(r"\bSerial\b", bare):
@@ -128,8 +135,9 @@ def check_sketch(code: str, ctx: CodegenContext) -> List[CodeIssue]:
 
     # Pins: every pin argument must resolve, through const declarations, to an approved pin.
     constants = {name: value.strip() for name, value in CONST_DECL.findall(bare)}
-    sensor = {str(ctx.sensor_pin_number), ctx.sensor_pin}
-    led = {ctx.led_symbol}
+    sensor = {ctx.sensor_pin} if analog else {str(ctx.sensor_pin_number), ctx.sensor_pin}
+    led = {ctx.led_symbol} if ctx.output == "builtin_led" else set()
+    approved = f"{ctx.sensor_pin} as input" + (f", {ctx.led_symbol} as output" if led else "")
     for m in PIN_CALL.finditer(bare):
         call, arg, second = m.group(1), m.group(2).strip(), (m.group(3) or "").strip()
         if not (IDENT.match(arg) or arg.isdigit()):
@@ -137,7 +145,9 @@ def check_sketch(code: str, ctx: CodegenContext) -> List[CodeIssue]:
             continue
         pin = _resolve(arg, constants)
         if pin in sensor:
-            if call == "digitalWrite":
+            if analog and call != "analogRead":
+                add("disallowed_pin", f"{call}({arg}): read the analog sensor pin with analogRead only", m.start(), bare)
+            elif call == "digitalWrite":
                 add("unsafe_operation", f"digitalWrite on {arg}: the sensor output must never be driven", m.start(), bare)
             elif call == "pinMode" and _resolve(second, constants) != "INPUT":
                 add("unsafe_operation", f"pinMode({arg}, {second}): the sensor pin must be INPUT", m.start(), bare)
@@ -146,15 +156,19 @@ def check_sketch(code: str, ctx: CodegenContext) -> List[CodeIssue]:
                 add("unsafe_operation", f"pinMode({arg}, {second}): the LED pin must be OUTPUT", m.start(), bare)
         else:
             add("disallowed_pin", f"{call}({arg}) uses pin '{pin}', which is not in the confirmed wiring plan "
-                                  f"(approved: {ctx.sensor_pin} as input, {ctx.led_symbol} as output)", m.start(), bare)
+                                  f"(approved: {approved})", m.start(), bare)
 
     # Contract: structure, configurable parameters, logging.
     for name in ("setup", "loop"):
         if not re.search(rf"\bvoid\s+{name}\s*\(\s*(void)?\s*\)", bare):
             add("missing_function", f"void {name}() is missing")
-    if not any(PIN_CALL.pattern and m.group(1) == "digitalRead" for m in PIN_CALL.finditer(bare)):
-        add("missing_input", "the sensor pin is never read with digitalRead")
-    expected = {"SENSOR_ACTIVE_LEVEL": ctx.sensor_active_level, "DEBOUNCE_MS": str(ctx.debounce_ms)}
+    read = "analogRead" if analog else "digitalRead"
+    if not any(m.group(1) == read for m in PIN_CALL.finditer(bare)):
+        add("missing_input", f"the sensor pin is never read with {read}")
+    if ctx.output == "led_matrix" and not re.search(rf"\b{ctx.matrix_type}\s+\w+", bare):
+        add("missing_output", f"no {ctx.matrix_type} object is declared")
+    expected = ({"SAMPLE_WINDOW_MS": str(ctx.sample_window_ms)} if analog
+                else {"SENSOR_ACTIVE_LEVEL": ctx.sensor_active_level, "DEBOUNCE_MS": str(ctx.debounce_ms)})
     for name, value in expected.items():
         got = re.sub(r"(?<=\d)[uUlL]+$", "", constants.get(name, ""))
         if not got:
@@ -164,7 +178,7 @@ def check_sketch(code: str, ctx: CodegenContext) -> List[CodeIssue]:
         elif len(re.findall(rf"\b{name}\b", bare)) < 2:
             add("unused_parameter", f"{name} is declared but never used")
     if not re.search(r"\bmillis\s*\(\s*\)", bare):
-        add("missing_debounce", "millis() is never used, so the debounce interval is not timed")
+        add("missing_debounce", "millis() is never used, so nothing is timed")
     if not re.search(rf"\b{ctx.log_object}\s*\.\s*begin\s*\(", bare):
         add("missing_logging", f"{ctx.log_object}.begin(...) is missing")
     literals = string_literals(code)

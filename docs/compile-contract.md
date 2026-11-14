@@ -68,6 +68,12 @@ never written; only `#include <Arduino_RouterBridge.h>` and no other preprocesso
 `Serial` or other buses; `SENSOR_ACTIVE_LEVEL` and `DEBOUNCE_MS` declared with the confirmed values and
 used; `millis()` used; `Monitor.begin`; the four log lines present.
 
+The level meter project (`behavior: level_meter`) changes the contract: the signal is the sensor's
+analog output on A0 (`analogRead` on that pin only, no digital pin access at all), the output is the
+LED matrix through `<Arduino_LED_Matrix.h>`, `for` and `while` loops are allowed, the required
+parameter is `SAMPLE_WINDOW_MS` (request field `sample_window_ms`, 5..100), and the only required log
+line is `READY`.
+
 Not checked statically: whether the edge-detection logic is correct. The prompt requires it, the
 template implements it, and the user sees the code before approving.
 

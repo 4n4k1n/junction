@@ -17,6 +17,7 @@
       "enum": [
         "toggle_on_event",
         "on_while_active",
+        "level_meter",
         "unsupported"
       ],
       "title": "Behavior",
@@ -551,6 +552,20 @@
           ],
           "default": null,
           "title": "Debounce Ms"
+        },
+        "sample_window_ms": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 5,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sample Window Ms"
         },
         "sensor_active_level": {
           "anyOf": [

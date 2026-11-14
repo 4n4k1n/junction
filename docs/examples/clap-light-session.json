@@ -9,7 +9,7 @@
       }
     },
     "response": {
-      "session_id": "ace84d22f1bd",
+      "session_id": "5e2711961f80",
       "state": "awaiting_analysis",
       "instruction": "Build a clap-activated light",
       "display_text": "Look at your parts and take a photo",
@@ -32,13 +32,13 @@
     "step": "2. Analyze the desk photo: the sensor is uncertain, so the plan is held back",
     "request": {
       "method": "POST",
-      "path": "/sessions/ace84d22f1bd/analyze",
+      "path": "/sessions/5e2711961f80/analyze",
       "files": {
         "image": "<desk photo, image/jpeg>"
       }
     },
     "response": {
-      "session_id": "ace84d22f1bd",
+      "session_id": "5e2711961f80",
       "state": "needs_confirmation",
       "instruction": "Build a clap-activated light",
       "display_text": "Please confirm your parts",
@@ -181,6 +181,20 @@
           "confidence": "official_doc"
         },
         {
+          "id": "unoq-led-matrix",
+          "component": "uno-q",
+          "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
+          "source": "Arduino UNO Q datasheet, section 'LEDs'",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix-api",
+          "component": "uno-q",
+          "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
+          "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
+          "confidence": "official_doc"
+        },
+        {
           "id": "ky037-pins",
           "component": "ky-037",
           "statement": "The module has four pins: analog signal (AO), ground (G), supply (+) and digital signal (DO). The order differs between makers, so go by the printed labels.",
@@ -214,13 +228,13 @@
     "step": "3. The user confirms the sensor and its pin labels: wiring plan released",
     "request": {
       "method": "POST",
-      "path": "/sessions/ace84d22f1bd/analyze",
+      "path": "/sessions/5e2711961f80/analyze",
       "data": {
         "confirmed_inventory": "[{\"component_id\": \"ky-037\", \"confirmations\": [\"ky037-pin-labels\"]}]"
       }
     },
     "response": {
-      "session_id": "ace84d22f1bd",
+      "session_id": "5e2711961f80",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
       "display_text": "Unplug the board's USB cable",
@@ -355,6 +369,20 @@
           "confidence": "official_doc"
         },
         {
+          "id": "unoq-led-matrix",
+          "component": "uno-q",
+          "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
+          "source": "Arduino UNO Q datasheet, section 'LEDs'",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix-api",
+          "component": "uno-q",
+          "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
+          "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
+          "confidence": "official_doc"
+        },
+        {
           "id": "ky037-pins",
           "component": "ky-037",
           "statement": "The module has four pins: analog signal (AO), ground (G), supply (+) and digital signal (DO). The order differs between makers, so go by the printed labels.",
@@ -460,14 +488,14 @@
     "step": "4.0 Confirm wiring step 0",
     "request": {
       "method": "POST",
-      "path": "/sessions/ace84d22f1bd/confirm-step",
+      "path": "/sessions/5e2711961f80/confirm-step",
       "json": {
         "step_index": 0,
         "confirmed": true
       }
     },
     "response": {
-      "session_id": "ace84d22f1bd",
+      "session_id": "5e2711961f80",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
       "display_text": "KY-037 G to board GND",
@@ -602,6 +630,20 @@
           "confidence": "official_doc"
         },
         {
+          "id": "unoq-led-matrix",
+          "component": "uno-q",
+          "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
+          "source": "Arduino UNO Q datasheet, section 'LEDs'",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix-api",
+          "component": "uno-q",
+          "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
+          "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
+          "confidence": "official_doc"
+        },
+        {
           "id": "ky037-pins",
           "component": "ky-037",
           "statement": "The module has four pins: analog signal (AO), ground (G), supply (+) and digital signal (DO). The order differs between makers, so go by the printed labels.",
@@ -709,14 +751,14 @@
     "step": "4.1 Confirm wiring step 1",
     "request": {
       "method": "POST",
-      "path": "/sessions/ace84d22f1bd/confirm-step",
+      "path": "/sessions/5e2711961f80/confirm-step",
       "json": {
         "step_index": 1,
         "confirmed": true
       }
     },
     "response": {
-      "session_id": "ace84d22f1bd",
+      "session_id": "5e2711961f80",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
       "display_text": "KY-037 + to board +3V3",
@@ -851,6 +893,20 @@
           "confidence": "official_doc"
         },
         {
+          "id": "unoq-led-matrix",
+          "component": "uno-q",
+          "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
+          "source": "Arduino UNO Q datasheet, section 'LEDs'",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix-api",
+          "component": "uno-q",
+          "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
+          "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
+          "confidence": "official_doc"
+        },
+        {
           "id": "ky037-pins",
           "component": "ky-037",
           "statement": "The module has four pins: analog signal (AO), ground (G), supply (+) and digital signal (DO). The order differs between makers, so go by the printed labels.",
@@ -959,14 +1015,14 @@
     "step": "4.2 Confirm wiring step 2",
     "request": {
       "method": "POST",
-      "path": "/sessions/ace84d22f1bd/confirm-step",
+      "path": "/sessions/5e2711961f80/confirm-step",
       "json": {
         "step_index": 2,
         "confirmed": true
       }
     },
     "response": {
-      "session_id": "ace84d22f1bd",
+      "session_id": "5e2711961f80",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
       "display_text": "KY-037 DO to board D2",
@@ -1098,6 +1154,20 @@
           "component": "uno-q",
           "statement": "Sketches are uploaded with the core's 'remoteocd' tool through the board's Linux side, not through a serial bootloader as on the classic UNO.",
           "source": "arduino:zephyr 1.1.0 boards.txt (unoq.upload.tool)",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix",
+          "component": "uno-q",
+          "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
+          "source": "Arduino UNO Q datasheet, section 'LEDs'",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix-api",
+          "component": "uno-q",
+          "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
+          "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
           "confidence": "official_doc"
         },
         {
@@ -1210,13 +1280,13 @@
     "step": "   Optional photo review mid-wiring (never an electrical verification)",
     "request": {
       "method": "POST",
-      "path": "/sessions/ace84d22f1bd/analyze",
+      "path": "/sessions/5e2711961f80/analyze",
       "files": {
         "image": "<desk photo, image/jpeg>"
       }
     },
     "response": {
-      "session_id": "ace84d22f1bd",
+      "session_id": "5e2711961f80",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
       "display_text": "KY-037 DO to board D2",
@@ -1348,6 +1418,20 @@
           "component": "uno-q",
           "statement": "Sketches are uploaded with the core's 'remoteocd' tool through the board's Linux side, not through a serial bootloader as on the classic UNO.",
           "source": "arduino:zephyr 1.1.0 boards.txt (unoq.upload.tool)",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix",
+          "component": "uno-q",
+          "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
+          "source": "Arduino UNO Q datasheet, section 'LEDs'",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix-api",
+          "component": "uno-q",
+          "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
+          "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
           "confidence": "official_doc"
         },
         {
@@ -1470,14 +1554,14 @@
     "step": "4.3 Confirm wiring step 3",
     "request": {
       "method": "POST",
-      "path": "/sessions/ace84d22f1bd/confirm-step",
+      "path": "/sessions/5e2711961f80/confirm-step",
       "json": {
         "step_index": 3,
         "confirmed": true
       }
     },
     "response": {
-      "session_id": "ace84d22f1bd",
+      "session_id": "5e2711961f80",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
       "display_text": "Plug USB back in. Sensor power LED on?",
@@ -1612,6 +1696,20 @@
           "confidence": "official_doc"
         },
         {
+          "id": "unoq-led-matrix",
+          "component": "uno-q",
+          "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
+          "source": "Arduino UNO Q datasheet, section 'LEDs'",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix-api",
+          "component": "uno-q",
+          "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
+          "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
+          "confidence": "official_doc"
+        },
+        {
           "id": "ky037-pins",
           "component": "ky-037",
           "statement": "The module has four pins: analog signal (AO), ground (G), supply (+) and digital signal (DO). The order differs between makers, so go by the printed labels.",
@@ -1732,14 +1830,14 @@
     "step": "4.4 Confirm wiring step 4",
     "request": {
       "method": "POST",
-      "path": "/sessions/ace84d22f1bd/confirm-step",
+      "path": "/sessions/5e2711961f80/confirm-step",
       "json": {
         "step_index": 4,
         "confirmed": true
       }
     },
     "response": {
-      "session_id": "ace84d22f1bd",
+      "session_id": "5e2711961f80",
       "state": "wiring_complete",
       "instruction": "Build a clap-activated light",
       "display_text": "Wiring done. Writing the code",
@@ -1874,6 +1972,20 @@
           "confidence": "official_doc"
         },
         {
+          "id": "unoq-led-matrix",
+          "component": "uno-q",
+          "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
+          "source": "Arduino UNO Q datasheet, section 'LEDs'",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix-api",
+          "component": "uno-q",
+          "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
+          "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
+          "confidence": "official_doc"
+        },
+        {
           "id": "ky037-pins",
           "component": "ky-037",
           "statement": "The module has four pins: analog signal (AO), ground (G), supply (+) and digital signal (DO). The order differs between makers, so go by the printed labels.",
@@ -1995,14 +2107,14 @@
     "step": "5. Generate the sketch (here: canned AI answer; static checks; compile if arduino-cli is set up)",
     "request": {
       "method": "POST",
-      "path": "/sessions/ace84d22f1bd/generate",
+      "path": "/sessions/5e2711961f80/generate",
       "json": {
         "debounce_ms": 300
       }
     },
     "response": {
-      "session_id": "ace84d22f1bd",
-      "build_id": "43af80166c94",
+      "session_id": "5e2711961f80",
+      "build_id": "b32ff4d168ab",
       "source": "llm",
       "sketch": {
         "filename": "learnlens_sketch.ino",
@@ -2058,12 +2170,12 @@
               "--warnings",
               "default",
               "--no-color",
-              "/Users/robinstumpf/Desktop/learnlens/backend/generated/ace84d22f1bd/attempt-0/learnlens_sketch"
+              "/Users/robinstumpf/Desktop/learnlens/backend/generated/5e2711961f80/attempt-0/learnlens_sketch"
             ],
             "log": "Sketch uses 87028 bytes (11%) of program storage space. Maximum is 786432 bytes.\nGlobal variables use 36980 bytes (14%) of dynamic memory, leaving 225164 bytes for local variables. Maximum is 262144 bytes.\n",
             "detail": ""
           },
-          "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/ace84d22f1bd/attempt-0/learnlens_sketch"
+          "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/5e2711961f80/attempt-0/learnlens_sketch"
         }
       ],
       "repairs_used": 0,
@@ -2078,12 +2190,12 @@
           "--warnings",
           "default",
           "--no-color",
-          "/Users/robinstumpf/Desktop/learnlens/backend/generated/ace84d22f1bd/attempt-0/learnlens_sketch"
+          "/Users/robinstumpf/Desktop/learnlens/backend/generated/5e2711961f80/attempt-0/learnlens_sketch"
         ],
         "log": "Sketch uses 87028 bytes (11%) of program storage space. Maximum is 786432 bytes.\nGlobal variables use 36980 bytes (14%) of dynamic memory, leaving 225164 bytes for local variables. Maximum is 262144 bytes.\n",
         "detail": ""
       },
-      "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/ace84d22f1bd/attempt-0/learnlens_sketch",
+      "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/5e2711961f80/attempt-0/learnlens_sketch",
       "flashed": false,
       "hardware_verified": false
     }
@@ -2092,10 +2204,10 @@
     "step": "   Status",
     "request": {
       "method": "GET",
-      "path": "/sessions/ace84d22f1bd/status"
+      "path": "/sessions/5e2711961f80/status"
     },
     "response": {
-      "session_id": "ace84d22f1bd",
+      "session_id": "5e2711961f80",
       "state": "code_generated",
       "instruction": "Build a clap-activated light",
       "display_text": "Code ready. Review it on your phone",
@@ -2230,6 +2342,20 @@
           "confidence": "official_doc"
         },
         {
+          "id": "unoq-led-matrix",
+          "component": "uno-q",
+          "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
+          "source": "Arduino UNO Q datasheet, section 'LEDs'",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix-api",
+          "component": "uno-q",
+          "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
+          "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
+          "confidence": "official_doc"
+        },
+        {
           "id": "ky037-pins",
           "component": "ky-037",
           "statement": "The module has four pins: analog signal (AO), ground (G), supply (+) and digital signal (DO). The order differs between makers, so go by the printed labels.",
@@ -2344,17 +2470,17 @@
         "disclaimer": "A photo cannot verify an electrical connection. Check each wire against the steps by hand before you plug in USB."
       },
       "safety_problems": [],
-      "build_id": "43af80166c94"
+      "build_id": "b32ff4d168ab"
     }
   },
   {
     "step": "6. The generated sketch, waiting for approval",
     "request": {
       "method": "GET",
-      "path": "/builds/43af80166c94"
+      "path": "/builds/b32ff4d168ab"
     },
     "response": {
-      "build_id": "43af80166c94",
+      "build_id": "b32ff4d168ab",
       "goal": "Build a clap-activated light",
       "status": "awaiting_approval",
       "provenance": "llm",
@@ -2446,6 +2572,20 @@
           "component": "uno-q",
           "statement": "Sketches are uploaded with the core's 'remoteocd' tool through the board's Linux side, not through a serial bootloader as on the classic UNO.",
           "source": "arduino:zephyr 1.1.0 boards.txt (unoq.upload.tool)",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix",
+          "component": "uno-q",
+          "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
+          "source": "Arduino UNO Q datasheet, section 'LEDs'",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix-api",
+          "component": "uno-q",
+          "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
+          "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
           "confidence": "official_doc"
         },
         {
@@ -2565,13 +2705,13 @@
     "step": "7. Explicit approval of that exact sketch",
     "request": {
       "method": "POST",
-      "path": "/builds/43af80166c94/approve",
+      "path": "/builds/b32ff4d168ab/approve",
       "json": {
         "sketch_sha256": "5bc5ec405bee95f808ed6bf1415b8f14a01d92e6037209f2462e488281909a00"
       }
     },
     "response": {
-      "build_id": "43af80166c94",
+      "build_id": "b32ff4d168ab",
       "goal": "Build a clap-activated light",
       "status": "approved",
       "provenance": "llm",
@@ -2663,6 +2803,20 @@
           "component": "uno-q",
           "statement": "Sketches are uploaded with the core's 'remoteocd' tool through the board's Linux side, not through a serial bootloader as on the classic UNO.",
           "source": "arduino:zephyr 1.1.0 boards.txt (unoq.upload.tool)",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix",
+          "component": "uno-q",
+          "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
+          "source": "Arduino UNO Q datasheet, section 'LEDs'",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix-api",
+          "component": "uno-q",
+          "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
+          "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
           "confidence": "official_doc"
         },
         {
@@ -2782,10 +2936,10 @@
     "step": "8. After the (mock) deploy agent ran",
     "request": {
       "method": "GET",
-      "path": "/builds/43af80166c94"
+      "path": "/builds/b32ff4d168ab"
     },
     "response": {
-      "build_id": "43af80166c94",
+      "build_id": "b32ff4d168ab",
       "goal": "Build a clap-activated light",
       "status": "awaiting_test",
       "provenance": "llm",
@@ -2880,6 +3034,20 @@
           "confidence": "official_doc"
         },
         {
+          "id": "unoq-led-matrix",
+          "component": "uno-q",
+          "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
+          "source": "Arduino UNO Q datasheet, section 'LEDs'",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix-api",
+          "component": "uno-q",
+          "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
+          "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
+          "confidence": "official_doc"
+        },
+        {
           "id": "ky037-pins",
           "component": "ky-037",
           "statement": "The module has four pins: analog signal (AO), ground (G), supply (+) and digital signal (DO). The order differs between makers, so go by the printed labels.",
@@ -2996,31 +3164,31 @@
           "stage": "validate",
           "status": "ok",
           "message": "artifact accepted",
-          "ts": 1794656410.824297
+          "ts": 1794662461.900912
         },
         {
           "stage": "compile",
           "status": "started",
           "message": "compiling for arduino:zephyr:unoq",
-          "ts": 1794656410.826519
+          "ts": 1794662461.903053
         },
         {
           "stage": "compile",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794656410.827805
+          "ts": 1794662461.9042728
         },
         {
           "stage": "approval",
           "status": "ok",
           "message": "approval token accepted",
-          "ts": 1794656410.829071
+          "ts": 1794662461.905545
         },
         {
           "stage": "upload",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794656410.830347
+          "ts": 1794662461.90671
         }
       ],
       "expected_serial_events": [
@@ -3037,13 +3205,13 @@
     "step": "9. The user claps and reports the result",
     "request": {
       "method": "POST",
-      "path": "/builds/43af80166c94/test-result",
+      "path": "/builds/b32ff4d168ab/test-result",
       "json": {
         "passed": true
       }
     },
     "response": {
-      "build_id": "43af80166c94",
+      "build_id": "b32ff4d168ab",
       "goal": "Build a clap-activated light",
       "status": "done",
       "provenance": "llm",
@@ -3138,6 +3306,20 @@
           "confidence": "official_doc"
         },
         {
+          "id": "unoq-led-matrix",
+          "component": "uno-q",
+          "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
+          "source": "Arduino UNO Q datasheet, section 'LEDs'",
+          "confidence": "official_doc"
+        },
+        {
+          "id": "unoq-led-matrix-api",
+          "component": "uno-q",
+          "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
+          "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
+          "confidence": "official_doc"
+        },
+        {
           "id": "ky037-pins",
           "component": "ky-037",
           "statement": "The module has four pins: analog signal (AO), ground (G), supply (+) and digital signal (DO). The order differs between makers, so go by the printed labels.",
@@ -3254,31 +3436,31 @@
           "stage": "validate",
           "status": "ok",
           "message": "artifact accepted",
-          "ts": 1794656410.824297
+          "ts": 1794662461.900912
         },
         {
           "stage": "compile",
           "status": "started",
           "message": "compiling for arduino:zephyr:unoq",
-          "ts": 1794656410.826519
+          "ts": 1794662461.903053
         },
         {
           "stage": "compile",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794656410.827805
+          "ts": 1794662461.9042728
         },
         {
           "stage": "approval",
           "status": "ok",
           "message": "approval token accepted",
-          "ts": 1794656410.829071
+          "ts": 1794662461.905545
         },
         {
           "stage": "upload",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794656410.830347
+          "ts": 1794662461.90671
         }
       ],
       "expected_serial_events": [

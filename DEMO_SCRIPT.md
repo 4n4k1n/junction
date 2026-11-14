@@ -19,6 +19,13 @@ Timings are targets. If a step stalls for 10 seconds, use its fallback and keep 
 | 2:40 | "The board itself reports the clap." | Taps **Yes, it works** | Glasses: "Success" | – |
 | 2:45 | "From an idea to working hardware in under three minutes, with every voltage checked and every upload approved. That's LearnLens." | – | – | – |
 
+## Optional second build (45 seconds, if the first went well)
+
+"Same parts, different idea." Say or type: **"Build a sound level meter."** The flow is the same, with
+one different wire: sensor AO → A0 instead of DO → D2. After the upload the board's LED matrix shows a
+bar that grows with the volume. Speak louder and quieter to show it. Note: after power-up the matrix
+plays the board's boot animation for about half a minute first.
+
 ## Rules for the live run
 
 - **Say which mode you are in.** If the app shows "DEMO MODE" or "SIMULATED upload", say so out loud:
