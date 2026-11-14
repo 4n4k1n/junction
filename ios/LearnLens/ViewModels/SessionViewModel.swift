@@ -66,8 +66,11 @@ final class SessionViewModel {
   /// The answer to the last question, shown until the user goes back to the step.
   private(set) var stepAnswer: StepAnswer?
   private(set) var isAnswering = false
-  /// A part is being added to a finished build and the user is asked for a photo of it first.
+  /// The user chose "Continue building" on a finished build.
+  private(set) var isExtending = false
+  /// The user is asked for a photo of the part they want to add, before saying what they want.
   private(set) var awaitingPartPhoto = false
+  @ObservationIgnored private var partPhoto: Data?
   var backendURL: String {
     didSet { UserDefaults.standard.set(backendURL, forKey: Self.backendURLKey) }
   }
@@ -257,8 +260,17 @@ final class SessionViewModel {
       extensionBase = ""
       build = nil
       generation = nil
-      // A new part: ask for a photo of it before the confirmation questions.
-      awaitingPartPhoto = status.state == .needsConfirmation
+      isExtending = false
+      // A new part and a photo of it was taken at the start: let the backend look at it now.
+      if status.state == .needsConfirmation, let photo = partPhoto {
+        partPhoto = nil
+        self.guide = status
+        await setFlow(.analyzing)
+        let seen = try? await api.analyze(status.sessionId, photoJPEG: photo, confirmedInventory: nil)
+        await apply(seen ?? status)  // without the photo the part is confirmed by questions alone
+        return
+      }
+      partPhoto = nil
       await apply(status)
     } catch {
       // Not fatal: the finished build stays as it is.
@@ -370,43 +382,54 @@ final class SessionViewModel {
     extensionQuestion = nil
     extensionBase = ""
     extensionText = ""
+    isExtending = false
+    awaitingPartPhoto = false
+    partPhoto = nil
+    if isListening { stopListening() }
     await pushCard()
   }
 
   // MARK: - Photo of an added part
 
-  /// Takes a photo of the new part with the glasses camera and has the backend look at it.
+  /// "Continue building" after a finished build. The first thing asked is a photo of a new part,
+  /// before the user says what they want; it is sent to the backend once the request is known.
+  func beginExtension() async {
+    guard flow == .success, !isExtending else { return }
+    isExtending = true
+    awaitingPartPhoto = true
+    partPhoto = nil
+    await pushCard()
+  }
+
+  /// Takes the photo of the new part with the glasses camera, then asks what to add or change.
   func takePartPhoto() async {
-    guard awaitingPartPhoto, flow == .confirmingParts else { return }
+    guard awaitingPartPhoto, flow == .success else { return }
     guard canCaptureFromGlasses else {
       await skipPartPhoto()
       return
     }
     await setFlow(.capturing)
-    guard let photo = await glassesPhoto(fatal: false) else {
-      await setFlow(.confirmingParts)  // stay on the photo card; the error is shown on the phone
-      return
+    let photo = await glassesPhoto(fatal: false)
+    await setFlow(.success)  // on a failed capture the photo card is shown again
+    if let photo {
+      await keepPartPhoto(photo)
     }
-    await submitPartPhoto(photo)
   }
 
-  /// Sends a photo of the new part (from the glasses or the iPhone camera).
-  func submitPartPhoto(_ jpeg: Data) async {
-    guard awaitingPartPhoto, let guide else { return }
-    await setFlow(.analyzing)
+  /// Keeps a photo of the new part (from the glasses or the iPhone camera) for the request that follows.
+  func keepPartPhoto(_ jpeg: Data) async {
+    guard awaitingPartPhoto else { return }
+    partPhoto = jpeg
     awaitingPartPhoto = false
-    do {
-      await apply(try await api.analyze(guide.sessionId, photoJPEG: jpeg, confirmedInventory: nil))
-    } catch {
-      // Not fatal: without the photo the part is confirmed by questions alone.
-      glasses.errorMessage = error.localizedDescription
-      await setFlow(.confirmingParts)
-    }
+    await startVoiceInput()  // next: say what to add or change
+    await pushCard()
   }
 
-  /// Continue without a photo: the part is confirmed by questions alone.
+  /// Continue without a photo, for a behaviour change or when the camera is not available.
   func skipPartPhoto() async {
+    guard awaitingPartPhoto else { return }
     awaitingPartPhoto = false
+    await startVoiceInput()
     await pushCard()
   }
 
@@ -591,7 +614,9 @@ final class SessionViewModel {
     generation = nil
     deployError = nil
     extensionText = ""
+    isExtending = false
     awaitingPartPhoto = false
+    partPhoto = nil
     stepAnswer = nil
     stepsBack = 0
     questionText = ""
@@ -662,14 +687,6 @@ final class SessionViewModel {
     case .analyzing:
       return GlassesCards.card(caption: demo + "Analyzing", text: "Working out the wiring…")
     case .confirmingParts:
-      if awaitingPartPhoto {
-        return GlassesCards.card(
-          caption: demo + "New part",
-          text: "Look at the new part and take a photo of it.",
-          primary: action("Take photo") { await $0.takePartPhoto() },
-          secondary: action("Skip") { await $0.skipPartPhoto() }
-        )
-      }
       return GlassesCards.card(
         caption: "Check your part",
         text: pendingConfirmation?.question ?? "Confirm your parts on the phone.",
@@ -767,10 +784,27 @@ final class SessionViewModel {
             : action("Ideas") { await $0.showIdeas(true) }
         )
       }
+      if awaitingPartPhoto {
+        return GlassesCards.card(
+          caption: demo + "Continue building",
+          text: "Adding a part? Look at it and take a photo. Otherwise skip.",
+          primary: action("Take photo") { await $0.takePartPhoto() },
+          secondary: action("Skip") { await $0.skipPartPhoto() },
+          tertiary: action("Cancel") { await $0.cancelExtension() }
+        )
+      }
+      if isExtending {
+        return GlassesCards.card(
+          caption: demo + "Continue building",
+          text: "What do you want to add or change?",
+          primary: action("Speak") { await $0.startVoiceInput() },
+          secondary: action("Cancel") { await $0.cancelExtension() }
+        )
+      }
       return GlassesCards.card(
         caption: isSimulatedDeploy ? "Success · SIMULATED upload" : demo + "Success",
         text: isSimulatedDeploy ? "Flow complete. No board was flashed." : "It works. Add a part or change what it does?",
-        primary: action("Add or change") { await $0.startVoiceInput() },
+        primary: action("Continue building") { await $0.beginExtension() },
         secondary: action("New build") { await $0.reset() }
       )
     case .error(let message):

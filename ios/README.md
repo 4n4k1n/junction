@@ -71,9 +71,10 @@ undone), **Next** (selected by default) and **Ask**. Ask listens for a question 
 instead?") while the step stays on screen; the answer then appears with **Back to step**. Answers come from the wiring plan and the
 verified hardware facts.
 
-After **Success** the glasses offer **Add or change**: say what to add (a known part) or how the build
-should behave differently, then **Go**. For a new part the glasses first ask for a photo of it (**Take photo** or **Skip**), then
-continue with the part's questions and wiring steps. A behaviour change goes directly to new code.
+After **Success** the glasses offer **Continue building**. The first thing asked is a photo of the part
+you want to add (**Take photo**, or **Skip** for a behaviour change). Then you say what to add or how
+the build should behave differently, and **Go**. A new part continues with its questions and wiring
+steps; a behaviour change goes directly to new code.
 
 Flashing always needs an explicit approval. It can be given on the glasses ("Start flash" button on
 the approval card) or on the phone, where the generated code is shown in full.

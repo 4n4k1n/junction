@@ -42,7 +42,7 @@ struct GuideView: View {
           Task {
             let jpeg = PhotoEncoding.uploadJPEG(from: data)
             if model.awaitingPartPhoto, let jpeg {
-              await model.submitPartPhoto(jpeg)  // photo of a part that is being added
+              await model.keepPartPhoto(jpeg)  // photo of a part that is being added
             } else {
               await model.start(withPhoneJPEG: jpeg)
             }
@@ -167,22 +167,35 @@ struct GuideView: View {
     case .success:
       Section("Success") {
         Text(model.isSimulatedDeploy ? "Flow complete with a SIMULATED upload. No board was flashed." : "The build works.")
-        // Keep developing the same build: add a known part, or change what it does.
-        if let question = model.extensionQuestion {
-          Text(question).font(.title3)  // the backend needs to know what the new part should do
-          // No idea yet? Example answers; tapping one continues with it.
-          // Iterates over the values, not the indices: the list is emptied when an idea is chosen, and
-          // a row that still looked up its old index would crash the app.
-          ForEach(Array(model.extensionIdeas.enumerated()), id: \.offset) { index, idea in
-            Button(idea) { Task { await model.chooseIdea(index) } }
+        if !model.isExtending {
+          // Keep developing the same build: add a known part, or change what it does.
+          Button("Continue building") { Task { await model.beginExtension() } }
+          Button("New build") { Task { await model.reset() } }
+        } else if model.awaitingPartPhoto {
+          // Asked right away, before the request: a photo of the part that should be added.
+          Text("Adding a part? Take a photo of it. Otherwise skip.").font(.title3)
+          Button("Take photo with the glasses") { Task { await model.takePartPhoto() } }
+            .disabled(!model.canCaptureFromGlasses)
+          Button("Take photo with the iPhone") { showPhoneCamera = true }
+            .disabled(!PhoneCameraPicker.isAvailable)
+          Button("Skip the photo") { Task { await model.skipPartPhoto() } }
+          Button("Cancel", role: .destructive) { Task { await model.cancelExtension() } }
+        } else {
+          if let question = model.extensionQuestion {
+            Text(question).font(.title3)  // the backend needs to know what the new part should do
+            // Iterates over the values, not the indices: the list is emptied when an idea is chosen, and
+            // a row that still looked up its old index would crash the app.
+            ForEach(Array(model.extensionIdeas.enumerated()), id: \.offset) { index, idea in
+              Button(idea) { Task { await model.chooseIdea(index) } }
+            }
           }
+          TextField(model.extensionQuestion == nil ? "Add a part or change what it does" : "Your answer",
+                    text: $model.extensionText, axis: .vertical)
+            .onSubmit { Task { await model.pushCard() } }
+          Button("Go") { Task { await model.submitExtension() } }
+            .disabled(model.extensionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+          Button("Cancel", role: .destructive) { Task { await model.cancelExtension() } }
         }
-        TextField(model.extensionQuestion == nil ? "Add a part or change what it does" : "Your answer",
-                  text: $model.extensionText, axis: .vertical)
-          .onSubmit { Task { await model.pushCard() } }
-        Button("Continue building") { Task { await model.submitExtension() } }
-          .disabled(model.extensionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        Button("New build") { Task { await model.reset() } }
       }
     case .error(let message):
       Section("Error") {
@@ -251,14 +264,7 @@ struct GuideView: View {
           Text("No parts were detected from a photo (\(guide.analysisSource)).").font(.footnote)
         }
       }
-      if model.awaitingPartPhoto {
-        Text("Take a photo of the new part.").font(.title3)
-        Button("Take photo with the glasses") { Task { await model.takePartPhoto() } }
-          .disabled(!model.canCaptureFromGlasses)
-        Button("Take photo with the iPhone") { showPhoneCamera = true }
-          .disabled(!PhoneCameraPicker.isAvailable)
-        Button("Skip the photo") { Task { await model.skipPartPhoto() } }
-      } else if let pending = model.pendingConfirmation {
+      if let pending = model.pendingConfirmation {
         Text(pending.question).font(.title3)
         Text(pending.reason).font(.footnote).foregroundStyle(.secondary)
         Button("Yes") { Task { await model.answerConfirmation(true) } }
