@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
+from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -48,6 +49,26 @@ REVIEW_DISCLAIMER = ("A photo cannot verify an electrical connection. Check each
 
 # In-memory, like builds: sessions are lost on restart.
 sessions: Dict[str, GuideStatus] = {}
+
+# The sketch depends only on the confirmed plan, so it is written while the user is still wiring.
+PREGENERATE = os.getenv("LEARNLENS_PREGENERATE", "1") not in ("0", "false", "")
+_background = ThreadPoolExecutor(max_workers=2)
+pregenerated: Dict[str, tuple] = {}  # session id -> (plan key, generator, future)
+
+
+def _plan_key(s: GuideStatus) -> str:
+    return json.dumps([s.project.model_dump(mode="json"), [step.model_dump(mode="json") for step in s.wiring_steps]],
+                      sort_keys=True)
+
+
+def _pregenerate(s: GuideStatus) -> None:
+    """Start writing, checking and compiling the sketch in the background. Nothing is uploaded."""
+    if not PREGENERATE:
+        return
+    ctx = codegen.build_context(s.project, s.wiring_steps, previous_code=running_code.get(s.session_id, ""))
+    s.generation_progress = []
+    future: Future = _background.submit(generator.generate, s.session_id, ctx, s.generation_progress.append)
+    pregenerated[s.session_id] = (_plan_key(s), generator, future)
 running_code: Dict[str, str] = {}  # per session: the sketch before the build was developed further
 _inventory = TypeAdapter(List[InventoryItem])
 
@@ -130,6 +151,7 @@ def _advance(s: GuideStatus) -> None:
     first_open = next(i for i in range(len(steps)) if i not in s.confirmed_steps)
     s.wiring_steps, s.current_step, s.state = steps, first_open, GuideState.wiring
     _say(s, steps[first_open].display_text, steps[first_open].spoken_text)
+    _pregenerate(s)
 
 
 async def _read_image(image: Optional[UploadFile]):
@@ -230,12 +252,23 @@ def generate(session_id: str, req: Optional[GenerateRequest] = None):
 
     ctx = codegen.build_context(s.project, s.wiring_steps, req.sensor_active_level, req.debounce_ms,
                                 req.sample_window_ms, previous_code=running_code.get(s.session_id, ""))
-    try:
-        s.generation_progress = []
-        # Runs in a worker thread; GET /status can be polled meanwhile to show the current stage.
-        generated, source, attempts = generator.generate(s.session_id, ctx, s.generation_progress.append)
-    except RuntimeError as e:
-        raise HTTPException(502, str(e))
+    # Use the sketch that was written during wiring, if it is for exactly this plan and these parameters.
+    result = None
+    early = pregenerated.pop(s.session_id, None)
+    defaults = req.sensor_active_level is None and req.debounce_ms is None and req.sample_window_ms is None
+    if early is not None and defaults and early[0] == _plan_key(s) and early[1] is generator:
+        try:
+            result = early[2].result(timeout=600)  # still running: wait for it; the stages keep showing
+        except Exception:
+            result = None  # the early attempt failed: generate now
+    if result is None:
+        try:
+            s.generation_progress = []
+            # Runs in a worker thread; GET /status can be polled meanwhile to show the current stage.
+            result = generator.generate(s.session_id, ctx, s.generation_progress.append)
+        except RuntimeError as e:
+            raise HTTPException(502, str(e))
+    generated, source, attempts = result
 
     if previous is not None:
         previous.status = BuildStatus.rejected  # replaced by the regenerated sketch

@@ -76,16 +76,17 @@ def test_adding_a_part_keeps_the_old_wiring_and_asks_only_for_the_new_steps():
     assert s["state"] == "needs_confirmation" and s["build_id"] is None
     assert s["project"]["behavior"] == "custom" and s["project"]["components"] == ["uno-q", "ky-037", "ky-032"]
     assert [p["id"] for p in s["pending_confirmations"]] == ["ky-032-present", "ky032-pin-labels"]
-    assert len(s["wiring_steps"]) == 10 and s["confirmed_steps"] == [0, 1, 2, 3, 4]
+    assert len(s["wiring_steps"]) == 6 and s["confirmed_steps"] == [0, 1, 2]
 
     confirmed = '[{"component_id": "ky-032", "confirmations": ["ky032-pin-labels"]}]'
     s = client.post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": confirmed}).json()
-    assert s["state"] == "wiring" and s["current_step"] == 5                     # the first new step
-    new = [(c["from_pin"]["pin"], c["to_pin"]["pin"]) for c in (st["connection"] for st in s["wiring_steps"][5:]) if c]
+    assert s["state"] == "wiring" and s["current_step"] == 3                     # the first new step
+    new = [(c["from_pin"]["pin"], c["to_pin"]["pin"]) for c in (st["connection"] for st in s["wiring_steps"][3:]) if c]
     assert new == [("GND", "GND"), ("+", "3V3"), ("OUT", "D2")]                  # 3.3 V again, a free digital pin
-    assert "only one 3.3 volt pin" in s["wiring_steps"][7]["spoken_text"]
+    assert "only one 3.3 volt pin" in s["wiring_steps"][4]["spoken_text"]
+    assert s["wiring_steps"][3]["display_text"].startswith("Unplug USB.") and s["wiring_steps"][5]["display_text"].endswith("Plug USB in")
     assert client.post(f"/sessions/{sid}/confirm-step", json={"step_index": 0}).status_code == 409
-    for i in range(5, 10):
+    for i in range(3, 6):
         s = client.post(f"/sessions/{sid}/confirm-step", json={"step_index": i}).json()
     assert s["state"] == "wiring_complete"
 
@@ -114,7 +115,7 @@ def test_changing_behaviour_needs_the_ai_and_then_skips_wiring():
                                          "display_summary": "The bar blinks when it gets very loud.", "assumptions": [],
                                          "expected_serial_events": [{"event": "READY", "when": "start"}]})
     s = extend(sid, "Make the bar blink when it is very loud")
-    assert s["state"] == "wiring_complete" and len(s["wiring_steps"]) == 5 and s["pending_confirmations"] == []
+    assert s["state"] == "wiring_complete" and len(s["wiring_steps"]) == 3 and s["pending_confirmations"] == []
     assert "KNOWN PARTS THAT COULD BE ADDED" in fake_ai.requests[0]["messages"][0]["content"][0]["text"]
 
     g = client.post(f"/sessions/{sid}/generate").json()
@@ -164,7 +165,7 @@ def test_both_sensors_on_the_3v3_rail_are_safe_and_5v_is_not():
     steps = planner.plan_wiring(planner.level_meter_spec())
     steps += planner.plan_extension(steps, "ky-032")
     assert facts.check_safety(steps) == []
-    steps[7].connection.to_pin.pin = "5V"
+    steps[4].connection.to_pin.pin = "5V"
     assert any("OUT can reach 5.5 V but uno-q D2 tolerates 5.0 V" in p for p in facts.check_safety(steps))
 
 
@@ -198,13 +199,13 @@ def test_a_part_without_a_purpose_gets_a_question_back_and_changes_nothing():
     s = extend(sid, "I want to add the infrared sensor")
     assert s["clarification"] == "What should the KY-032 infrared obstacle sensor do in your build?"
     assert s["state"] == "code_generated" and s["build_id"] == first["build_id"]
-    assert s["project"]["behavior"] == "level_meter" and len(s["wiring_steps"]) == 5
+    assert s["project"]["behavior"] == "level_meter" and len(s["wiring_steps"]) == 3
     assert s["suggestions"] == ["Show the sound level only while a hand is near", "Hold a hand near to freeze the level",
                                 "Wave a hand to switch the meter on and off"]     # offline: only what is prevalidated
 
     s = extend(sid, "I want to add the infrared sensor. " + s["suggestions"][0])     # picking a suggestion is an answer
     assert s["clarification"] == "" and s["suggestions"] == [] and s["state"] == "needs_confirmation"
-    assert len(s["wiring_steps"]) == 10
+    assert len(s["wiring_steps"]) == 6
 
     # With AI the model decides, and is told not to invent a purpose.
     sid, _ = finished_level_meter()

@@ -83,7 +83,36 @@ final class SessionViewModel {
   /// Why the last upload failed. Shown next to the approve button, which doubles as "retry".
   private(set) var deployError: String?
   /// True until the user has read the "how it works" card that precedes the upload approval.
-  private var showingHowItWorks = false
+  /// A failed step can be retried where it failed instead of starting the whole build over.
+  private(set) var canRetry = false
+  @ObservationIgnored private var retryAction: (@MainActor () async -> Void)?
+  @ObservationIgnored private var retryFlow: SessionPhase?
+  /// A log line from the board that proves the build reacts; set when the test confirmed itself.
+  private(set) var boardProof: String?
+  /// After a spoken follow-up request, the app continues by itself unless the user speaks again.
+  private(set) var autoGoSeconds = 0
+  @ObservationIgnored private var autoGoTask: Task<Void, Never>?
+  /// True only while a question about the step is being recorded (the Ask button).
+  private(set) var isAskingByVoice = false
+  /// Read instructions aloud.
+  var readAloud: Bool {
+    didSet {
+      UserDefaults.standard.set(readAloud, forKey: "readAloud")
+      if !readAloud { speaker.stop() }
+    }
+  }
+  /// Say "next" or "back" during wiring instead of pressing a button (needs glasses speech).
+  var handsFree: Bool {
+    didSet {
+      UserDefaults.standard.set(handsFree, forKey: "handsFree")
+      if handsFree { startCommandLoop() } else if glassesSpeech.isListening && !isAskingByVoice { glassesSpeech.cancel() }
+    }
+  }
+  @ObservationIgnored private let speaker = SpeechOutputService()
+  @ObservationIgnored private var commandLoop: Task<Void, Never>?
+  /// Glasses speech has worked once in this run. Hands-free listening only starts after that, so it
+  /// can never be the thing that sends the user to the Meta AI app for a permission.
+  @ObservationIgnored private var glassesSpeechWorks = false
   private(set) var build: Build?
 
   /// What the flow is doing. `.connected` here means "idle"; `phase` folds in the glasses link.
@@ -97,6 +126,8 @@ final class SessionViewModel {
     self.glasses = GlassesManager(wearables: wearables)
     self.camera = CameraService(wearables: wearables)
     self.glassesSpeech = GlassesSpeechService(wearables: wearables)
+    self.readAloud = UserDefaults.standard.object(forKey: "readAloud") as? Bool ?? true
+    self.handsFree = UserDefaults.standard.bool(forKey: "handsFree")
     self.backendURL = UserDefaults.standard.string(forKey: Self.backendURLKey) ?? Self.defaultBackendURL
   }
 
@@ -146,13 +177,20 @@ final class SessionViewModel {
 
   /// Started from the glasses card. Uses the glasses microphone when possible, else the iPhone's.
   func startVoiceInput() async {
+    if glassesSpeech.isListening && !isAskingByVoice && flow == .guiding {
+      glassesSpeech.cancel()  // hands-free listening gives way to an explicit question
+    }
     guard isIdle || flow == .success || flow == .guiding, !isListening else { return }
+    cancelAutoGo()
+    speaker.stop()  // do not record our own voice
+    isAskingByVoice = flow == .guiding
     if let session = glasses.session, !glasses.isSimulated {
       let started = await glassesSpeech.start(on: session) { [weak self] text in
         self?.heard(text)
         Task { await self?.pushCard() }
       }
       if started {
+        glassesSpeechWorks = true
         await pushCard()
         return
       }
@@ -173,6 +211,7 @@ final class SessionViewModel {
   private func stopListening() {
     phoneSpeechTimeout?.cancel()
     phoneSpeechTimeout = nil
+    isAskingByVoice = false
     glassesSpeech.cancel()
     if speech.isRecording { speech.stop() }
   }
@@ -191,8 +230,10 @@ final class SessionViewModel {
 
   /// Spoken text is the goal before a build, and the follow-up request after a finished one.
   func heard(_ text: String) {
+    isAskingByVoice = false
     if flow == .success {
       extensionText = text
+      startAutoGo()  // continue by itself; "Speak again" stops it
     } else if flow == .guiding {
       Task { await ask(text) }  // during wiring, speech is a question about the step
     } else {
@@ -218,8 +259,10 @@ final class SessionViewModel {
     stepAnswer = nil
     await pushCard()
     do {
-      stepAnswer = try await api.ask(guide.sessionId, question: question)
+      let answer = try await api.ask(guide.sessionId, question: question)
+      stepAnswer = answer
       questionText = ""
+      say(answer.answer)
     } catch {
       glasses.errorMessage = error.localizedDescription
     }
@@ -238,6 +281,7 @@ final class SessionViewModel {
   /// Sends the follow-up request. A new part leads to its confirmation and wiring steps; a behaviour
   /// change goes straight to new code. Either way the new sketch needs a new approval.
   func submitExtension() async {
+    cancelAutoGo()
     let answer = extensionText.trimmingCharacters(in: .whitespacesAndNewlines)
     guard flow == .success, let guide, !answer.isEmpty else { return }
     // An answer to "what should it do?" is sent together with the request it belongs to.
@@ -321,7 +365,7 @@ final class SessionViewModel {
       return try await camera.capturePhoto(on: session)
     } catch {
       if fatal {
-        await fail(error.localizedDescription)
+        await fail(error.localizedDescription, resume: .connected) { [weak self] in await self?.captureAndStart() }
       } else {
         glasses.errorMessage = error.localizedDescription
       }
@@ -337,7 +381,7 @@ final class SessionViewModel {
         session.sessionId, photoJPEG: photo, confirmedInventory: photo == nil ? [] : nil)
       await apply(status)
     } catch {
-      await fail(error.localizedDescription)
+      await fail(error.localizedDescription) { [weak self] in await self?.analyze(photo: photo) }
     }
   }
 
@@ -345,6 +389,10 @@ final class SessionViewModel {
   private func apply(_ status: GuideStatus) async {
     if status.currentStep != guide?.currentStep { stepsBack = 0 }  // a new open step: show it
     guide = status
+    if status.state == .wiring || status.state == .needsConfirmation {
+      say(status.spokenText)  // the step or the question, read aloud
+      if handsFree { startCommandLoop() }
+    }
     switch status.state {
     case .awaitingAnalysis:
       await setFlow(.connected)
@@ -385,6 +433,7 @@ final class SessionViewModel {
     isExtending = false
     awaitingPartPhoto = false
     partPhoto = nil
+    cancelAutoGo()
     if isListening { stopListening() }
     await pushCard()
   }
@@ -448,7 +497,9 @@ final class SessionViewModel {
     do {
       await apply(try await api.analyze(guide.sessionId, photoJPEG: nil, confirmedInventory: [item]))
     } catch {
-      await fail(error.localizedDescription)
+      await fail(error.localizedDescription, resume: .confirmingParts) { [weak self] in
+        await self?.answerConfirmation(true)
+      }
     }
   }
 
@@ -467,7 +518,7 @@ final class SessionViewModel {
     do {
       await apply(try await api.confirmStep(guide.sessionId, index: index, confirmed: true))
     } catch {
-      await fail(error.localizedDescription)
+      await fail(error.localizedDescription, resume: .guiding) { [weak self] in await self?.next() }
     }
   }
 
@@ -507,11 +558,13 @@ final class SessionViewModel {
     do {
       let result = try await api.generate(guide.sessionId, sensorActiveLevel: sensorActiveLevel)
       generation = result
-      showingHowItWorks = true
       build = try await api.getBuild(result.buildId)
       await setFlow(.awaitingApproval)
+      say(result.displaySummary + " Start the flash when you are ready.")
     } catch {
-      await fail(error.localizedDescription)
+      await fail(error.localizedDescription) { [weak self] in
+        await self?.generateSketch(sensorActiveLevel: sensorActiveLevel)
+      }
     }
   }
 
@@ -527,20 +580,13 @@ final class SessionViewModel {
   func approve() async {
     guard flow == .awaitingApproval, let build, let sketch = build.sketch else { return }
     deployError = nil
-    showingHowItWorks = false
     do {
       self.build = try await api.approve(build.buildId, sketchSHA256: sketch.sha256)
       await setFlow(.deploying)
       pollDeploy(build.buildId)
     } catch {
-      await fail(error.localizedDescription)
+      await fail(error.localizedDescription, resume: .awaitingApproval) { [weak self] in await self?.approve() }
     }
-  }
-
-  /// Leaves the "how it works" card and shows the upload approval.
-  func continueToApproval() async {
-    showingHowItWorks = false
-    await pushCard()
   }
 
   func reject() async {
@@ -586,6 +632,14 @@ final class SessionViewModel {
         guard let latest = try? await self.api.getBuild(id) else { continue }
         let changed = latest.deploy?.runtimeLog.count != self.build?.deploy?.runtimeLog.count
         self.build = latest
+        // A line from the board that only appears when the build reacts (anything but READY) is proof.
+        if let proof = latest.deploy?.observedEvents.first(where: {
+          $0 != "READY" && latest.expectedSerialEvents.contains($0)
+        }) {
+          self.boardProof = proof
+          await self.reportTest(passed: true)
+          return
+        }
         if changed { await self.pushCard() }
       }
     }
@@ -599,11 +653,14 @@ final class SessionViewModel {
       self.build = try await api.reportTest(build.buildId, passed: passed, note: "")
       if passed {
         await setFlow(.success)
+        say(boardProof == nil ? "It works." : "The board confirms it. It works.")
       } else {
         await fail("The behavior test failed. Check the wiring and the sensor's trim pot, then start over.")
       }
     } catch {
-      await fail(error.localizedDescription)
+      await fail(error.localizedDescription, resume: .testing) { [weak self] in
+        await self?.reportTest(passed: passed)
+      }
     }
   }
 
@@ -624,6 +681,11 @@ final class SessionViewModel {
     extensionIdeas = []
     showingIdeas = false
     extensionBase = ""
+    retryAction = nil
+    canRetry = false
+    boardProof = nil
+    cancelAutoGo()
+    speaker.stop()
     guide = nil
     await setFlow(.connected)
   }
@@ -638,8 +700,79 @@ final class SessionViewModel {
     await pushCard()
   }
 
-  private func fail(_ message: String) async {
+  /// Shows an error. With `retry`, the user can repeat just the failed step: the flow goes back to
+  /// `resume` (default: where it was) and the step runs again.
+  private func fail(_ message: String, resume: SessionPhase? = nil,
+                    retry: (@MainActor () async -> Void)? = nil) async {
+    retryAction = retry
+    retryFlow = resume ?? flow
+    canRetry = retry != nil
     await setFlow(.error(message))
+  }
+
+  /// Repeats the step that failed, keeping everything that was already confirmed.
+  func retryLast() async {
+    guard case .error = flow, let action = retryAction, let resume = retryFlow else { return }
+    retryAction = nil
+    canRetry = false
+    flow = resume
+    await action()
+  }
+
+  private func say(_ text: String) {
+    if readAloud { speaker.speak(text) }
+  }
+
+  // MARK: - Continuing by itself after a spoken follow-up request
+
+  private func startAutoGo() {
+    cancelAutoGo()
+    autoGoSeconds = 3
+    autoGoTask = Task { [weak self] in
+      while let self, !Task.isCancelled, self.autoGoSeconds > 0 {
+        try? await Task.sleep(for: .seconds(1))
+        guard !Task.isCancelled else { return }
+        self.autoGoSeconds -= 1
+        await self.pushCard()
+      }
+      guard let self, !Task.isCancelled, self.flow == .success else { return }
+      await self.submitExtension()
+    }
+  }
+
+  private func cancelAutoGo() {
+    autoGoTask?.cancel()
+    autoGoTask = nil
+    autoGoSeconds = 0
+  }
+
+  // MARK: - Hands-free: "next" and "back" by voice during wiring
+
+  /// While wiring with hands-free on, keeps listening through the glasses for "next" or "back".
+  private func startCommandLoop() {
+    guard commandLoop == nil else { return }
+    commandLoop = Task { [weak self] in
+      while let self, !Task.isCancelled, self.handsFree {
+        try? await Task.sleep(for: .milliseconds(700))
+        guard self.glassesSpeechWorks, self.flow == .guiding, !self.isListening, !self.isAnswering, self.stepAnswer == nil,
+          !self.speaker.isSpeaking, let session = self.glasses.session, !self.glasses.isSimulated
+        else { continue }
+        _ = await self.glassesSpeech.start(on: session) { [weak self] text in
+          Task { await self?.handleCommand(text) }
+        }
+      }
+      self?.commandLoop = nil
+    }
+  }
+
+  private func handleCommand(_ text: String) async {
+    let words = Set(text.lowercased().split { !$0.isLetter }.map(String.init))
+    if !words.isDisjoint(with: ["next", "continue", "done", "weiter", "fertig"]) {
+      await next()
+    } else if !words.isDisjoint(with: ["back", "previous", "zurück"]) {
+      await back()
+    }
+    // Anything else is ignored: questions go through the Ask button.
   }
 
   /// Redraws the glasses for the current state. Button taps on the glasses come back here.
@@ -708,13 +841,13 @@ final class SessionViewModel {
       // The step stays on screen while a question is heard and answered; only the caption changes.
       // Next is the default; Back looks at earlier steps; Ask takes a question about this step.
       let position = "Step \(stepIndex + 1) of \(guide.wiringSteps.count)"
-      let caption = isListening ? "Listening… ask your question" : isAnswering ? "Thinking…" : demo + position
+      let caption = isAskingByVoice ? "Listening… ask your question" : isAnswering ? "Thinking…" : demo + position
       return GlassesCards.card(
         caption: caption,
         text: step.displayText,
         primary: action(isLastStep ? "Wiring done" : "Next") { await $0.next() },
         secondary: canGoBack ? action("Back") { await $0.back() } : nil,
-        tertiary: isListening
+        tertiary: isAskingByVoice
           ? action("Done") { await $0.finishVoiceInput() }
           : action("Ask") { await $0.startVoiceInput() }
       )
@@ -723,17 +856,13 @@ final class SessionViewModel {
     case .awaitingApproval:
       // Flashing still needs an explicit yes, but it can be given on the glasses. The code itself
       // stays readable on the phone for anyone who wants to check it first.
-      if showingHowItWorks, deployError == nil, let summary = generation?.displaySummary, !summary.isEmpty {
-        return GlassesCards.card(
-          caption: demo + "How it works",
-          text: summary,
-          primary: action("Continue") { await $0.continueToApproval() }
-        )
-      }
+      // One card: how the build works, and the explicit yes to flash it.
       let compiled = generation?.compile.status == "ok" ? "Code is ready and compiled." : "Code is ready (not compiled)."
+      let summary = generation?.displaySummary ?? ""
       return GlassesCards.card(
-        caption: demo + (deployError == nil ? "Approve upload" : "Upload failed"),
-        text: deployError == nil ? compiled + " Flash it to the board?" : "The upload did not succeed. Try again?",
+        caption: demo + (deployError == nil ? "Ready to flash" : "Upload failed"),
+        text: deployError == nil ? (summary.isEmpty ? compiled + " Flash it to the board?" : summary)
+          : "The upload did not succeed. Try again?",
         primary: action(deployError == nil ? "Start flash" : "Retry flash") { await $0.approve() },
         secondary: action("Cancel") { await $0.reject() }
       )
@@ -757,9 +886,9 @@ final class SessionViewModel {
       }
       if !extensionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         return GlassesCards.card(
-          caption: demo + "Next",
+          caption: autoGoSeconds > 0 ? "Continuing in \(autoGoSeconds) s" : demo + "Next",
           text: extensionText,
-          primary: action("Go") { await $0.submitExtension() },
+          primary: action(autoGoSeconds > 0 ? "Go now" : "Go") { await $0.submitExtension() },
           secondary: action("Speak again") { await $0.startVoiceInput() }
         )
       }
@@ -803,11 +932,20 @@ final class SessionViewModel {
       }
       return GlassesCards.card(
         caption: isSimulatedDeploy ? "Success · SIMULATED upload" : demo + "Success",
-        text: isSimulatedDeploy ? "Flow complete. No board was flashed." : "It works. Add a part or change what it does?",
+        text: isSimulatedDeploy ? "Flow complete. No board was flashed."
+          : (boardProof.map { "The board reported \($0). " } ?? "It works. ") + "Add a part or change what it does?",
         primary: action("Continue building") { await $0.beginExtension() },
         secondary: action("New build") { await $0.reset() }
       )
     case .error(let message):
+      if canRetry {
+        return GlassesCards.card(
+          caption: "Error",
+          text: message,
+          primary: action("Retry") { await $0.retryLast() },
+          secondary: action("Start over") { await $0.reset() }
+        )
+      }
       return GlassesCards.card(
         caption: "Error",
         text: message,

@@ -114,6 +114,7 @@ class Build(BaseModel):
     sketch: Optional[Sketch] = None     # AI suggestion
     deploy: Optional[DeployResult] = None
     deploy_events: List[DeployEvent] = []   # live status from the agent, newest last
+    precompiled: Optional[bool] = None      # the agent compiled the sketch while it waited for approval
     expected_serial_events: List[str] = []  # log lines the sketch should print, for the test step
     test_passed: Optional[bool] = None
     error: str = ""
@@ -145,6 +146,7 @@ class DeployJob(BaseModel):
     sketch: Sketch
     fqbn: Optional[str] = None           # from hardware/facts; the agent only accepts its own fixed FQBN
     approval_token: str = ""             # short-lived, signed by the backend when the user approved
+    prepare_only: bool = False           # compile now, while the sketch waits for approval; never upload
     expected_serial_events: List[str] = []
 
 

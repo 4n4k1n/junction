@@ -35,6 +35,7 @@ MAX_REPAIRS = 2
 SKETCH_NAME = "learnlens_sketch"  # arduino-cli needs <name>/<name>.ino
 PROJECTS_DIR = Path(os.getenv("LEARNLENS_PROJECTS_DIR", Path(__file__).resolve().parents[2] / "generated"))
 REQUIRED_EVENTS = ["READY", "SOUND_DETECTED", "LED_ON", "LED_OFF"]
+LEVEL_METER_EVENTS = ["READY", "LOUD", "QUIET"]  # LOUD/QUIET let the test step see that the meter reacts
 DEFAULT_DEBOUNCE_MS = 300
 DEFAULT_SAMPLE_WINDOW_MS = 25
 
@@ -135,7 +136,7 @@ def build_context(spec: ProjectSpec, steps: List[WiringStep], sensor_active_leve
         inputs=inputs, custom_behavior=spec.custom_behavior if custom else "", previous_code=previous_code if custom else "",
         log_object=logging_["object"], log_setup=logging_["setup"],
         allowed_includes=[logging_["include"]] + ([matrix["include"]] if use_matrix else []),
-        required_events=["READY"] if use_matrix else REQUIRED_EVENTS,
+        required_events=["READY"] if custom else LEVEL_METER_EVENTS if analog else REQUIRED_EVENTS,
         facts=[by_id[f] for f in dict.fromkeys(quoted)])
 
 
@@ -177,8 +178,11 @@ REQUIRED LOGIC:
   scale between them, so the meter calibrates itself.
 - for and while loops are allowed here. Every while loop must end by time (millis()).
 
-REQUIRED LOG LINE (exactly this text on its own line):
+REQUIRED LOG LINES (each exactly this text on its own line):
 - READY   once, at the end of setup()
+- LOUD    once each time the bar reaches at least half of the matrix
+- QUIET   once each time the bar has fallen back to empty after a LOUD
+  Print them only on these changes, never on every pass through loop().
 
 THE STATIC ANALYZER REJECTS A SKETCH THAT:
 {COMMON_RULES}
@@ -378,6 +382,7 @@ uint8_t frame[{ctx.matrix_rows * ctx.matrix_columns}];
 float quiet = 1e9f;  // smallest swing seen: the room's noise floor
 float loud = 0;      // largest swing seen recently
 float shown = 0;     // bar length on the matrix, in columns
+bool wasLoud = false;  // for the LOUD / QUIET log lines
 
 void setup() {{
   matrix.begin();
@@ -424,6 +429,15 @@ void loop() {{
     }}
   }}
   matrix.draw(frame);
+
+  // Report once when it gets loud and once when it is quiet again.
+  if (!wasLoud && shown >= COLUMNS / 2) {{
+    wasLoud = true;
+    {ctx.log_object}.println("LOUD");
+  }} else if (wasLoud && shown < 1) {{
+    wasLoud = false;
+    {ctx.log_object}.println("QUIET");
+  }}
 }}
 """
     return GeneratedSketch(
@@ -441,7 +455,11 @@ void loop() {{
             "The first seconds are used for calibration, so the bar can jump at the start.",
             f"The READY line is visible only where {ctx.log_object} output is shown (App Lab or IDE console).",
         ],
-        expected_serial_events=[SerialEvent(event="READY", when="once after power-up, when setup() has finished")])
+        expected_serial_events=[
+            SerialEvent(event="READY", when="once after power-up, when setup() has finished"),
+            SerialEvent(event="LOUD", when="each time the bar reaches at least half of the matrix"),
+            SerialEvent(event="QUIET", when="each time the bar has fallen back to empty after that"),
+        ])
 
 
 def display_summary(sketch: GeneratedSketch, limit: int = 180) -> str:
@@ -483,8 +501,8 @@ def gated_level_meter_template(ctx: CodegenContext) -> GeneratedSketch:
               "  }\n")
         new = "While it detects something, the bar is not updated and stays where it is."
     elif variant == "toggle":
-        patch("float shown = 0;     // bar length on the matrix, in columns\n",
-              "float shown = 0;     // bar length on the matrix, in columns\n"
+        patch("bool wasLoud = false;  // for the LOUD / QUIET log lines\n",
+              "bool wasLoud = false;  // for the LOUD / QUIET log lines\n"
               "bool meterOn = true;         // switched by the second sensor\n"
               "bool gateWasActive = false;  // to notice the moment something appears\n")
         patch("  // Light whole columns up to the level",

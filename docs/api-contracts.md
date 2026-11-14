@@ -147,6 +147,10 @@ In `wiring`, each step looks like:
 | `POST /builds/{id}/reject` | – | `awaiting_approval` | `rejected` |
 | `POST /builds/{id}/test-result` | `{"passed": bool, "note": str}` | `awaiting_test` | `done` / `failed` |
 
+A build that waits for approval is offered once to the agent as a compile-only job (`prepare_only`, no
+approval token). The agent reports to `POST /builds/{id}/precompiled`, which sets `precompiled`. After
+the approval the same agent skips the compile.
+
 While `approved` or `deploying`, the app polls `GET /builds/{id}` (1 s). `deploy_events` grows as the
 agent works (`{stage, status, message, ts}`), and `deploy` holds the final result.
 Errors: 404 unknown build, 409 wrong state or hash mismatch.

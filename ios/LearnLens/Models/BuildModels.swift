@@ -88,6 +88,7 @@ struct Build: Decodable, Sendable {
   let sketch: Sketch?
   let deploy: DeployResult?
   let deployEvents: [DeployEvent]
+  let expectedSerialEvents: [String]  // log lines the sketch prints; some prove that it reacts
   let testPassed: Bool?
   let error: String
 }

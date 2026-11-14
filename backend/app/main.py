@@ -27,7 +27,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from . import engine
-from .build import demo
+from .build import demo, persistence
 from .build.router import agent_status
 from .build.router import router as build_router
 from .build.session_router import router as guide_router
@@ -49,6 +49,15 @@ store = Store()
 tutor = Tutor()
 app.include_router(build_router)
 app.include_router(guide_router)
+persistence.load()  # sessions and builds from before a restart
+
+
+@app.middleware("http")
+async def _keep_state(request, call_next):
+    response = await call_next(request)
+    if request.method != "GET":
+        persistence.save()
+    return response
 
 
 @app.on_event("startup")

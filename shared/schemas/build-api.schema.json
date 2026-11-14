@@ -100,6 +100,18 @@
           "title": "Photo Received",
           "type": "boolean"
         },
+        "precompiled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Precompiled"
+        },
         "provenance": {
           "$ref": "#/$defs/Provenance"
         },
@@ -405,6 +417,11 @@
         "job_id": {
           "title": "Job Id",
           "type": "string"
+        },
+        "prepare_only": {
+          "default": false,
+          "title": "Prepare Only",
+          "type": "boolean"
         },
         "sketch": {
           "$ref": "#/$defs/Sketch"

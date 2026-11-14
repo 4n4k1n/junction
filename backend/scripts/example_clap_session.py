@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(ROOT / "agent"))
 os.environ.setdefault("LEARNLENS_TUTOR", "mock")
+os.environ.setdefault("LEARNLENS_STATE_FILE", "none")  # examples leave no state behind
 
 OUT = ROOT / "docs" / "examples" / "clap-light-session.json"
 INSTRUCTION = "Build a clap-activated light"
@@ -155,7 +156,7 @@ def run() -> list:
              "POST", f"/sessions/{sid}/analyze", data={"confirmed_inventory": json.dumps(inventory)})
     assert s["state"] == "wiring"
     for i in range(len(s["wiring_steps"])):
-        if i == 3:
+        if i == 2:
             call("   Optional photo review mid-wiring (never an electrical verification)",
                  "POST", f"/sessions/{sid}/analyze", files=photo())
         s = call(f"4.{i} Confirm wiring step {i}", "POST", f"/sessions/{sid}/confirm-step",

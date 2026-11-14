@@ -61,6 +61,16 @@ python3 scripts/demo_run.py --photo demo/desk.jpg  # send a real photo
 
 `GET /health` reports `demo_mode`, `agent_connected` and `agent_mock`.
 
+## What keeps the flow short
+
+- The sketch is written, checked and compiled in the background while you wire. When the last wire is
+  confirmed it is usually ready (`LEARNLENS_PREGENERATE=0` switches this off).
+- The deploy agent compiles a sketch as soon as it waits for approval, so "Start flash" only uploads.
+- A failed step offers **Retry** and keeps everything confirmed so far. Sessions and builds are saved
+  to `backend/learnlens_state.json` and survive a backend restart.
+- Steps are read aloud. Optional voice commands ("next", "back") during wiring are experimental.
+- If the board reports `LOUD` in its log during the test, the test confirms itself.
+
 ## Tests
 
 ```bash

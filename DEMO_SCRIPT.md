@@ -12,9 +12,9 @@ Timings are targets. If a step stalls for 10 seconds, use its fallback and keep 
 | 0:15 | "Build a sound level meter." | Holds the talk button on the phone, or the goal is pre-typed | Goal text in the app | Type it |
 | 0:25 | "It looks at what's on my desk." | Looks at the parts, taps **Capture with glasses and start** | "Capturing" → "Analyzing" | **Take a photo with the iPhone**, or **Pick a saved photo** |
 | 0:40 | "It found the board. It isn't sure about the sensor, so it asks instead of guessing. And one thing it can't see from a photo: the pin labels. So I check." | Reads the labels on the sensor, selects **Yes** (glasses or phone) | Questions about the sensor and its labels AO, G, +, DO | – |
-| 1:00 | "The wiring comes from a hardware database built from the datasheets, not from the AI. This board's analog pin takes 3.6 volts at most. Power the sensor from 5 and you can damage it, so it never suggests that." | Follows 5 steps: unplug USB, G→GND, +→+3V3, AO→A0, plug in. Selects **Done, next** each time | "Step n of 5" on glasses; the fact and its source on the phone | Operator reads steps from the phone |
-| 1:45 | "Now Claude writes the code, for this exact wiring. It's checked against the approved pins and compiled for this board before I see it." | Waits (30-40 s with real AI: keep talking) | "Generating" → "Approve upload" on the glasses | Restart in `--demo` (prevalidated sketch) |
-| 2:15 | "Nothing touches my board until I say so." | Selects **Start flash** on the glasses (the code is on the phone for anyone who wants to read it) | "Deploying": validate, compile, approval, device, upload | If the upload fails: **Retry flash**; second failure → show the recorded video |
+| 1:00 | "The wiring comes from a hardware database built from the datasheets, not from the AI. This board's analog pin takes 3.6 volts at most. Power the sensor from 5 and you can damage it, so it never suggests that." | Follows 3 steps: unplug USB and G→GND, +→+3V3, AO→A0 and plug USB in. Selects **Next** each time (each step is read aloud) | "Step n of 3" on glasses; the fact and its source on the phone | Operator reads steps from the phone |
+| 1:45 | "Now Claude writes the code, for this exact wiring. It's checked against the approved pins and compiled for this board before I see it." | Usually no wait: the code was written while wiring | "Ready to flash" with a short description of how it works | Restart in `--demo` (prevalidated sketch) |
+| 2:15 | "Nothing touches my board until I say so." | Selects **Start flash** on the glasses (the code is on the phone for anyone who wants to read it) | "Deploying": already compiled, approval, device, upload | If the upload fails: **Retry flash**; second failure → show the recorded video |
 | 2:35 | "Uploaded. Let's hear it." | Speaks quietly, then loudly, then claps | The LED matrix bar grows with the volume | – |
 | 2:50 | "From an idea to working hardware in three minutes, with every voltage checked and every upload approved. That's LearnLens." | Selects **Yes** | Glasses: "Success" | – |
 
@@ -33,8 +33,8 @@ You need a breadboard or a Y-cable, because both sensors share the board's singl
 | "I want to add this sensor." | Speaks, then **Go** | "What should the KY-032 infrared obstacle sensor do in your build?" |
 | "I have no idea yet. What could it do?" | Selects **Ideas** | Three ideas: show only while a hand is near, hold a hand to freeze, wave to switch on and off |
 | "Let's switch it with a wave." | Selects the third idea | "Read the 4 pin labels on the infrared sensor…" → **Yes** |
-| "Only the new wires. The first sensor stays as it is." | Steps 6-10: unplug USB, GND→GND, +→+3V3 (shared), OUT→D2, plug in | "Step n of 10" |
-| "New code for both sensors, and again nothing is uploaded without my OK." | **Continue**, then **Start flash** | "How it works", then "Deploying" |
+| "Only the new wires. The first sensor stays as it is." | Steps 4-6: unplug USB and GND→GND, +→+3V3 (shared), OUT→D2 and plug USB in | "Step n of 6" |
+| "New code for both sensors, and again nothing is uploaded without my OK." | **Start flash** | "Ready to flash" with the description, then "Deploying" |
 | "Wave: off. Wave: on." | Waves a hand in front of the KY-032 | The level bar switches off and on |
 
 In demo mode every follow-up request adds the infrared sensor, whatever is said, and the photo is

@@ -167,6 +167,9 @@ struct GuideView: View {
     case .success:
       Section("Success") {
         Text(model.isSimulatedDeploy ? "Flow complete with a SIMULATED upload. No board was flashed." : "The build works.")
+        if let proof = model.boardProof {
+          Label("Confirmed by the board: it reported \(proof).", systemImage: "checkmark.seal").foregroundStyle(.green)
+        }
         if !model.isExtending {
           // Keep developing the same build: add a known part, or change what it does.
           Button("Continue building") { Task { await model.beginExtension() } }
@@ -200,6 +203,9 @@ struct GuideView: View {
     case .error(let message):
       Section("Error") {
         Text(message).foregroundStyle(.red)
+        if model.canRetry {
+          Button("Retry this step") { Task { await model.retryLast() } }  // keeps what was confirmed
+        }
         Button("Start over") { Task { await model.reset() } }
       }
     }
@@ -381,7 +387,7 @@ struct GuideView: View {
           Label("The board reported the clap.", systemImage: "checkmark.circle").foregroundStyle(.green)
         }
       }
-      Text("Try the behavior now. Does it work?")
+      Text("Try the behavior now. If the board reports that it reacts, this confirms itself. Otherwise: does it work?")
       Button("Yes, it works") { Task { await model.reportTest(passed: true) } }
       Button("No") { Task { await model.reportTest(passed: false) } }
     }
@@ -389,7 +395,12 @@ struct GuideView: View {
 
   // MARK: - Backend
 
+  @ViewBuilder
   private var backendSection: some View {
+    Section("Options") {
+      Toggle("Read steps aloud", isOn: $model.readAloud)
+      Toggle("Voice commands while wiring: \"next\", \"back\" (experimental)", isOn: $model.handsFree)
+    }
     Section("Backend") {
       TextField("http://<mac-ip>:8000", text: $model.backendURL)
         .autocorrectionDisabled()

@@ -185,7 +185,7 @@ def test_unsafe_plan_blocks_the_session(monkeypatch):
 
     def five_volt_plan(spec):
         steps = safe_plan(spec)
-        steps[2].connection.to_pin.pin = "5V"
+        steps[1].connection.to_pin.pin = "5V"
         return steps
 
     monkeypatch.setattr(planner, "plan_wiring", five_volt_plan)
@@ -264,7 +264,7 @@ def test_questions_during_the_build_are_answered_from_plan_and_facts():
     a = r.json()
     assert a["source"] == "llm" and a["step_index"] == 1 and "+3V3" in a["answer"] and "  " not in a["answer"]
     sent = fake.requests[1]["messages"][0]["content"][0]["text"]
-    for needed in ("[done] Unplug the USB cable", "[CURRENT STEP]", "VERIFIED FACTS", "[official_doc]",
+    for needed in ("[done] Unplug the board's USB cable first", "[CURRENT STEP]", "VERIFIED FACTS", "[official_doc]",
                    "THE USER ASKS: Can I use the 5V pin instead?"):
         assert needed in sent, needed
     assert "keep to the\nplan" in fake.requests[1]["system"][0]["text"]

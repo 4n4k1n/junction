@@ -40,6 +40,7 @@ ALLOWED_MEDIA = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 # In-memory for the scaffold: builds and jobs are lost on restart.
 builds: Dict[str, Build] = {}
 jobs: Dict[str, DeployJob] = {}
+prepare_jobs: Dict[str, DeployJob] = {}  # compile-only jobs for sketches that wait for approval
 agent_seen = {"at": 0.0, "mock": False}  # last poll from a deploy agent
 
 
@@ -81,6 +82,10 @@ def create_awaiting_approval(goal: str, components, steps, sketch, provenance) -
               provenance=provenance, components=components, hardware_facts=facts.facts_for(components),
               wiring_steps=steps, sketch=sketch)
     builds[b.build_id] = b
+    # Let the agent compile it now, so that after the approval only the upload is left. No token: no upload.
+    job = DeployJob(job_id=uuid.uuid4().hex[:12], build_id=b.build_id, sketch=sketch, fqbn=facts.fqbn("uno-q"),
+                    prepare_only=True)
+    prepare_jobs[job.job_id] = job
     return b
 
 
@@ -156,7 +161,21 @@ def claim_job(req: ClaimRequest, x_agent_token: Optional[str] = Header(None)):
         if b.status == BuildStatus.approved:
             b.status = BuildStatus.deploying
             return job
+    for job_id, job in list(prepare_jobs.items()):
+        b = builds.get(job.build_id)
+        del prepare_jobs[job_id]  # offered once
+        if b is not None and b.status == BuildStatus.awaiting_approval and b.sketch.sha256 == job.sketch.sha256:
+            return job
     return Response(status_code=204)
+
+
+@router.post("/builds/{build_id}/precompiled", response_model=Build)
+def precompiled(build_id: str, result: DeployResult, x_agent_token: Optional[str] = Header(None)):
+    """The agent reports the compile it did while the sketch waited for approval."""
+    _check_agent(x_agent_token)
+    b = _load(build_id)
+    b.precompiled = result.compile_ok
+    return b
 
 
 @router.post("/agent/jobs/{job_id}/events", response_model=Build)

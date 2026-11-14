@@ -9,7 +9,7 @@
       }
     },
     "response": {
-      "session_id": "2f427569be83",
+      "session_id": "073afaa88e4e",
       "state": "awaiting_analysis",
       "instruction": "Build a clap-activated light",
       "display_text": "Look at your parts and take a photo",
@@ -35,13 +35,13 @@
     "step": "2. Analyze the desk photo: the sensor is uncertain, so the plan is held back",
     "request": {
       "method": "POST",
-      "path": "/sessions/2f427569be83/analyze",
+      "path": "/sessions/073afaa88e4e/analyze",
       "files": {
         "image": "<desk photo, image/jpeg>"
       }
     },
     "response": {
-      "session_id": "2f427569be83",
+      "session_id": "073afaa88e4e",
       "state": "needs_confirmation",
       "instruction": "Build a clap-activated light",
       "display_text": "Please confirm your parts",
@@ -236,17 +236,17 @@
     "step": "3. The user confirms the sensor and its pin labels: wiring plan released",
     "request": {
       "method": "POST",
-      "path": "/sessions/2f427569be83/analyze",
+      "path": "/sessions/073afaa88e4e/analyze",
       "data": {
         "confirmed_inventory": "[{\"component_id\": \"ky-037\", \"confirmations\": [\"ky037-pin-labels\"]}]"
       }
     },
     "response": {
-      "session_id": "2f427569be83",
+      "session_id": "073afaa88e4e",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
-      "display_text": "Unplug the board's USB cable",
-      "spoken_text": "Unplug the USB cable before you wire anything.",
+      "display_text": "Unplug USB. KY-037 G to board GND",
+      "spoken_text": "Unplug the board's USB cable first. Then: Connect the sensor's pin labelled G to GND on the board.",
       "analysis_source": "llm",
       "detected_components": [
         {
@@ -417,15 +417,8 @@
       "wiring_steps": [
         {
           "index": 0,
-          "display_text": "Unplug the board's USB cable",
-          "spoken_text": "Unplug the USB cable before you wire anything.",
-          "connection": null,
-          "fact_ids": []
-        },
-        {
-          "index": 1,
-          "display_text": "KY-037 G to board GND",
-          "spoken_text": "Connect the sensor pin labelled G to GND on the board.",
+          "display_text": "Unplug USB. KY-037 G to board GND",
+          "spoken_text": "Unplug the board's USB cable first. Then: Connect the sensor's pin labelled G to GND on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -442,9 +435,9 @@
           ]
         },
         {
-          "index": 2,
+          "index": 1,
           "display_text": "KY-037 + to board +3V3",
-          "spoken_text": "Connect the sensor pin labelled + to +3V3 on the board.",
+          "spoken_text": "Connect the sensor's pin labelled + to +3V3 on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -461,9 +454,9 @@
           ]
         },
         {
-          "index": 3,
-          "display_text": "KY-037 DO to board D2",
-          "spoken_text": "Connect the sensor pin labelled DO to D2 on the board.",
+          "index": 2,
+          "display_text": "KY-037 DO to board D2. Plug USB in",
+          "spoken_text": "Connect the sensor's pin labelled DO to D2 on the board. Then plug the USB cable back in and check that the sensor's power LED lights up.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -478,20 +471,16 @@
             "ky037-outputs",
             "unoq-jdigital-ft"
           ]
-        },
-        {
-          "index": 4,
-          "display_text": "Plug USB back in. Sensor power LED on?",
-          "spoken_text": "Plug the USB cable back in and check that the sensor's power LED lights up.",
-          "connection": null,
-          "fact_ids": []
         }
       ],
       "current_step": 0,
       "confirmed_steps": [],
       "review": null,
       "safety_problems": [],
-      "generation_progress": [],
+      "generation_progress": [
+        "Claude is writing the code",
+        "Checking pins and safety rules"
+      ],
       "clarification": "",
       "suggestions": [],
       "build_id": null
@@ -501,18 +490,18 @@
     "step": "4.0 Confirm wiring step 0",
     "request": {
       "method": "POST",
-      "path": "/sessions/2f427569be83/confirm-step",
+      "path": "/sessions/073afaa88e4e/confirm-step",
       "json": {
         "step_index": 0,
         "confirmed": true
       }
     },
     "response": {
-      "session_id": "2f427569be83",
+      "session_id": "073afaa88e4e",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
-      "display_text": "KY-037 G to board GND",
-      "spoken_text": "Connect the sensor pin labelled G to GND on the board.",
+      "display_text": "KY-037 + to board +3V3",
+      "spoken_text": "Connect the sensor's pin labelled + to +3V3 on the board.",
       "analysis_source": "llm",
       "detected_components": [
         {
@@ -683,15 +672,8 @@
       "wiring_steps": [
         {
           "index": 0,
-          "display_text": "Unplug the board's USB cable",
-          "spoken_text": "Unplug the USB cable before you wire anything.",
-          "connection": null,
-          "fact_ids": []
-        },
-        {
-          "index": 1,
-          "display_text": "KY-037 G to board GND",
-          "spoken_text": "Connect the sensor pin labelled G to GND on the board.",
+          "display_text": "Unplug USB. KY-037 G to board GND",
+          "spoken_text": "Unplug the board's USB cable first. Then: Connect the sensor's pin labelled G to GND on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -708,9 +690,9 @@
           ]
         },
         {
-          "index": 2,
+          "index": 1,
           "display_text": "KY-037 + to board +3V3",
-          "spoken_text": "Connect the sensor pin labelled + to +3V3 on the board.",
+          "spoken_text": "Connect the sensor's pin labelled + to +3V3 on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -727,9 +709,9 @@
           ]
         },
         {
-          "index": 3,
-          "display_text": "KY-037 DO to board D2",
-          "spoken_text": "Connect the sensor pin labelled DO to D2 on the board.",
+          "index": 2,
+          "display_text": "KY-037 DO to board D2. Plug USB in",
+          "spoken_text": "Connect the sensor's pin labelled DO to D2 on the board. Then plug the USB cable back in and check that the sensor's power LED lights up.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -744,13 +726,6 @@
             "ky037-outputs",
             "unoq-jdigital-ft"
           ]
-        },
-        {
-          "index": 4,
-          "display_text": "Plug USB back in. Sensor power LED on?",
-          "spoken_text": "Plug the USB cable back in and check that the sensor's power LED lights up.",
-          "connection": null,
-          "fact_ids": []
         }
       ],
       "current_step": 1,
@@ -759,7 +734,11 @@
       ],
       "review": null,
       "safety_problems": [],
-      "generation_progress": [],
+      "generation_progress": [
+        "Claude is writing the code",
+        "Checking pins and safety rules",
+        "Compiling for the Arduino UNO Q"
+      ],
       "clarification": "",
       "suggestions": [],
       "build_id": null
@@ -769,18 +748,18 @@
     "step": "4.1 Confirm wiring step 1",
     "request": {
       "method": "POST",
-      "path": "/sessions/2f427569be83/confirm-step",
+      "path": "/sessions/073afaa88e4e/confirm-step",
       "json": {
         "step_index": 1,
         "confirmed": true
       }
     },
     "response": {
-      "session_id": "2f427569be83",
+      "session_id": "073afaa88e4e",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
-      "display_text": "KY-037 + to board +3V3",
-      "spoken_text": "Connect the sensor pin labelled + to +3V3 on the board.",
+      "display_text": "KY-037 DO to board D2. Plug USB in",
+      "spoken_text": "Connect the sensor's pin labelled DO to D2 on the board. Then plug the USB cable back in and check that the sensor's power LED lights up.",
       "analysis_source": "llm",
       "detected_components": [
         {
@@ -951,15 +930,8 @@
       "wiring_steps": [
         {
           "index": 0,
-          "display_text": "Unplug the board's USB cable",
-          "spoken_text": "Unplug the USB cable before you wire anything.",
-          "connection": null,
-          "fact_ids": []
-        },
-        {
-          "index": 1,
-          "display_text": "KY-037 G to board GND",
-          "spoken_text": "Connect the sensor pin labelled G to GND on the board.",
+          "display_text": "Unplug USB. KY-037 G to board GND",
+          "spoken_text": "Unplug the board's USB cable first. Then: Connect the sensor's pin labelled G to GND on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -976,9 +948,9 @@
           ]
         },
         {
-          "index": 2,
+          "index": 1,
           "display_text": "KY-037 + to board +3V3",
-          "spoken_text": "Connect the sensor pin labelled + to +3V3 on the board.",
+          "spoken_text": "Connect the sensor's pin labelled + to +3V3 on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -995,9 +967,9 @@
           ]
         },
         {
-          "index": 3,
-          "display_text": "KY-037 DO to board D2",
-          "spoken_text": "Connect the sensor pin labelled DO to D2 on the board.",
+          "index": 2,
+          "display_text": "KY-037 DO to board D2. Plug USB in",
+          "spoken_text": "Connect the sensor's pin labelled DO to D2 on the board. Then plug the USB cable back in and check that the sensor's power LED lights up.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -1012,13 +984,6 @@
             "ky037-outputs",
             "unoq-jdigital-ft"
           ]
-        },
-        {
-          "index": 4,
-          "display_text": "Plug USB back in. Sensor power LED on?",
-          "spoken_text": "Plug the USB cable back in and check that the sensor's power LED lights up.",
-          "connection": null,
-          "fact_ids": []
         }
       ],
       "current_step": 2,
@@ -1028,277 +993,11 @@
       ],
       "review": null,
       "safety_problems": [],
-      "generation_progress": [],
-      "clarification": "",
-      "suggestions": [],
-      "build_id": null
-    }
-  },
-  {
-    "step": "4.2 Confirm wiring step 2",
-    "request": {
-      "method": "POST",
-      "path": "/sessions/2f427569be83/confirm-step",
-      "json": {
-        "step_index": 2,
-        "confirmed": true
-      }
-    },
-    "response": {
-      "session_id": "2f427569be83",
-      "state": "wiring",
-      "instruction": "Build a clap-activated light",
-      "display_text": "KY-037 DO to board D2",
-      "spoken_text": "Connect the sensor pin labelled DO to D2 on the board.",
-      "analysis_source": "llm",
-      "detected_components": [
-        {
-          "component_id": "uno-q",
-          "label": "Arduino board with an LED matrix",
-          "confidence": 0.94,
-          "evidence": "'UNO Q' is printed next to the LED matrix; USB-C connector visible."
-        },
-        {
-          "component_id": "ky-037",
-          "label": "red sensor board with a microphone capsule",
-          "confidence": 0.62,
-          "evidence": "Microphone capsule, blue trim pot and 4 pins visible. Pin labels are not readable, and the capsule size could also match a KY-038."
-        },
-        {
-          "component_id": "unknown",
-          "label": "bundle of jumper wires",
-          "confidence": 0.9,
-          "evidence": "Loose wires."
-        }
+      "generation_progress": [
+        "Claude is writing the code",
+        "Checking pins and safety rules",
+        "Compiling for the Arduino UNO Q"
       ],
-      "confirmed_inventory": [
-        {
-          "component_id": "ky-037",
-          "confirmations": [
-            "ky037-pin-labels"
-          ]
-        }
-      ],
-      "pending_confirmations": [],
-      "project": {
-        "title": "Clap-activated light",
-        "summary": "A clap toggles the board's built-in LED.",
-        "behavior": "toggle_on_event",
-        "board": "uno-q",
-        "input_component": "ky-037",
-        "output": "builtin_led",
-        "components": [
-          "uno-q",
-          "ky-037"
-        ],
-        "supported": true,
-        "unsupported_reason": "",
-        "custom_behavior": "",
-        "requests": []
-      },
-      "hardware_facts": [
-        {
-          "id": "unoq-mcu",
-          "component": "uno-q",
-          "statement": "The microcontroller is an STM32U585. It handles the 3.3 V headers JDIGITAL and JANALOG.",
-          "source": "Arduino UNO Q datasheet (SKU ABX00162-ABX00173), section 'Microcontroller'",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-jdigital-ft",
-          "component": "uno-q",
-          "statement": "All JDIGITAL lines (D0-D13) are 3.3 V logic. Most use an FT-type I/O structure and are 5 V-tolerant as inputs.",
-          "source": "Arduino UNO Q datasheet, section 9.6 'JDIGITAL - Pin Map'",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-d3-tt",
-          "component": "uno-q",
-          "statement": "D3 (PB0) is only 3.6 V-tolerant. Never apply 5 V to it in any mode.",
-          "source": "Arduino UNO Q datasheet, section 9.6 'JDIGITAL - Pin Map'",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-analog-limit",
-          "component": "uno-q",
-          "statement": "A0-A5 are not 5 V-tolerant in analog mode. Valid range is 0 V to VREF+ (about 3.3 V); the absolute maximum is VDD + 0.3 V, about 3.6 V.",
-          "source": "Arduino UNO Q datasheet, sections 9 'Peripherals' and 9.7 'JANALOG - Pin Map'",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-3v3-rail",
-          "component": "uno-q",
-          "statement": "The +3V3 pin on the JANALOG header outputs the 3.3 V system rail (3.1 V min, 3.3 V typical, 3.5 V max).",
-          "source": "Arduino UNO Q datasheet, sections 3.2 'Recommended Operating Conditions' and 9.7",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-power-pins",
-          "component": "uno-q",
-          "statement": "The JANALOG header carries +3V3, +5V (5V_SYS, 4.5-5.5 V from USB-C) and two GND pins.",
-          "source": "Arduino UNO Q datasheet, sections 3.1 'Input Power' and 9.7",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-led-active-low",
-          "component": "uno-q",
-          "statement": "The MCU-controlled RGB LEDs (LED3 on PH10-PH12, LED4 on PH13-PH15) are active-low: they turn on when driven to logic 0.",
-          "source": "Arduino UNO Q datasheet, section 'LEDs'",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-led-builtin-mapping",
-          "component": "uno-q",
-          "statement": "In the official Arduino core, the first built-in LED (LED_BUILTIN) is PH10, which is LED3 red. A forum thread reports it not blinking under IDE 2.3.7, so flash a blink sketch once before the demo.",
-          "source": "ArduinoCore-zephyr, variants/arduino_uno_q_stm32u585xx overlay, 'builtin-led-gpios'",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-fqbn",
-          "component": "uno-q",
-          "statement": "With the official core arduino:zephyr 1.1.0 installed, `arduino-cli board listall` lists 'Arduino UNO Q' as arduino:zephyr:unoq. A sketch for it compiles with the arm-zephyr-eabi toolchain, not avr-gcc.",
-          "source": "arduino:zephyr 1.1.0 boards.txt, checked with arduino-cli 1.2.0 on 2026-11-14",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-monitor",
-          "component": "uno-q",
-          "statement": "Text output from a sketch reaches the computer through the Monitor object of the official Arduino_RouterBridge library (Monitor.begin(), Monitor.println()). It is routed through the board's Linux side.",
-          "source": "arduino-libraries/Arduino_RouterBridge 0.4.4, src/monitor.h",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-serial-uart",
-          "component": "uno-q",
-          "statement": "Serial is the MCU's hardware UART on header pins D0/D1. It does not show up in the App Lab or IDE console.",
-          "source": "https://forum.arduino.cc/t/arduino-uno-q-via-ide-no-serial-monitor-output/1411255 and Arduino docs-content PR 2784",
-          "confidence": "secondary"
-        },
-        {
-          "id": "unoq-upload",
-          "component": "uno-q",
-          "statement": "Sketches are uploaded with the core's 'remoteocd' tool through the board's Linux side, not through a serial bootloader as on the classic UNO.",
-          "source": "arduino:zephyr 1.1.0 boards.txt (unoq.upload.tool)",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-led-matrix",
-          "component": "uno-q",
-          "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
-          "source": "Arduino UNO Q datasheet, section 'LEDs'",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-led-matrix-api",
-          "component": "uno-q",
-          "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
-          "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "ky037-pins",
-          "component": "ky-037",
-          "statement": "The module has four pins: analog signal (AO), ground (G), supply (+) and digital signal (DO). The order differs between makers, so go by the printed labels.",
-          "source": "Joy-IT SensorKit, KY-037 (vendor documentation for the Joy-IT module; clones may differ)",
-          "confidence": "vendor_doc"
-        },
-        {
-          "id": "ky037-supply",
-          "component": "ky-037",
-          "statement": "The vendor wires the module to 3.3 V on Raspberry Pi and micro:bit and to 5 V on a classic Arduino. No supply rating is published.",
-          "source": "Joy-IT SensorKit, KY-037, wiring tables",
-          "confidence": "vendor_doc"
-        },
-        {
-          "id": "ky037-outputs",
-          "component": "ky-037",
-          "statement": "An LM393 comparator drives DO high when the sound level exceeds the threshold set with the trim potentiometer. Powered from 3.3 V, neither output can rise above 3.3 V. The level on your module is not confirmed, so the sketch reacts to a change, not to a fixed level.",
-          "source": "Joy-IT SensorKit, KY-037, 'functionality'",
-          "confidence": "vendor_doc"
-        }
-      ],
-      "wiring_steps": [
-        {
-          "index": 0,
-          "display_text": "Unplug the board's USB cable",
-          "spoken_text": "Unplug the USB cable before you wire anything.",
-          "connection": null,
-          "fact_ids": []
-        },
-        {
-          "index": 1,
-          "display_text": "KY-037 G to board GND",
-          "spoken_text": "Connect the sensor pin labelled G to GND on the board.",
-          "connection": {
-            "from_pin": {
-              "component": "ky-037",
-              "pin": "G"
-            },
-            "to_pin": {
-              "component": "uno-q",
-              "pin": "GND"
-            }
-          },
-          "fact_ids": [
-            "ky037-pins",
-            "unoq-power-pins"
-          ]
-        },
-        {
-          "index": 2,
-          "display_text": "KY-037 + to board +3V3",
-          "spoken_text": "Connect the sensor pin labelled + to +3V3 on the board.",
-          "connection": {
-            "from_pin": {
-              "component": "ky-037",
-              "pin": "+"
-            },
-            "to_pin": {
-              "component": "uno-q",
-              "pin": "3V3"
-            }
-          },
-          "fact_ids": [
-            "ky037-supply",
-            "unoq-3v3-rail"
-          ]
-        },
-        {
-          "index": 3,
-          "display_text": "KY-037 DO to board D2",
-          "spoken_text": "Connect the sensor pin labelled DO to D2 on the board.",
-          "connection": {
-            "from_pin": {
-              "component": "ky-037",
-              "pin": "DO"
-            },
-            "to_pin": {
-              "component": "uno-q",
-              "pin": "D2"
-            }
-          },
-          "fact_ids": [
-            "ky037-outputs",
-            "unoq-jdigital-ft"
-          ]
-        },
-        {
-          "index": 4,
-          "display_text": "Plug USB back in. Sensor power LED on?",
-          "spoken_text": "Plug the USB cable back in and check that the sensor's power LED lights up.",
-          "connection": null,
-          "fact_ids": []
-        }
-      ],
-      "current_step": 3,
-      "confirmed_steps": [
-        0,
-        1,
-        2
-      ],
-      "review": null,
-      "safety_problems": [],
-      "generation_progress": [],
       "clarification": "",
       "suggestions": [],
       "build_id": null
@@ -1308,17 +1007,17 @@
     "step": "   Optional photo review mid-wiring (never an electrical verification)",
     "request": {
       "method": "POST",
-      "path": "/sessions/2f427569be83/analyze",
+      "path": "/sessions/073afaa88e4e/analyze",
       "files": {
         "image": "<desk photo, image/jpeg>"
       }
     },
     "response": {
-      "session_id": "2f427569be83",
+      "session_id": "073afaa88e4e",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
-      "display_text": "KY-037 DO to board D2",
-      "spoken_text": "Connect the sensor pin labelled DO to D2 on the board.",
+      "display_text": "KY-037 DO to board D2. Plug USB in",
+      "spoken_text": "Connect the sensor's pin labelled DO to D2 on the board. Then plug the USB cable back in and check that the sensor's power LED lights up.",
       "analysis_source": "llm",
       "detected_components": [
         {
@@ -1489,15 +1188,8 @@
       "wiring_steps": [
         {
           "index": 0,
-          "display_text": "Unplug the board's USB cable",
-          "spoken_text": "Unplug the USB cable before you wire anything.",
-          "connection": null,
-          "fact_ids": []
-        },
-        {
-          "index": 1,
-          "display_text": "KY-037 G to board GND",
-          "spoken_text": "Connect the sensor pin labelled G to GND on the board.",
+          "display_text": "Unplug USB. KY-037 G to board GND",
+          "spoken_text": "Unplug the board's USB cable first. Then: Connect the sensor's pin labelled G to GND on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -1514,289 +1206,9 @@
           ]
         },
         {
-          "index": 2,
-          "display_text": "KY-037 + to board +3V3",
-          "spoken_text": "Connect the sensor pin labelled + to +3V3 on the board.",
-          "connection": {
-            "from_pin": {
-              "component": "ky-037",
-              "pin": "+"
-            },
-            "to_pin": {
-              "component": "uno-q",
-              "pin": "3V3"
-            }
-          },
-          "fact_ids": [
-            "ky037-supply",
-            "unoq-3v3-rail"
-          ]
-        },
-        {
-          "index": 3,
-          "display_text": "KY-037 DO to board D2",
-          "spoken_text": "Connect the sensor pin labelled DO to D2 on the board.",
-          "connection": {
-            "from_pin": {
-              "component": "ky-037",
-              "pin": "DO"
-            },
-            "to_pin": {
-              "component": "uno-q",
-              "pin": "D2"
-            }
-          },
-          "fact_ids": [
-            "ky037-outputs",
-            "unoq-jdigital-ft"
-          ]
-        },
-        {
-          "index": 4,
-          "display_text": "Plug USB back in. Sensor power LED on?",
-          "spoken_text": "Plug the USB cable back in and check that the sensor's power LED lights up.",
-          "connection": null,
-          "fact_ids": []
-        }
-      ],
-      "current_step": 3,
-      "confirmed_steps": [
-        0,
-        1,
-        2
-      ],
-      "review": {
-        "observations": [
-          "Three jumper wires run from the sensor to the board's headers.",
-          "The sensor's power LED appears to be lit."
-        ],
-        "possible_issues": [
-          "The wire on the sensor's middle pins is partly hidden; re-check which pin it is on."
-        ],
-        "electrically_verified": false,
-        "disclaimer": "A photo cannot verify an electrical connection. Check each wire against the steps by hand before you plug in USB."
-      },
-      "safety_problems": [],
-      "generation_progress": [],
-      "clarification": "",
-      "suggestions": [],
-      "build_id": null
-    }
-  },
-  {
-    "step": "4.3 Confirm wiring step 3",
-    "request": {
-      "method": "POST",
-      "path": "/sessions/2f427569be83/confirm-step",
-      "json": {
-        "step_index": 3,
-        "confirmed": true
-      }
-    },
-    "response": {
-      "session_id": "2f427569be83",
-      "state": "wiring",
-      "instruction": "Build a clap-activated light",
-      "display_text": "Plug USB back in. Sensor power LED on?",
-      "spoken_text": "Plug the USB cable back in and check that the sensor's power LED lights up.",
-      "analysis_source": "llm",
-      "detected_components": [
-        {
-          "component_id": "uno-q",
-          "label": "Arduino board with an LED matrix",
-          "confidence": 0.94,
-          "evidence": "'UNO Q' is printed next to the LED matrix; USB-C connector visible."
-        },
-        {
-          "component_id": "ky-037",
-          "label": "red sensor board with a microphone capsule",
-          "confidence": 0.62,
-          "evidence": "Microphone capsule, blue trim pot and 4 pins visible. Pin labels are not readable, and the capsule size could also match a KY-038."
-        },
-        {
-          "component_id": "unknown",
-          "label": "bundle of jumper wires",
-          "confidence": 0.9,
-          "evidence": "Loose wires."
-        }
-      ],
-      "confirmed_inventory": [
-        {
-          "component_id": "ky-037",
-          "confirmations": [
-            "ky037-pin-labels"
-          ]
-        }
-      ],
-      "pending_confirmations": [],
-      "project": {
-        "title": "Clap-activated light",
-        "summary": "A clap toggles the board's built-in LED.",
-        "behavior": "toggle_on_event",
-        "board": "uno-q",
-        "input_component": "ky-037",
-        "output": "builtin_led",
-        "components": [
-          "uno-q",
-          "ky-037"
-        ],
-        "supported": true,
-        "unsupported_reason": "",
-        "custom_behavior": "",
-        "requests": []
-      },
-      "hardware_facts": [
-        {
-          "id": "unoq-mcu",
-          "component": "uno-q",
-          "statement": "The microcontroller is an STM32U585. It handles the 3.3 V headers JDIGITAL and JANALOG.",
-          "source": "Arduino UNO Q datasheet (SKU ABX00162-ABX00173), section 'Microcontroller'",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-jdigital-ft",
-          "component": "uno-q",
-          "statement": "All JDIGITAL lines (D0-D13) are 3.3 V logic. Most use an FT-type I/O structure and are 5 V-tolerant as inputs.",
-          "source": "Arduino UNO Q datasheet, section 9.6 'JDIGITAL - Pin Map'",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-d3-tt",
-          "component": "uno-q",
-          "statement": "D3 (PB0) is only 3.6 V-tolerant. Never apply 5 V to it in any mode.",
-          "source": "Arduino UNO Q datasheet, section 9.6 'JDIGITAL - Pin Map'",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-analog-limit",
-          "component": "uno-q",
-          "statement": "A0-A5 are not 5 V-tolerant in analog mode. Valid range is 0 V to VREF+ (about 3.3 V); the absolute maximum is VDD + 0.3 V, about 3.6 V.",
-          "source": "Arduino UNO Q datasheet, sections 9 'Peripherals' and 9.7 'JANALOG - Pin Map'",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-3v3-rail",
-          "component": "uno-q",
-          "statement": "The +3V3 pin on the JANALOG header outputs the 3.3 V system rail (3.1 V min, 3.3 V typical, 3.5 V max).",
-          "source": "Arduino UNO Q datasheet, sections 3.2 'Recommended Operating Conditions' and 9.7",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-power-pins",
-          "component": "uno-q",
-          "statement": "The JANALOG header carries +3V3, +5V (5V_SYS, 4.5-5.5 V from USB-C) and two GND pins.",
-          "source": "Arduino UNO Q datasheet, sections 3.1 'Input Power' and 9.7",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-led-active-low",
-          "component": "uno-q",
-          "statement": "The MCU-controlled RGB LEDs (LED3 on PH10-PH12, LED4 on PH13-PH15) are active-low: they turn on when driven to logic 0.",
-          "source": "Arduino UNO Q datasheet, section 'LEDs'",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-led-builtin-mapping",
-          "component": "uno-q",
-          "statement": "In the official Arduino core, the first built-in LED (LED_BUILTIN) is PH10, which is LED3 red. A forum thread reports it not blinking under IDE 2.3.7, so flash a blink sketch once before the demo.",
-          "source": "ArduinoCore-zephyr, variants/arduino_uno_q_stm32u585xx overlay, 'builtin-led-gpios'",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-fqbn",
-          "component": "uno-q",
-          "statement": "With the official core arduino:zephyr 1.1.0 installed, `arduino-cli board listall` lists 'Arduino UNO Q' as arduino:zephyr:unoq. A sketch for it compiles with the arm-zephyr-eabi toolchain, not avr-gcc.",
-          "source": "arduino:zephyr 1.1.0 boards.txt, checked with arduino-cli 1.2.0 on 2026-11-14",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-monitor",
-          "component": "uno-q",
-          "statement": "Text output from a sketch reaches the computer through the Monitor object of the official Arduino_RouterBridge library (Monitor.begin(), Monitor.println()). It is routed through the board's Linux side.",
-          "source": "arduino-libraries/Arduino_RouterBridge 0.4.4, src/monitor.h",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-serial-uart",
-          "component": "uno-q",
-          "statement": "Serial is the MCU's hardware UART on header pins D0/D1. It does not show up in the App Lab or IDE console.",
-          "source": "https://forum.arduino.cc/t/arduino-uno-q-via-ide-no-serial-monitor-output/1411255 and Arduino docs-content PR 2784",
-          "confidence": "secondary"
-        },
-        {
-          "id": "unoq-upload",
-          "component": "uno-q",
-          "statement": "Sketches are uploaded with the core's 'remoteocd' tool through the board's Linux side, not through a serial bootloader as on the classic UNO.",
-          "source": "arduino:zephyr 1.1.0 boards.txt (unoq.upload.tool)",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-led-matrix",
-          "component": "uno-q",
-          "statement": "The board has an 8 x 13 blue LED matrix (104 LEDs) driven by the microcontroller. It shows the boot logo for about 20-30 seconds while Linux starts.",
-          "source": "Arduino UNO Q datasheet, section 'LEDs'",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "unoq-led-matrix-api",
-          "component": "uno-q",
-          "statement": "The matrix is driven with the Arduino_LED_Matrix library that ships with the core: declare `Arduino_LED_Matrix matrix;`, call `matrix.begin();` and `matrix.setGrayscaleBits(3);` in setup(), then `matrix.draw(frame);` where frame is a `uint8_t[104]`, row by row (8 rows of 13), each value 0 (off) to 7 (brightest).",
-          "source": "arduino:zephyr 1.1.0, libraries/Arduino_LED_Matrix (header and Basic example)",
-          "confidence": "official_doc"
-        },
-        {
-          "id": "ky037-pins",
-          "component": "ky-037",
-          "statement": "The module has four pins: analog signal (AO), ground (G), supply (+) and digital signal (DO). The order differs between makers, so go by the printed labels.",
-          "source": "Joy-IT SensorKit, KY-037 (vendor documentation for the Joy-IT module; clones may differ)",
-          "confidence": "vendor_doc"
-        },
-        {
-          "id": "ky037-supply",
-          "component": "ky-037",
-          "statement": "The vendor wires the module to 3.3 V on Raspberry Pi and micro:bit and to 5 V on a classic Arduino. No supply rating is published.",
-          "source": "Joy-IT SensorKit, KY-037, wiring tables",
-          "confidence": "vendor_doc"
-        },
-        {
-          "id": "ky037-outputs",
-          "component": "ky-037",
-          "statement": "An LM393 comparator drives DO high when the sound level exceeds the threshold set with the trim potentiometer. Powered from 3.3 V, neither output can rise above 3.3 V. The level on your module is not confirmed, so the sketch reacts to a change, not to a fixed level.",
-          "source": "Joy-IT SensorKit, KY-037, 'functionality'",
-          "confidence": "vendor_doc"
-        }
-      ],
-      "wiring_steps": [
-        {
-          "index": 0,
-          "display_text": "Unplug the board's USB cable",
-          "spoken_text": "Unplug the USB cable before you wire anything.",
-          "connection": null,
-          "fact_ids": []
-        },
-        {
           "index": 1,
-          "display_text": "KY-037 G to board GND",
-          "spoken_text": "Connect the sensor pin labelled G to GND on the board.",
-          "connection": {
-            "from_pin": {
-              "component": "ky-037",
-              "pin": "G"
-            },
-            "to_pin": {
-              "component": "uno-q",
-              "pin": "GND"
-            }
-          },
-          "fact_ids": [
-            "ky037-pins",
-            "unoq-power-pins"
-          ]
-        },
-        {
-          "index": 2,
           "display_text": "KY-037 + to board +3V3",
-          "spoken_text": "Connect the sensor pin labelled + to +3V3 on the board.",
+          "spoken_text": "Connect the sensor's pin labelled + to +3V3 on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -1813,9 +1225,9 @@
           ]
         },
         {
-          "index": 3,
-          "display_text": "KY-037 DO to board D2",
-          "spoken_text": "Connect the sensor pin labelled DO to D2 on the board.",
+          "index": 2,
+          "display_text": "KY-037 DO to board D2. Plug USB in",
+          "spoken_text": "Connect the sensor's pin labelled DO to D2 on the board. Then plug the USB cable back in and check that the sensor's power LED lights up.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -1830,21 +1242,12 @@
             "ky037-outputs",
             "unoq-jdigital-ft"
           ]
-        },
-        {
-          "index": 4,
-          "display_text": "Plug USB back in. Sensor power LED on?",
-          "spoken_text": "Plug the USB cable back in and check that the sensor's power LED lights up.",
-          "connection": null,
-          "fact_ids": []
         }
       ],
-      "current_step": 4,
+      "current_step": 2,
       "confirmed_steps": [
         0,
-        1,
-        2,
-        3
+        1
       ],
       "review": {
         "observations": [
@@ -1858,24 +1261,28 @@
         "disclaimer": "A photo cannot verify an electrical connection. Check each wire against the steps by hand before you plug in USB."
       },
       "safety_problems": [],
-      "generation_progress": [],
+      "generation_progress": [
+        "Claude is writing the code",
+        "Checking pins and safety rules",
+        "Compiling for the Arduino UNO Q"
+      ],
       "clarification": "",
       "suggestions": [],
       "build_id": null
     }
   },
   {
-    "step": "4.4 Confirm wiring step 4",
+    "step": "4.2 Confirm wiring step 2",
     "request": {
       "method": "POST",
-      "path": "/sessions/2f427569be83/confirm-step",
+      "path": "/sessions/073afaa88e4e/confirm-step",
       "json": {
-        "step_index": 4,
+        "step_index": 2,
         "confirmed": true
       }
     },
     "response": {
-      "session_id": "2f427569be83",
+      "session_id": "073afaa88e4e",
       "state": "wiring_complete",
       "instruction": "Build a clap-activated light",
       "display_text": "Wiring done. Writing the code",
@@ -2050,15 +1457,8 @@
       "wiring_steps": [
         {
           "index": 0,
-          "display_text": "Unplug the board's USB cable",
-          "spoken_text": "Unplug the USB cable before you wire anything.",
-          "connection": null,
-          "fact_ids": []
-        },
-        {
-          "index": 1,
-          "display_text": "KY-037 G to board GND",
-          "spoken_text": "Connect the sensor pin labelled G to GND on the board.",
+          "display_text": "Unplug USB. KY-037 G to board GND",
+          "spoken_text": "Unplug the board's USB cable first. Then: Connect the sensor's pin labelled G to GND on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -2075,9 +1475,9 @@
           ]
         },
         {
-          "index": 2,
+          "index": 1,
           "display_text": "KY-037 + to board +3V3",
-          "spoken_text": "Connect the sensor pin labelled + to +3V3 on the board.",
+          "spoken_text": "Connect the sensor's pin labelled + to +3V3 on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -2094,9 +1494,9 @@
           ]
         },
         {
-          "index": 3,
-          "display_text": "KY-037 DO to board D2",
-          "spoken_text": "Connect the sensor pin labelled DO to D2 on the board.",
+          "index": 2,
+          "display_text": "KY-037 DO to board D2. Plug USB in",
+          "spoken_text": "Connect the sensor's pin labelled DO to D2 on the board. Then plug the USB cable back in and check that the sensor's power LED lights up.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -2111,22 +1511,13 @@
             "ky037-outputs",
             "unoq-jdigital-ft"
           ]
-        },
-        {
-          "index": 4,
-          "display_text": "Plug USB back in. Sensor power LED on?",
-          "spoken_text": "Plug the USB cable back in and check that the sensor's power LED lights up.",
-          "connection": null,
-          "fact_ids": []
         }
       ],
       "current_step": null,
       "confirmed_steps": [
         0,
         1,
-        2,
-        3,
-        4
+        2
       ],
       "review": {
         "observations": [
@@ -2140,7 +1531,11 @@
         "disclaimer": "A photo cannot verify an electrical connection. Check each wire against the steps by hand before you plug in USB."
       },
       "safety_problems": [],
-      "generation_progress": [],
+      "generation_progress": [
+        "Claude is writing the code",
+        "Checking pins and safety rules",
+        "Compiling for the Arduino UNO Q"
+      ],
       "clarification": "",
       "suggestions": [],
       "build_id": null
@@ -2150,44 +1545,45 @@
     "step": "5. Generate the sketch (here: canned AI answer; static checks; compile if arduino-cli is set up)",
     "request": {
       "method": "POST",
-      "path": "/sessions/2f427569be83/generate",
+      "path": "/sessions/073afaa88e4e/generate",
       "json": {
         "debounce_ms": 300
       }
     },
     "response": {
-      "session_id": "2f427569be83",
-      "build_id": "486fa6eb62f0",
-      "source": "llm",
+      "session_id": "073afaa88e4e",
+      "build_id": "50213f419992",
+      "source": "template",
       "sketch": {
         "filename": "learnlens_sketch.ino",
-        "code": "// Clap-activated light for the Arduino UNO Q.\n#include <Arduino_RouterBridge.h>\n\nconst int SENSOR_PIN = 2;               // KY-037 DO on header D2\nconst int LED_PIN = LED_BUILTIN;        // red LED3, lights at LOW\nconst int SENSOR_ACTIVE_LEVEL = HIGH;   // DO level while the sensor hears sound\nconst unsigned long DEBOUNCE_MS = 300;  // one clap counts once\n\nbool ledIsOn = false;\nint lastLevel = LOW;\nunsigned long lastClapMs = 0;\n\nvoid setup() {\n  pinMode(SENSOR_PIN, INPUT);\n  pinMode(LED_PIN, OUTPUT);\n  digitalWrite(LED_PIN, HIGH);  // off\n  Monitor.begin();\n  Monitor.println(\"READY\");\n}\n\nvoid loop() {\n  int level = digitalRead(SENSOR_PIN);\n  bool justBecameActive = level == SENSOR_ACTIVE_LEVEL && lastLevel != SENSOR_ACTIVE_LEVEL;\n  if (justBecameActive && millis() - lastClapMs >= DEBOUNCE_MS) {\n    lastClapMs = millis();\n    Monitor.println(\"SOUND_DETECTED\");\n    ledIsOn = !ledIsOn;\n    digitalWrite(LED_PIN, ledIsOn ? LOW : HIGH);\n    Monitor.println(ledIsOn ? \"LED_ON\" : \"LED_OFF\");\n  }\n  lastLevel = level;\n}\n",
-        "sha256": "5bc5ec405bee95f808ed6bf1415b8f14a01d92e6037209f2462e488281909a00",
-        "provenance": "llm"
+        "code": "// LearnLens: Clap-activated light\n// Board: Arduino UNO Q (FQBN arduino:zephyr:unoq). Not a classic Arduino UNO.\n// Wiring: sensor DO -> D2, + -> +3V3, G -> GND.\n#include <Arduino_RouterBridge.h>\n\nconst int SENSOR_PIN = 2;  // header D2, input only\nconst int LED_PIN = LED_BUILTIN;\nconst int LED_ON_LEVEL = LOW;  // this board's LED lights at LOW\nconst int LED_OFF_LEVEL = HIGH;\nconst int SENSOR_ACTIVE_LEVEL = HIGH;  // level on SENSOR_PIN while the sensor reports sound\nconst unsigned long DEBOUNCE_MS = 300;  // after an event, ignore new events for this long\n\nbool ledOn = false;\nbool wasActive = false;\nunsigned long lastEventMs = 0;\n\nvoid setup() {\n  pinMode(SENSOR_PIN, INPUT);\n  pinMode(LED_PIN, OUTPUT);\n  digitalWrite(LED_PIN, LED_OFF_LEVEL);\n  Monitor.begin();\n  Monitor.println(\"READY\");\n}\n\nvoid loop() {\n  bool active = digitalRead(SENSOR_PIN) == SENSOR_ACTIVE_LEVEL;\n  unsigned long now = millis();\n  // Edge detection: act only when the pin has just become active, and not too soon after the last event.\n  if (active && !wasActive && now - lastEventMs >= DEBOUNCE_MS) {\n    lastEventMs = now;\n    ledOn = !ledOn;\n    Monitor.println(\"SOUND_DETECTED\");\n    digitalWrite(LED_PIN, ledOn ? LED_ON_LEVEL : LED_OFF_LEVEL);\n    Monitor.println(ledOn ? \"LED_ON\" : \"LED_OFF\");\n  }\n  wasActive = active;\n}\n",
+        "sha256": "bf22cdeca759f0ea7ffce702f42ef919ae7c48deee2e18a5ef21b254a392ee28",
+        "provenance": "rules"
       },
-      "explanation": "The sketch watches the sound sensor on pin D2. When the signal switches to its active level, it flips the built-in LED and prints what happened. After each clap it ignores the sensor for 300 ms so that one clap is not counted twice.",
-      "display_summary": "The sketch watches the sound sensor on pin D2. When the signal switches to its active level, it flips the built-in LED and prints what happened.",
+      "explanation": "The sketch reads the sensor's digital output on D2 every pass through loop(). Each new sound event flips the LED. It reacts only to the moment the signal becomes active and then ignores further events for 300 ms, so one clap counts once. Status lines are printed through Monitor.",
+      "display_summary": "Each clap flips the board's LED. After a clap the sensor is ignored briefly, so one clap counts once.",
       "assumptions": [
-        "The sensor output is HIGH while it hears sound.",
-        "The built-in LED lights when its pin is LOW.",
-        "The trim potentiometer is set so the sensor is quiet in a silent room."
+        "The sensor's DO pin is HIGH while it reports sound. If the LED reacts to silence instead, regenerate with the other sensor_active_level.",
+        "The sensor's trim potentiometer is set so that DO is inactive in a quiet room.",
+        "LED_BUILTIN is the board's red LED3 and lights at LOW.",
+        "Log lines are visible only where Monitor output is shown (App Lab or IDE console)."
       ],
       "expected_serial_events": [
         {
           "event": "READY",
-          "when": "once after start-up"
+          "when": "once after power-up, when setup() has finished"
         },
         {
           "event": "SOUND_DETECTED",
-          "when": "each accepted clap"
+          "when": "each time a sound event is accepted"
         },
         {
           "event": "LED_ON",
-          "when": "after the LED was switched on"
+          "when": "right after the LED was switched on"
         },
         {
           "event": "LED_OFF",
-          "when": "after the LED was switched off"
+          "when": "right after the LED was switched off"
         }
       ],
       "parameters": {
@@ -2202,6 +1598,20 @@
         {
           "attempt": 0,
           "kind": "generate",
+          "issues": [
+            {
+              "check": "schema",
+              "rule": "llm_error",
+              "message": "IndexError: pop from empty list",
+              "line": null
+            }
+          ],
+          "compile": null,
+          "project_dir": ""
+        },
+        {
+          "attempt": 1,
+          "kind": "template",
           "issues": [],
           "compile": {
             "status": "ok",
@@ -2214,12 +1624,12 @@
               "--warnings",
               "default",
               "--no-color",
-              "/Users/robinstumpf/Desktop/learnlens/backend/generated/2f427569be83/attempt-0/learnlens_sketch"
+              "/Users/robinstumpf/Desktop/learnlens/backend/generated/073afaa88e4e/attempt-1/learnlens_sketch"
             ],
-            "log": "Sketch uses 87028 bytes (11%) of program storage space. Maximum is 786432 bytes.\nGlobal variables use 36980 bytes (14%) of dynamic memory, leaving 225164 bytes for local variables. Maximum is 262144 bytes.\n",
+            "log": "Sketch uses 87032 bytes (11%) of program storage space. Maximum is 786432 bytes.\nGlobal variables use 36988 bytes (14%) of dynamic memory, leaving 225156 bytes for local variables. Maximum is 262144 bytes.\n",
             "detail": ""
           },
-          "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/2f427569be83/attempt-0/learnlens_sketch"
+          "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/073afaa88e4e/attempt-1/learnlens_sketch"
         }
       ],
       "repairs_used": 0,
@@ -2234,12 +1644,12 @@
           "--warnings",
           "default",
           "--no-color",
-          "/Users/robinstumpf/Desktop/learnlens/backend/generated/2f427569be83/attempt-0/learnlens_sketch"
+          "/Users/robinstumpf/Desktop/learnlens/backend/generated/073afaa88e4e/attempt-1/learnlens_sketch"
         ],
-        "log": "Sketch uses 87028 bytes (11%) of program storage space. Maximum is 786432 bytes.\nGlobal variables use 36980 bytes (14%) of dynamic memory, leaving 225164 bytes for local variables. Maximum is 262144 bytes.\n",
+        "log": "Sketch uses 87032 bytes (11%) of program storage space. Maximum is 786432 bytes.\nGlobal variables use 36988 bytes (14%) of dynamic memory, leaving 225156 bytes for local variables. Maximum is 262144 bytes.\n",
         "detail": ""
       },
-      "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/2f427569be83/attempt-0/learnlens_sketch",
+      "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/073afaa88e4e/attempt-1/learnlens_sketch",
       "flashed": false,
       "hardware_verified": false
     }
@@ -2248,10 +1658,10 @@
     "step": "   Status",
     "request": {
       "method": "GET",
-      "path": "/sessions/2f427569be83/status"
+      "path": "/sessions/073afaa88e4e/status"
     },
     "response": {
-      "session_id": "2f427569be83",
+      "session_id": "073afaa88e4e",
       "state": "code_generated",
       "instruction": "Build a clap-activated light",
       "display_text": "Code ready. Review it on your phone",
@@ -2426,15 +1836,8 @@
       "wiring_steps": [
         {
           "index": 0,
-          "display_text": "Unplug the board's USB cable",
-          "spoken_text": "Unplug the USB cable before you wire anything.",
-          "connection": null,
-          "fact_ids": []
-        },
-        {
-          "index": 1,
-          "display_text": "KY-037 G to board GND",
-          "spoken_text": "Connect the sensor pin labelled G to GND on the board.",
+          "display_text": "Unplug USB. KY-037 G to board GND",
+          "spoken_text": "Unplug the board's USB cable first. Then: Connect the sensor's pin labelled G to GND on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -2451,9 +1854,9 @@
           ]
         },
         {
-          "index": 2,
+          "index": 1,
           "display_text": "KY-037 + to board +3V3",
-          "spoken_text": "Connect the sensor pin labelled + to +3V3 on the board.",
+          "spoken_text": "Connect the sensor's pin labelled + to +3V3 on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -2470,9 +1873,9 @@
           ]
         },
         {
-          "index": 3,
-          "display_text": "KY-037 DO to board D2",
-          "spoken_text": "Connect the sensor pin labelled DO to D2 on the board.",
+          "index": 2,
+          "display_text": "KY-037 DO to board D2. Plug USB in",
+          "spoken_text": "Connect the sensor's pin labelled DO to D2 on the board. Then plug the USB cable back in and check that the sensor's power LED lights up.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -2487,22 +1890,13 @@
             "ky037-outputs",
             "unoq-jdigital-ft"
           ]
-        },
-        {
-          "index": 4,
-          "display_text": "Plug USB back in. Sensor power LED on?",
-          "spoken_text": "Plug the USB cable back in and check that the sensor's power LED lights up.",
-          "connection": null,
-          "fact_ids": []
         }
       ],
       "current_step": null,
       "confirmed_steps": [
         0,
         1,
-        2,
-        3,
-        4
+        2
       ],
       "review": {
         "observations": [
@@ -2518,26 +1912,27 @@
       "safety_problems": [],
       "generation_progress": [
         "Claude is writing the code",
+        "Loading the prevalidated code",
         "Checking pins and safety rules",
         "Compiling for the Arduino UNO Q",
         "Code ready"
       ],
       "clarification": "",
       "suggestions": [],
-      "build_id": "486fa6eb62f0"
+      "build_id": "50213f419992"
     }
   },
   {
     "step": "6. The generated sketch, waiting for approval",
     "request": {
       "method": "GET",
-      "path": "/builds/486fa6eb62f0"
+      "path": "/builds/50213f419992"
     },
     "response": {
-      "build_id": "486fa6eb62f0",
+      "build_id": "50213f419992",
       "goal": "Build a clap-activated light",
       "status": "awaiting_approval",
-      "provenance": "llm",
+      "provenance": "rules",
       "components": [
         "uno-q",
         "ky-037"
@@ -2667,15 +2062,8 @@
       "wiring_steps": [
         {
           "index": 0,
-          "display_text": "Unplug the board's USB cable",
-          "spoken_text": "Unplug the USB cable before you wire anything.",
-          "connection": null,
-          "fact_ids": []
-        },
-        {
-          "index": 1,
-          "display_text": "KY-037 G to board GND",
-          "spoken_text": "Connect the sensor pin labelled G to GND on the board.",
+          "display_text": "Unplug USB. KY-037 G to board GND",
+          "spoken_text": "Unplug the board's USB cable first. Then: Connect the sensor's pin labelled G to GND on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -2692,9 +2080,9 @@
           ]
         },
         {
-          "index": 2,
+          "index": 1,
           "display_text": "KY-037 + to board +3V3",
-          "spoken_text": "Connect the sensor pin labelled + to +3V3 on the board.",
+          "spoken_text": "Connect the sensor's pin labelled + to +3V3 on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -2711,9 +2099,9 @@
           ]
         },
         {
-          "index": 3,
-          "display_text": "KY-037 DO to board D2",
-          "spoken_text": "Connect the sensor pin labelled DO to D2 on the board.",
+          "index": 2,
+          "display_text": "KY-037 DO to board D2. Plug USB in",
+          "spoken_text": "Connect the sensor's pin labelled DO to D2 on the board. Then plug the USB cable back in and check that the sensor's power LED lights up.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -2728,23 +2116,17 @@
             "ky037-outputs",
             "unoq-jdigital-ft"
           ]
-        },
-        {
-          "index": 4,
-          "display_text": "Plug USB back in. Sensor power LED on?",
-          "spoken_text": "Plug the USB cable back in and check that the sensor's power LED lights up.",
-          "connection": null,
-          "fact_ids": []
         }
       ],
       "sketch": {
         "filename": "learnlens_sketch.ino",
-        "code": "// Clap-activated light for the Arduino UNO Q.\n#include <Arduino_RouterBridge.h>\n\nconst int SENSOR_PIN = 2;               // KY-037 DO on header D2\nconst int LED_PIN = LED_BUILTIN;        // red LED3, lights at LOW\nconst int SENSOR_ACTIVE_LEVEL = HIGH;   // DO level while the sensor hears sound\nconst unsigned long DEBOUNCE_MS = 300;  // one clap counts once\n\nbool ledIsOn = false;\nint lastLevel = LOW;\nunsigned long lastClapMs = 0;\n\nvoid setup() {\n  pinMode(SENSOR_PIN, INPUT);\n  pinMode(LED_PIN, OUTPUT);\n  digitalWrite(LED_PIN, HIGH);  // off\n  Monitor.begin();\n  Monitor.println(\"READY\");\n}\n\nvoid loop() {\n  int level = digitalRead(SENSOR_PIN);\n  bool justBecameActive = level == SENSOR_ACTIVE_LEVEL && lastLevel != SENSOR_ACTIVE_LEVEL;\n  if (justBecameActive && millis() - lastClapMs >= DEBOUNCE_MS) {\n    lastClapMs = millis();\n    Monitor.println(\"SOUND_DETECTED\");\n    ledIsOn = !ledIsOn;\n    digitalWrite(LED_PIN, ledIsOn ? LOW : HIGH);\n    Monitor.println(ledIsOn ? \"LED_ON\" : \"LED_OFF\");\n  }\n  lastLevel = level;\n}\n",
-        "sha256": "5bc5ec405bee95f808ed6bf1415b8f14a01d92e6037209f2462e488281909a00",
-        "provenance": "llm"
+        "code": "// LearnLens: Clap-activated light\n// Board: Arduino UNO Q (FQBN arduino:zephyr:unoq). Not a classic Arduino UNO.\n// Wiring: sensor DO -> D2, + -> +3V3, G -> GND.\n#include <Arduino_RouterBridge.h>\n\nconst int SENSOR_PIN = 2;  // header D2, input only\nconst int LED_PIN = LED_BUILTIN;\nconst int LED_ON_LEVEL = LOW;  // this board's LED lights at LOW\nconst int LED_OFF_LEVEL = HIGH;\nconst int SENSOR_ACTIVE_LEVEL = HIGH;  // level on SENSOR_PIN while the sensor reports sound\nconst unsigned long DEBOUNCE_MS = 300;  // after an event, ignore new events for this long\n\nbool ledOn = false;\nbool wasActive = false;\nunsigned long lastEventMs = 0;\n\nvoid setup() {\n  pinMode(SENSOR_PIN, INPUT);\n  pinMode(LED_PIN, OUTPUT);\n  digitalWrite(LED_PIN, LED_OFF_LEVEL);\n  Monitor.begin();\n  Monitor.println(\"READY\");\n}\n\nvoid loop() {\n  bool active = digitalRead(SENSOR_PIN) == SENSOR_ACTIVE_LEVEL;\n  unsigned long now = millis();\n  // Edge detection: act only when the pin has just become active, and not too soon after the last event.\n  if (active && !wasActive && now - lastEventMs >= DEBOUNCE_MS) {\n    lastEventMs = now;\n    ledOn = !ledOn;\n    Monitor.println(\"SOUND_DETECTED\");\n    digitalWrite(LED_PIN, ledOn ? LED_ON_LEVEL : LED_OFF_LEVEL);\n    Monitor.println(ledOn ? \"LED_ON\" : \"LED_OFF\");\n  }\n  wasActive = active;\n}\n",
+        "sha256": "bf22cdeca759f0ea7ffce702f42ef919ae7c48deee2e18a5ef21b254a392ee28",
+        "provenance": "rules"
       },
       "deploy": null,
       "deploy_events": [],
+      "precompiled": null,
       "expected_serial_events": [
         "READY",
         "SOUND_DETECTED",
@@ -2759,16 +2141,16 @@
     "step": "7. Explicit approval of that exact sketch",
     "request": {
       "method": "POST",
-      "path": "/builds/486fa6eb62f0/approve",
+      "path": "/builds/50213f419992/approve",
       "json": {
-        "sketch_sha256": "5bc5ec405bee95f808ed6bf1415b8f14a01d92e6037209f2462e488281909a00"
+        "sketch_sha256": "bf22cdeca759f0ea7ffce702f42ef919ae7c48deee2e18a5ef21b254a392ee28"
       }
     },
     "response": {
-      "build_id": "486fa6eb62f0",
+      "build_id": "50213f419992",
       "goal": "Build a clap-activated light",
       "status": "approved",
-      "provenance": "llm",
+      "provenance": "rules",
       "components": [
         "uno-q",
         "ky-037"
@@ -2898,15 +2280,8 @@
       "wiring_steps": [
         {
           "index": 0,
-          "display_text": "Unplug the board's USB cable",
-          "spoken_text": "Unplug the USB cable before you wire anything.",
-          "connection": null,
-          "fact_ids": []
-        },
-        {
-          "index": 1,
-          "display_text": "KY-037 G to board GND",
-          "spoken_text": "Connect the sensor pin labelled G to GND on the board.",
+          "display_text": "Unplug USB. KY-037 G to board GND",
+          "spoken_text": "Unplug the board's USB cable first. Then: Connect the sensor's pin labelled G to GND on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -2923,9 +2298,9 @@
           ]
         },
         {
-          "index": 2,
+          "index": 1,
           "display_text": "KY-037 + to board +3V3",
-          "spoken_text": "Connect the sensor pin labelled + to +3V3 on the board.",
+          "spoken_text": "Connect the sensor's pin labelled + to +3V3 on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -2942,9 +2317,9 @@
           ]
         },
         {
-          "index": 3,
-          "display_text": "KY-037 DO to board D2",
-          "spoken_text": "Connect the sensor pin labelled DO to D2 on the board.",
+          "index": 2,
+          "display_text": "KY-037 DO to board D2. Plug USB in",
+          "spoken_text": "Connect the sensor's pin labelled DO to D2 on the board. Then plug the USB cable back in and check that the sensor's power LED lights up.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -2959,23 +2334,17 @@
             "ky037-outputs",
             "unoq-jdigital-ft"
           ]
-        },
-        {
-          "index": 4,
-          "display_text": "Plug USB back in. Sensor power LED on?",
-          "spoken_text": "Plug the USB cable back in and check that the sensor's power LED lights up.",
-          "connection": null,
-          "fact_ids": []
         }
       ],
       "sketch": {
         "filename": "learnlens_sketch.ino",
-        "code": "// Clap-activated light for the Arduino UNO Q.\n#include <Arduino_RouterBridge.h>\n\nconst int SENSOR_PIN = 2;               // KY-037 DO on header D2\nconst int LED_PIN = LED_BUILTIN;        // red LED3, lights at LOW\nconst int SENSOR_ACTIVE_LEVEL = HIGH;   // DO level while the sensor hears sound\nconst unsigned long DEBOUNCE_MS = 300;  // one clap counts once\n\nbool ledIsOn = false;\nint lastLevel = LOW;\nunsigned long lastClapMs = 0;\n\nvoid setup() {\n  pinMode(SENSOR_PIN, INPUT);\n  pinMode(LED_PIN, OUTPUT);\n  digitalWrite(LED_PIN, HIGH);  // off\n  Monitor.begin();\n  Monitor.println(\"READY\");\n}\n\nvoid loop() {\n  int level = digitalRead(SENSOR_PIN);\n  bool justBecameActive = level == SENSOR_ACTIVE_LEVEL && lastLevel != SENSOR_ACTIVE_LEVEL;\n  if (justBecameActive && millis() - lastClapMs >= DEBOUNCE_MS) {\n    lastClapMs = millis();\n    Monitor.println(\"SOUND_DETECTED\");\n    ledIsOn = !ledIsOn;\n    digitalWrite(LED_PIN, ledIsOn ? LOW : HIGH);\n    Monitor.println(ledIsOn ? \"LED_ON\" : \"LED_OFF\");\n  }\n  lastLevel = level;\n}\n",
-        "sha256": "5bc5ec405bee95f808ed6bf1415b8f14a01d92e6037209f2462e488281909a00",
-        "provenance": "llm"
+        "code": "// LearnLens: Clap-activated light\n// Board: Arduino UNO Q (FQBN arduino:zephyr:unoq). Not a classic Arduino UNO.\n// Wiring: sensor DO -> D2, + -> +3V3, G -> GND.\n#include <Arduino_RouterBridge.h>\n\nconst int SENSOR_PIN = 2;  // header D2, input only\nconst int LED_PIN = LED_BUILTIN;\nconst int LED_ON_LEVEL = LOW;  // this board's LED lights at LOW\nconst int LED_OFF_LEVEL = HIGH;\nconst int SENSOR_ACTIVE_LEVEL = HIGH;  // level on SENSOR_PIN while the sensor reports sound\nconst unsigned long DEBOUNCE_MS = 300;  // after an event, ignore new events for this long\n\nbool ledOn = false;\nbool wasActive = false;\nunsigned long lastEventMs = 0;\n\nvoid setup() {\n  pinMode(SENSOR_PIN, INPUT);\n  pinMode(LED_PIN, OUTPUT);\n  digitalWrite(LED_PIN, LED_OFF_LEVEL);\n  Monitor.begin();\n  Monitor.println(\"READY\");\n}\n\nvoid loop() {\n  bool active = digitalRead(SENSOR_PIN) == SENSOR_ACTIVE_LEVEL;\n  unsigned long now = millis();\n  // Edge detection: act only when the pin has just become active, and not too soon after the last event.\n  if (active && !wasActive && now - lastEventMs >= DEBOUNCE_MS) {\n    lastEventMs = now;\n    ledOn = !ledOn;\n    Monitor.println(\"SOUND_DETECTED\");\n    digitalWrite(LED_PIN, ledOn ? LED_ON_LEVEL : LED_OFF_LEVEL);\n    Monitor.println(ledOn ? \"LED_ON\" : \"LED_OFF\");\n  }\n  wasActive = active;\n}\n",
+        "sha256": "bf22cdeca759f0ea7ffce702f42ef919ae7c48deee2e18a5ef21b254a392ee28",
+        "provenance": "rules"
       },
       "deploy": null,
       "deploy_events": [],
+      "precompiled": null,
       "expected_serial_events": [
         "READY",
         "SOUND_DETECTED",
@@ -2990,13 +2359,13 @@
     "step": "8. After the (mock) deploy agent ran",
     "request": {
       "method": "GET",
-      "path": "/builds/486fa6eb62f0"
+      "path": "/builds/50213f419992"
     },
     "response": {
-      "build_id": "486fa6eb62f0",
+      "build_id": "50213f419992",
       "goal": "Build a clap-activated light",
       "status": "awaiting_test",
-      "provenance": "llm",
+      "provenance": "rules",
       "components": [
         "uno-q",
         "ky-037"
@@ -3126,15 +2495,8 @@
       "wiring_steps": [
         {
           "index": 0,
-          "display_text": "Unplug the board's USB cable",
-          "spoken_text": "Unplug the USB cable before you wire anything.",
-          "connection": null,
-          "fact_ids": []
-        },
-        {
-          "index": 1,
-          "display_text": "KY-037 G to board GND",
-          "spoken_text": "Connect the sensor pin labelled G to GND on the board.",
+          "display_text": "Unplug USB. KY-037 G to board GND",
+          "spoken_text": "Unplug the board's USB cable first. Then: Connect the sensor's pin labelled G to GND on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -3151,9 +2513,9 @@
           ]
         },
         {
-          "index": 2,
+          "index": 1,
           "display_text": "KY-037 + to board +3V3",
-          "spoken_text": "Connect the sensor pin labelled + to +3V3 on the board.",
+          "spoken_text": "Connect the sensor's pin labelled + to +3V3 on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -3170,9 +2532,9 @@
           ]
         },
         {
-          "index": 3,
-          "display_text": "KY-037 DO to board D2",
-          "spoken_text": "Connect the sensor pin labelled DO to D2 on the board.",
+          "index": 2,
+          "display_text": "KY-037 DO to board D2. Plug USB in",
+          "spoken_text": "Connect the sensor's pin labelled DO to D2 on the board. Then plug the USB cable back in and check that the sensor's power LED lights up.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -3187,20 +2549,13 @@
             "ky037-outputs",
             "unoq-jdigital-ft"
           ]
-        },
-        {
-          "index": 4,
-          "display_text": "Plug USB back in. Sensor power LED on?",
-          "spoken_text": "Plug the USB cable back in and check that the sensor's power LED lights up.",
-          "connection": null,
-          "fact_ids": []
         }
       ],
       "sketch": {
         "filename": "learnlens_sketch.ino",
-        "code": "// Clap-activated light for the Arduino UNO Q.\n#include <Arduino_RouterBridge.h>\n\nconst int SENSOR_PIN = 2;               // KY-037 DO on header D2\nconst int LED_PIN = LED_BUILTIN;        // red LED3, lights at LOW\nconst int SENSOR_ACTIVE_LEVEL = HIGH;   // DO level while the sensor hears sound\nconst unsigned long DEBOUNCE_MS = 300;  // one clap counts once\n\nbool ledIsOn = false;\nint lastLevel = LOW;\nunsigned long lastClapMs = 0;\n\nvoid setup() {\n  pinMode(SENSOR_PIN, INPUT);\n  pinMode(LED_PIN, OUTPUT);\n  digitalWrite(LED_PIN, HIGH);  // off\n  Monitor.begin();\n  Monitor.println(\"READY\");\n}\n\nvoid loop() {\n  int level = digitalRead(SENSOR_PIN);\n  bool justBecameActive = level == SENSOR_ACTIVE_LEVEL && lastLevel != SENSOR_ACTIVE_LEVEL;\n  if (justBecameActive && millis() - lastClapMs >= DEBOUNCE_MS) {\n    lastClapMs = millis();\n    Monitor.println(\"SOUND_DETECTED\");\n    ledIsOn = !ledIsOn;\n    digitalWrite(LED_PIN, ledIsOn ? LOW : HIGH);\n    Monitor.println(ledIsOn ? \"LED_ON\" : \"LED_OFF\");\n  }\n  lastLevel = level;\n}\n",
-        "sha256": "5bc5ec405bee95f808ed6bf1415b8f14a01d92e6037209f2462e488281909a00",
-        "provenance": "llm"
+        "code": "// LearnLens: Clap-activated light\n// Board: Arduino UNO Q (FQBN arduino:zephyr:unoq). Not a classic Arduino UNO.\n// Wiring: sensor DO -> D2, + -> +3V3, G -> GND.\n#include <Arduino_RouterBridge.h>\n\nconst int SENSOR_PIN = 2;  // header D2, input only\nconst int LED_PIN = LED_BUILTIN;\nconst int LED_ON_LEVEL = LOW;  // this board's LED lights at LOW\nconst int LED_OFF_LEVEL = HIGH;\nconst int SENSOR_ACTIVE_LEVEL = HIGH;  // level on SENSOR_PIN while the sensor reports sound\nconst unsigned long DEBOUNCE_MS = 300;  // after an event, ignore new events for this long\n\nbool ledOn = false;\nbool wasActive = false;\nunsigned long lastEventMs = 0;\n\nvoid setup() {\n  pinMode(SENSOR_PIN, INPUT);\n  pinMode(LED_PIN, OUTPUT);\n  digitalWrite(LED_PIN, LED_OFF_LEVEL);\n  Monitor.begin();\n  Monitor.println(\"READY\");\n}\n\nvoid loop() {\n  bool active = digitalRead(SENSOR_PIN) == SENSOR_ACTIVE_LEVEL;\n  unsigned long now = millis();\n  // Edge detection: act only when the pin has just become active, and not too soon after the last event.\n  if (active && !wasActive && now - lastEventMs >= DEBOUNCE_MS) {\n    lastEventMs = now;\n    ledOn = !ledOn;\n    Monitor.println(\"SOUND_DETECTED\");\n    digitalWrite(LED_PIN, ledOn ? LED_ON_LEVEL : LED_OFF_LEVEL);\n    Monitor.println(ledOn ? \"LED_ON\" : \"LED_OFF\");\n  }\n  wasActive = active;\n}\n",
+        "sha256": "bf22cdeca759f0ea7ffce702f42ef919ae7c48deee2e18a5ef21b254a392ee28",
+        "provenance": "rules"
       },
       "deploy": {
         "compile_ok": true,
@@ -3218,33 +2573,34 @@
           "stage": "validate",
           "status": "ok",
           "message": "artifact accepted",
-          "ts": 1794678634.8138518
+          "ts": 1794688302.778105
         },
         {
           "stage": "compile",
           "status": "started",
           "message": "compiling for arduino:zephyr:unoq",
-          "ts": 1794678634.8160808
+          "ts": 1794688302.780905
         },
         {
           "stage": "compile",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794678634.81734
+          "ts": 1794688302.782804
         },
         {
           "stage": "approval",
           "status": "ok",
           "message": "approval token accepted",
-          "ts": 1794678634.818678
+          "ts": 1794688302.784672
         },
         {
           "stage": "upload",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794678634.8199391
+          "ts": 1794688302.7864242
         }
       ],
+      "precompiled": null,
       "expected_serial_events": [
         "READY",
         "SOUND_DETECTED",
@@ -3259,16 +2615,16 @@
     "step": "9. The user claps and reports the result",
     "request": {
       "method": "POST",
-      "path": "/builds/486fa6eb62f0/test-result",
+      "path": "/builds/50213f419992/test-result",
       "json": {
         "passed": true
       }
     },
     "response": {
-      "build_id": "486fa6eb62f0",
+      "build_id": "50213f419992",
       "goal": "Build a clap-activated light",
       "status": "done",
-      "provenance": "llm",
+      "provenance": "rules",
       "components": [
         "uno-q",
         "ky-037"
@@ -3398,15 +2754,8 @@
       "wiring_steps": [
         {
           "index": 0,
-          "display_text": "Unplug the board's USB cable",
-          "spoken_text": "Unplug the USB cable before you wire anything.",
-          "connection": null,
-          "fact_ids": []
-        },
-        {
-          "index": 1,
-          "display_text": "KY-037 G to board GND",
-          "spoken_text": "Connect the sensor pin labelled G to GND on the board.",
+          "display_text": "Unplug USB. KY-037 G to board GND",
+          "spoken_text": "Unplug the board's USB cable first. Then: Connect the sensor's pin labelled G to GND on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -3423,9 +2772,9 @@
           ]
         },
         {
-          "index": 2,
+          "index": 1,
           "display_text": "KY-037 + to board +3V3",
-          "spoken_text": "Connect the sensor pin labelled + to +3V3 on the board.",
+          "spoken_text": "Connect the sensor's pin labelled + to +3V3 on the board.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -3442,9 +2791,9 @@
           ]
         },
         {
-          "index": 3,
-          "display_text": "KY-037 DO to board D2",
-          "spoken_text": "Connect the sensor pin labelled DO to D2 on the board.",
+          "index": 2,
+          "display_text": "KY-037 DO to board D2. Plug USB in",
+          "spoken_text": "Connect the sensor's pin labelled DO to D2 on the board. Then plug the USB cable back in and check that the sensor's power LED lights up.",
           "connection": {
             "from_pin": {
               "component": "ky-037",
@@ -3459,20 +2808,13 @@
             "ky037-outputs",
             "unoq-jdigital-ft"
           ]
-        },
-        {
-          "index": 4,
-          "display_text": "Plug USB back in. Sensor power LED on?",
-          "spoken_text": "Plug the USB cable back in and check that the sensor's power LED lights up.",
-          "connection": null,
-          "fact_ids": []
         }
       ],
       "sketch": {
         "filename": "learnlens_sketch.ino",
-        "code": "// Clap-activated light for the Arduino UNO Q.\n#include <Arduino_RouterBridge.h>\n\nconst int SENSOR_PIN = 2;               // KY-037 DO on header D2\nconst int LED_PIN = LED_BUILTIN;        // red LED3, lights at LOW\nconst int SENSOR_ACTIVE_LEVEL = HIGH;   // DO level while the sensor hears sound\nconst unsigned long DEBOUNCE_MS = 300;  // one clap counts once\n\nbool ledIsOn = false;\nint lastLevel = LOW;\nunsigned long lastClapMs = 0;\n\nvoid setup() {\n  pinMode(SENSOR_PIN, INPUT);\n  pinMode(LED_PIN, OUTPUT);\n  digitalWrite(LED_PIN, HIGH);  // off\n  Monitor.begin();\n  Monitor.println(\"READY\");\n}\n\nvoid loop() {\n  int level = digitalRead(SENSOR_PIN);\n  bool justBecameActive = level == SENSOR_ACTIVE_LEVEL && lastLevel != SENSOR_ACTIVE_LEVEL;\n  if (justBecameActive && millis() - lastClapMs >= DEBOUNCE_MS) {\n    lastClapMs = millis();\n    Monitor.println(\"SOUND_DETECTED\");\n    ledIsOn = !ledIsOn;\n    digitalWrite(LED_PIN, ledIsOn ? LOW : HIGH);\n    Monitor.println(ledIsOn ? \"LED_ON\" : \"LED_OFF\");\n  }\n  lastLevel = level;\n}\n",
-        "sha256": "5bc5ec405bee95f808ed6bf1415b8f14a01d92e6037209f2462e488281909a00",
-        "provenance": "llm"
+        "code": "// LearnLens: Clap-activated light\n// Board: Arduino UNO Q (FQBN arduino:zephyr:unoq). Not a classic Arduino UNO.\n// Wiring: sensor DO -> D2, + -> +3V3, G -> GND.\n#include <Arduino_RouterBridge.h>\n\nconst int SENSOR_PIN = 2;  // header D2, input only\nconst int LED_PIN = LED_BUILTIN;\nconst int LED_ON_LEVEL = LOW;  // this board's LED lights at LOW\nconst int LED_OFF_LEVEL = HIGH;\nconst int SENSOR_ACTIVE_LEVEL = HIGH;  // level on SENSOR_PIN while the sensor reports sound\nconst unsigned long DEBOUNCE_MS = 300;  // after an event, ignore new events for this long\n\nbool ledOn = false;\nbool wasActive = false;\nunsigned long lastEventMs = 0;\n\nvoid setup() {\n  pinMode(SENSOR_PIN, INPUT);\n  pinMode(LED_PIN, OUTPUT);\n  digitalWrite(LED_PIN, LED_OFF_LEVEL);\n  Monitor.begin();\n  Monitor.println(\"READY\");\n}\n\nvoid loop() {\n  bool active = digitalRead(SENSOR_PIN) == SENSOR_ACTIVE_LEVEL;\n  unsigned long now = millis();\n  // Edge detection: act only when the pin has just become active, and not too soon after the last event.\n  if (active && !wasActive && now - lastEventMs >= DEBOUNCE_MS) {\n    lastEventMs = now;\n    ledOn = !ledOn;\n    Monitor.println(\"SOUND_DETECTED\");\n    digitalWrite(LED_PIN, ledOn ? LED_ON_LEVEL : LED_OFF_LEVEL);\n    Monitor.println(ledOn ? \"LED_ON\" : \"LED_OFF\");\n  }\n  wasActive = active;\n}\n",
+        "sha256": "bf22cdeca759f0ea7ffce702f42ef919ae7c48deee2e18a5ef21b254a392ee28",
+        "provenance": "rules"
       },
       "deploy": {
         "compile_ok": true,
@@ -3490,33 +2832,34 @@
           "stage": "validate",
           "status": "ok",
           "message": "artifact accepted",
-          "ts": 1794678634.8138518
+          "ts": 1794688302.778105
         },
         {
           "stage": "compile",
           "status": "started",
           "message": "compiling for arduino:zephyr:unoq",
-          "ts": 1794678634.8160808
+          "ts": 1794688302.780905
         },
         {
           "stage": "compile",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794678634.81734
+          "ts": 1794688302.782804
         },
         {
           "stage": "approval",
           "status": "ok",
           "message": "approval token accepted",
-          "ts": 1794678634.818678
+          "ts": 1794688302.784672
         },
         {
           "stage": "upload",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794678634.8199391
+          "ts": 1794688302.7864242
         }
       ],
+      "precompiled": null,
       "expected_serial_events": [
         "READY",
         "SOUND_DETECTED",

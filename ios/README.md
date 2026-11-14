@@ -76,6 +76,12 @@ you want to add (**Take photo**, or **Skip** for a behaviour change). Then you s
 the build should behave differently, and **Go**. A new part continues with its questions and wiring
 steps; a behaviour change goes directly to new code.
 
+Options on the phone: **Read steps aloud** (on by default) and **Voice commands while wiring**
+("next", "back"; experimental, only after glasses speech has worked once in the session).
+
+A failed step shows **Retry** next to **Start over**. During the test, a `LOUD` line from the board
+confirms the build without a button press.
+
 Flashing always needs an explicit approval. It can be given on the glasses ("Start flash" button on
 the approval card) or on the phone, where the generated code is shown in full.
 
