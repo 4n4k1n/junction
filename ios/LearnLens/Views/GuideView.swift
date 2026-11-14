@@ -150,7 +150,7 @@ struct GuideView: View {
     case .guiding:
       guidingSection
     case .generating:
-      progress("Generating the sketch…")
+      progress((model.generationStage ?? "Generating the sketch") + "…")
     case .awaitingApproval:
       approvalSection
     case .deploying:

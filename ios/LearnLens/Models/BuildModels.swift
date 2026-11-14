@@ -147,6 +147,7 @@ struct GuideStatus: Decodable, Sendable {
   let confirmedSteps: [Int]
   let review: WiringReview?
   let safetyProblems: [String]
+  let generationProgress: [String]  // what code generation is doing; the last entry is current
   let buildId: String?
 }
 

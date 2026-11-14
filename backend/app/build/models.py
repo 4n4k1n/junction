@@ -229,6 +229,7 @@ class GuideStatus(BaseModel):
     confirmed_steps: List[int] = []
     review: Optional[WiringReview] = None
     safety_problems: List[str] = []
+    generation_progress: List[str] = []  # what /generate is doing right now (last entry) and did before
     build_id: Optional[str] = None
 
 

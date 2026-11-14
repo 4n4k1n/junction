@@ -16,7 +16,7 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from pydantic import ValidationError
 
@@ -431,28 +431,34 @@ class CodeGenerator:
             return None, [CodeIssue(check="schema", rule="llm_error", message=f"{type(e).__name__}: {str(e)[:300]}")]
 
     def _gate(self, session_id: str, number: int, kind: str, sketch: Optional[GeneratedSketch],
-              issues: List[CodeIssue], ctx: CodegenContext) -> GenerationAttempt:
+              issues: List[CodeIssue], ctx: CodegenContext, stage: Callable[[str], None]) -> GenerationAttempt:
         """Static checks, then save, then compile. A sketch that fails the static checks is never compiled."""
         attempt = GenerationAttempt(attempt=number, kind=kind, issues=list(issues))
         if sketch is None:
             return attempt
+        stage("Checking pins and safety rules")
         attempt.issues += check_response(sketch, ctx)
         attempt.project_dir = str(save_project(session_id, number, sketch, ctx))
         if not attempt.issues:
+            stage(f"Compiling for the {ctx.board_name}")
             attempt.compile = self.compiler.compile(Path(attempt.project_dir), ctx.fqbn)
             if attempt.compile.status == CompileStatus.failed:
                 attempt.issues.append(CodeIssue(check="compile", rule="compile_error",
                                                 message=codecheck.compile_errors(attempt.compile.log)))
         return attempt
 
-    def generate(self, session_id: str, ctx: CodegenContext) -> Tuple[GeneratedSketch, str, List[GenerationAttempt]]:
+    def generate(self, session_id: str, ctx: CodegenContext, on_stage: Optional[Callable[[str], None]] = None
+                 ) -> Tuple[GeneratedSketch, str, List[GenerationAttempt]]:
         """Returns (sketch, source, attempts) with source in llm | template | demo. Raises if even the template fails."""
         attempts: List[GenerationAttempt] = []
+        stage = on_stage or (lambda text: None)
         if self.client is not None:
             prompt = task_prompt(ctx)
             for number in range(MAX_REPAIRS + 1):
+                stage("Claude is writing the code" if number == 0 else f"Claude is fixing a problem (try {number + 1})")
                 sketch, issues = self._ask(prompt)
-                attempt = self._gate(session_id, number, "generate" if number == 0 else "repair", sketch, issues, ctx)
+                attempt = self._gate(session_id, number, "generate" if number == 0 else "repair", sketch, issues, ctx,
+                                     stage)
                 attempts.append(attempt)
                 if not attempt.issues:
                     return sketch, "llm", attempts
@@ -463,8 +469,9 @@ class CodeGenerator:
                                      for i in attempt.issues)
                 prompt = repair_prompt(ctx, previous, problems)
 
+        stage("Loading the prevalidated code")
         sketch = template_sketch(ctx)
-        attempt = self._gate(session_id, len(attempts), "template", sketch, [], ctx)
+        attempt = self._gate(session_id, len(attempts), "template", sketch, [], ctx, stage)
         attempts.append(attempt)
         if attempt.issues:
             raise RuntimeError("the template sketch failed its own checks: " + codecheck.summarize(attempt.issues))

@@ -63,6 +63,10 @@ struct APIClient: Sendable {
     try await decode(jsonRequest("/sessions/\(id)/confirm-step", ["step_index": index, "confirmed": confirmed]))
   }
 
+  func status(_ id: String) async throws -> GuideStatus {
+    try await decode(request("GET", "/sessions/\(id)/status"))
+  }
+
   /// Writes, checks and compiles the sketch for the confirmed wiring. Never uploads.
   /// `sensorActiveLevel` ("HIGH"/"LOW") flips the sensor polarity when regenerating.
   func generate(_ id: String, sensorActiveLevel: String? = nil) async throws -> GenerationResult {

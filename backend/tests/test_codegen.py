@@ -285,3 +285,20 @@ def test_sketches_compile_with_the_real_uno_q_core(name, tmp_path, monkeypatch):
     sketch = codegen.template_sketch(ctx()) if name == "template" else codegen.GeneratedSketch.model_validate(GOOD)
     report = compiler.ArduinoCliCompiler().compile(codegen.save_project("abc123", 0, sketch, ctx()), ctx().fqbn)
     assert report.status == CompileStatus.ok, report.log[-1500:]
+
+
+def test_progress_is_visible_through_status_while_generating():
+    bad = variant("const int SENSOR_PIN = 2;", "const int SENSOR_PIN = 3;")
+    example.use_fake_codegen(bad, GOOD, compiler=FakeCompiler())
+    sid = wired_session()
+    assert client.get(f"/sessions/{sid}/status").json()["generation_progress"] == []
+    generate(sid)
+    assert client.get(f"/sessions/{sid}/status").json()["generation_progress"] == [
+        "Claude is writing the code", "Checking pins and safety rules",
+        "Claude is fixing a problem (try 2)", "Checking pins and safety rules", "Compiling for the Arduino UNO Q",
+        "Code ready"]
+
+    session_router.generator = codegen.CodeGenerator(mode="mock")
+    sid = wired_session()
+    generate(sid)
+    assert client.get(f"/sessions/{sid}/status").json()["generation_progress"][0] == "Loading the prevalidated code"

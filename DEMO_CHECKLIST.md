@@ -11,13 +11,13 @@
 | Approval token, retry, local agent API | verified by 28 automated tests (tools mocked) |
 | Launch script + full flow, three runs in a row | verified **in `--demo --mock`** (nothing real) |
 | Backend responses decode with the iOS models | verified (16/16) |
-| iOS sources typecheck | verified on macOS against stubs; **not built in Xcode** |
+| iOS app builds | verified with Xcode 27.2 (simulator and device) |
 | Upload to the board | verified (reported working through the app) |
 | Level meter on the LED matrix | **not verified** |
 | Board log read back on the Mac | **not verified** |
 | Claude vision on a real photo | **not verified** (no photo tested yet) |
 | Claude writing the sketch | verified live through the proxy: both sketches passed the checks and compiled first try; not yet run on the board |
-| iOS app on a phone, glasses display, glasses camera | **not verified** |
+| iOS app on an iPhone with real glasses (registration, display, buttons, flow) | reported working by the team on 2026-11-14; which mode and which steps were covered is not recorded here |
 | Three consecutive real-hardware runs | **not done** |
 
 ## Before demo day
@@ -27,8 +27,8 @@
 - [ ] Board log: note which transport prints lines (`cli-monitor` or `adb-app-cli`), or that none does
 - [ ] `ANTHROPIC_API_KEY` set; `backend/scripts/live_analyze.py` on a real desk photo names both parts
 - [ ] One real `generate`: Claude's sketch passes the checks and compiles (`repairs_used` ≤ 1)
-- [ ] Xcode 26.4+ installed; app builds; simulated-glasses flow works against the backend
-- [ ] Real glasses: registered, display card visible, buttons work, photo capture works
+- [x] Xcode installed; app builds and runs
+- [x] Real glasses: tested by the team, reported working (note here which steps: speech, photo, flash)
 - [ ] Desk photo saved as `demo/desk.jpg` and in the iPhone photo library
 - [ ] Backup video of the working level meter recorded
 - [ ] Three consecutive full runs logged below

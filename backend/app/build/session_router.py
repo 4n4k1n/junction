@@ -219,7 +219,9 @@ def generate(session_id: str, req: Optional[GenerateRequest] = None):
     ctx = codegen.build_context(s.project, s.wiring_steps, req.sensor_active_level, req.debounce_ms,
                                 req.sample_window_ms)
     try:
-        generated, source, attempts = generator.generate(s.session_id, ctx)
+        s.generation_progress = []
+        # Runs in a worker thread; GET /status can be polled meanwhile to show the current stage.
+        generated, source, attempts = generator.generate(s.session_id, ctx, s.generation_progress.append)
     except RuntimeError as e:
         raise HTTPException(502, str(e))
 
@@ -229,6 +231,7 @@ def generate(session_id: str, req: Optional[GenerateRequest] = None):
     sketch = planner.make_sketch(generated.source_code, provenance, filename=f"{codegen.SKETCH_NAME}.ino")
     build = create_awaiting_approval(s.instruction, s.project.components, s.wiring_steps, sketch, provenance)
     build.expected_serial_events = [e.event for e in generated.expected_serial_events]
+    s.generation_progress.append("Code ready")
     s.build_id, s.state = build.build_id, GuideState.code_generated
     _say(s, "Code ready. Review it on your phone", "The code is ready. Review and approve it on your phone.")
     return GenerationResult(

@@ -60,11 +60,10 @@ final class SessionViewModel {
   private(set) var backendInfo: BackendInfo?
   private(set) var guide: GuideStatus?
   private(set) var generation: GenerationResult?
+  /// What the backend is doing while the sketch is generated, e.g. "Compiling for the Arduino UNO Q".
+  private(set) var generationStage: String?
   /// Why the last upload failed. Shown next to the approve button, which doubles as "retry".
   private(set) var deployError: String?
-  /// Answer to "hardware or software project?", asked on the glasses once the goal is known.
-  private enum ProjectKind { case hardware, software }
-  private var projectKind: ProjectKind?
   /// True until the user has read the "how it works" card that precedes the upload approval.
   private var showingHowItWorks = false
   private(set) var build: Build?
@@ -125,7 +124,6 @@ final class SessionViewModel {
   /// Started from the glasses card. Uses the glasses microphone when possible, else the iPhone's.
   func startVoiceInput() async {
     guard isIdle, !isListening else { return }
-    projectKind = nil  // a new goal gets the hardware/software question again
     if let session = glasses.session, !glasses.isSimulated {
       let started = await glassesSpeech.start(on: session) { [weak self] text in
         self?.goal = text
@@ -140,12 +138,6 @@ final class SessionViewModel {
     await pushCard()
   }
 
-  /// Back to the hardware/software question.
-  func startOverGoal() async {
-    projectKind = nil
-    await pushCard()
-  }
-
   func finishVoiceInput() async {
     if glassesSpeech.isListening {
       glassesSpeech.finish()
@@ -153,16 +145,6 @@ final class SessionViewModel {
       speech.stop()
       if !speech.transcript.isEmpty { goal = speech.transcript }
     }
-    await pushCard()
-  }
-
-  func chooseHardwareProject() async {
-    projectKind = .hardware
-    await pushCard()
-  }
-
-  func chooseSoftwareProject() async {
-    projectKind = .software
     await pushCard()
   }
 
@@ -291,7 +273,21 @@ final class SessionViewModel {
   /// Asks the backend to write, check and compile the sketch. Nothing is uploaded by this.
   private func generateSketch(sensorActiveLevel: String?) async {
     guard let guide else { return }
+    generationStage = nil
     await setFlow(.generating)
+    // Generation takes a while with real AI. Show each stage on the glasses instead of a silent wait.
+    let progress = Task { [weak self] in
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(1))
+        guard let self, !Task.isCancelled, self.flow == .generating else { return }
+        guard let stage = try? await self.api.status(guide.sessionId).generationProgress.last else { continue }
+        if stage != self.generationStage, !Task.isCancelled, self.flow == .generating {
+          self.generationStage = stage
+          await self.pushCard()
+        }
+      }
+    }
+    defer { progress.cancel() }
     do {
       let result = try await api.generate(guide.sessionId, sensorActiveLevel: sensorActiveLevel)
       generation = result
@@ -401,7 +397,6 @@ final class SessionViewModel {
     build = nil
     generation = nil
     deployError = nil
-    projectKind = nil
     guide = nil
     await setFlow(.connected)
   }
@@ -451,29 +446,12 @@ final class SessionViewModel {
           primary: action("Speak") { await $0.startVoiceInput() }
         )
       }
-      switch projectKind {
-      case nil:
-        return GlassesCards.card(
-          caption: demo + "Your goal: " + goal,
-          text: "Is this a hardware or a software project?",
-          primary: action("Hardware") { await $0.chooseHardwareProject() },
-          secondary: action("Software") { await $0.chooseSoftwareProject() }
-        )
-      case .software:
-        // LearnLens only guides hardware builds so far.
-        return GlassesCards.card(
-          caption: demo + "Software project",
-          text: "Software projects are not supported yet. LearnLens guides hardware builds.",
-          primary: action("Back") { await $0.startOverGoal() }
-        )
-      case .hardware:
-        return GlassesCards.card(
-          caption: demo + "Hardware project",
-          text: "Look at your components and take a photo of them.",
-          primary: action("Take photo") { await $0.captureOrStart() },
-          secondary: action("Speak again") { await $0.startVoiceInput() }
-        )
-      }
+      return GlassesCards.card(
+        caption: demo + "Your goal: " + goal,
+        text: "Look at your components and take a photo of them.",
+        primary: action("Take photo") { await $0.captureOrStart() },
+        secondary: action("Speak again") { await $0.startVoiceInput() }
+      )
     case .capturing:
       return GlassesCards.card(caption: "Capturing", text: "Look at your parts and hold still.")
     case .analyzing:
@@ -495,7 +473,7 @@ final class SessionViewModel {
         primary: action(isLastStep ? "Wiring done" : "Done, next") { await $0.next() }
       )
     case .generating:
-      return GlassesCards.card(caption: demo + "Generating", text: isDemoMode ? "Loading the prevalidated sketch…" : "Writing the sketch…")
+      return GlassesCards.card(caption: demo + "Generating", text: (generationStage ?? "Starting") + "…")
     case .awaitingApproval:
       // Flashing still needs an explicit yes, but it can be given on the glasses. The code itself
       // stays readable on the phone for anyone who wants to check it first.

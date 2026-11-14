@@ -791,6 +791,14 @@
           "title": "Display Text",
           "type": "string"
         },
+        "generation_progress": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Generation Progress",
+          "type": "array"
+        },
         "hardware_facts": {
           "default": [],
           "items": {
