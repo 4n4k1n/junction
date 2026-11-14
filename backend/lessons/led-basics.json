@@ -1,0 +1,97 @@
+{
+  "lesson_id": "led-basics",
+  "title": "Build your first LED circuit",
+  "safety": [
+    "Only use a 5V USB supply or a 9V battery or lower.",
+    "Never connect an LED directly to the supply without a resistor.",
+    "Disconnect power before changing the wiring."
+  ],
+  "materials": ["breadboard", "red LED", "220-330 ohm resistor", "5V supply or 9V battery", "2 jumper wires"],
+  "steps": [
+    {
+      "id": "identify",
+      "title": "Identify the parts",
+      "goal": "Learner identifies LED, resistor and breadboard and knows which LED leg is the anode.",
+      "intro_display": "Find LED, resistor and breadboard.",
+      "intro_spoken": "Let's start. Put the LED, the resistor and the breadboard in front of you and take a photo.",
+      "visual_success_criteria": "An LED (two legs, one longer), a resistor (striped body) and a breadboard are visible.",
+      "hint_levels": [
+        "Look for a part with two legs.",
+        "Compare the two LED legs. Which is longer?",
+        "The longer LED leg is the anode, the plus side."
+      ],
+      "check_question": "Which LED leg connects to plus?",
+      "expected_concepts": [["long", "longer", "anode"], ["plus", "positive", "+"]],
+      "min_concepts": 1,
+      "verification": "vision_and_question"
+    },
+    {
+      "id": "understand",
+      "title": "Why a resistor?",
+      "goal": "Learner explains that the resistor limits the current so the LED does not burn out.",
+      "intro_display": "Why does an LED need a resistor?",
+      "intro_spoken": "Before we build: think about what would happen if you connected the LED straight to the battery.",
+      "visual_success_criteria": "",
+      "hint_levels": [
+        "What flows through the LED when it lights?",
+        "Too much current makes parts hot. What stops that?",
+        "The resistor limits the current through the LED."
+      ],
+      "check_question": "What does the resistor do for the LED?",
+      "expected_concepts": [["current", "strom", "ampere"], ["limit", "reduce", "less", "protect", "burn", "begrenz"]],
+      "min_concepts": 2,
+      "verification": "question"
+    },
+    {
+      "id": "build",
+      "title": "Build the circuit",
+      "goal": "Learner builds supply plus -> resistor -> LED anode, LED cathode -> supply minus, all in series.",
+      "intro_display": "Build: plus, resistor, LED, minus.",
+      "intro_spoken": "Now build the circuit on the breadboard. When you are done, take a photo.",
+      "visual_success_criteria": "Resistor and LED are in series in one current path; LED long leg faces the plus side; both supply wires are connected.",
+      "hint_levels": [
+        "Think about current flowing in one loop.",
+        "Where should the resistor go in that loop?",
+        "Connect the resistor in series with the LED."
+      ],
+      "check_question": "Does your LED light up now?",
+      "expected_concepts": [["yes", "ja", "lights", "leuchtet", "on", "works"]],
+      "min_concepts": 1,
+      "verification": "visual_and_manual"
+    },
+    {
+      "id": "debug",
+      "title": "Find the bug",
+      "goal": "Learner finds a deliberately introduced fault (LED flipped) and explains why it breaks the circuit.",
+      "intro_display": "I changed something. Find the bug!",
+      "intro_spoken": "Ask your partner to flip the LED around. Then find out why it stopped working.",
+      "visual_success_criteria": "LED orientation is visible; after the fix the long leg faces the plus side again.",
+      "hint_levels": [
+        "Which part only works in one direction?",
+        "Check the LED legs. Where is the long one?",
+        "The LED was reversed. Flip it back."
+      ],
+      "check_question": "Why did the LED stop working?",
+      "expected_concepts": [["reverse", "flipped", "backwards", "wrong way", "direction", "polarity", "umgedreht", "falsch herum"], ["diode", "one direction", "anode", "cathode", "long", "polar"]],
+      "min_concepts": 1,
+      "verification": "question"
+    },
+    {
+      "id": "explain",
+      "title": "Explain it back",
+      "goal": "Learner explains the whole circuit: current path, LED direction and resistor purpose.",
+      "intro_display": "Explain why your circuit works.",
+      "intro_spoken": "Last step. In your own words: why does your circuit work?",
+      "visual_success_criteria": "",
+      "hint_levels": [
+        "Follow the current from plus to minus.",
+        "Mention the resistor and the LED direction.",
+        "Current flows through resistor and LED, anode to plus."
+      ],
+      "check_question": "Why does your circuit work?",
+      "expected_concepts": [["current", "loop", "circuit", "strom", "closed"], ["resistor", "widerstand", "limit"], ["direction", "anode", "long", "plus", "polarity"]],
+      "min_concepts": 2,
+      "verification": "question"
+    }
+  ]
+}

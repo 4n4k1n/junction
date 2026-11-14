@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LearnLens Console</title>
+<style>
+  :root { --bg:#f4f4f2; --fg:#1b1b1b; --muted:#666; --card:#fff; --accent:#0a7cff; --ok:#1f9d55; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.4 -apple-system, system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+  main { max-width: 980px; margin: 0 auto; padding: 16px; display:grid; gap:16px; grid-template-columns: 1fr; }
+  @media (min-width: 860px) { main { grid-template-columns: 420px 1fr; } }
+  .card { background:var(--card); border-radius:12px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  h1 { font-size:18px; margin:0 0 8px; }
+  .glass { aspect-ratio:1/1; width:100%; max-width:400px; background:#000; color:#fff; border-radius:16px;
+           padding:28px; display:flex; flex-direction:column; justify-content:space-between; }
+  .glass .top { font-size:12px; letter-spacing:.15em; color:#9ad; display:flex; justify-content:space-between; }
+  .glass .main { font-size:28px; font-weight:600; line-height:1.25; }
+  .glass .bottom { font-size:13px; color:#aaa; display:flex; justify-content:space-between; }
+  label { display:block; font-size:13px; color:var(--muted); margin-top:10px; }
+  input, select, textarea, button { font:inherit; }
+  textarea, select, input[type=file] { width:100%; margin-top:4px; }
+  textarea { min-height:60px; padding:8px; border:1px solid #ccc; border-radius:8px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  button { padding:8px 14px; border-radius:8px; border:0; background:var(--accent); color:#fff; cursor:pointer; }
+  button.secondary { background:#e6e6e3; color:var(--fg); }
+  pre { background:#111; color:#cfe; padding:12px; border-radius:8px; overflow:auto; max-height:360px; font-size:12px; }
+  .spoken { color:var(--muted); font-style:italic; margin-top:8px; }
+</style>
+</head>
+<body>
+<main>
+  <section class="card">
+    <h1>Glasses display preview</h1>
+    <div class="glass">
+      <div class="top"><span>LEARNLENS</span><span id="stepno">–</span></div>
+      <div class="main" id="display">Start a session.</div>
+      <div class="bottom"><span id="hint">Hint 0/0</span><span id="src"></span></div>
+    </div>
+    <div class="spoken" id="spoken"></div>
+  </section>
+  <section class="card">
+    <h1>Test console</h1>
+    <div class="row">
+      <button onclick="start()">New session</button>
+      <button class="secondary" onclick="confirmStep()">Confirm (LED lights)</button>
+      <button class="secondary" onclick="send('hint')">Hint</button>
+    </div>
+    <label>Photo <input type="file" id="photo" accept="image/*" capture="environment"></label>
+    <label>Message <textarea id="msg" placeholder="Why isn't my LED working?"></textarea></label>
+    <label>Interaction type
+      <select id="type"><option>question</option><option>answer</option><option>photo</option><option>hint</option></select>
+    </label>
+    <div class="row"><button onclick="send()">Send</button></div>
+    <label>Last response</label>
+    <pre id="out">{}</pre>
+  </section>
+</main>
+<script>
+let sid = null;
+const $ = (id) => document.getElementById(id);
+function render(r) {
+  $('out').textContent = JSON.stringify(r, null, 2);
+  if (!r.step) return;
+  $('display').textContent = r.display_text;
+  $('spoken').textContent = '🔊 ' + r.spoken_text;
+  $('stepno').textContent = r.lesson_complete ? 'DONE' : `STEP ${r.step.step_index + 1} / ${r.step.total_steps}`;
+  $('hint').textContent = `Hint ${r.step.hint_level}/${r.step.max_hints}`;
+  $('src').textContent = `${r.source} · ${r.latency_ms}ms`;
+  if (r.action === 'ask_question') $('type').value = 'answer';
+}
+async function start() {
+  const r = await (await fetch('/sessions', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})).json();
+  sid = r.session_id; render(r);
+}
+async function send(forceType) {
+  if (!sid) await start();
+  const fd = new FormData();
+  fd.append('interaction_type', forceType || $('type').value);
+  fd.append('user_message', $('msg').value);
+  if ($('photo').files[0] && !forceType) fd.append('image', $('photo').files[0]);
+  render(await (await fetch(`/sessions/${sid}/interact`, {method:'POST', body: fd})).json());
+  $('msg').value = ''; $('photo').value = '';
+}
+async function confirmStep() {
+  if (!sid) await start();
+  render(await (await fetch(`/sessions/${sid}/confirm`, {method:'POST'})).json());
+}
+</script>
+</body>
+</html>
