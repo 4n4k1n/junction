@@ -11,6 +11,7 @@
 		A10100000000000000000002 /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = A10A00000000000000000002 /* MWDATCamera */; };
 		A10100000000000000000003 /* MWDATDisplay in Frameworks */ = {isa = PBXBuildFile; productRef = A10A00000000000000000003 /* MWDATDisplay */; };
 		A10100000000000000000004 /* MWDATMockDevice in Frameworks */ = {isa = PBXBuildFile; productRef = A10A00000000000000000004 /* MWDATMockDevice */; };
+		A10100000000000000000005 /* MWDATSpeech in Frameworks */ = {isa = PBXBuildFile; productRef = A10A00000000000000000005 /* MWDATSpeech */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,6 +37,7 @@
 				A10100000000000000000002 /* MWDATCamera in Frameworks */,
 				A10100000000000000000003 /* MWDATDisplay in Frameworks */,
 				A10100000000000000000004 /* MWDATMockDevice in Frameworks */,
+				A10100000000000000000005 /* MWDATSpeech in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -84,6 +86,7 @@
 				A10A00000000000000000002 /* MWDATCamera */,
 				A10A00000000000000000003 /* MWDATDisplay */,
 				A10A00000000000000000004 /* MWDATMockDevice */,
+				A10A00000000000000000005 /* MWDATSpeech */,
 			);
 			productName = LearnLens;
 			productReference = A10200000000000000000001 /* LearnLens.app */;
@@ -293,6 +296,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A10900000000000000000001 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
 			productName = MWDATMockDevice;
+		};
+		A10A00000000000000000005 /* MWDATSpeech */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10900000000000000000001 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATSpeech;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

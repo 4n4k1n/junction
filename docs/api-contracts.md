@@ -2,7 +2,9 @@
 
 Source of truth: `backend/app/build/models.py`. Machine-readable copy: `shared/schemas/build-api.schema.json`
 (generated; a test fails if it is stale). Interactive docs: `http://localhost:8000/docs`.
-A complete recorded run: `docs/examples/clap-light-session.json`.
+A complete recorded run: `docs/examples/clap-light-session.json`. It was recorded with the earlier
+clap-light project, which is no longer offered by default; the request and response shapes are the same
+for the sound level meter.
 
 The flow has two halves. A **guided session** takes the user from a photo to finished wiring. It then
 hands over a **build**, which carries the sketch through approval, deploy and test.

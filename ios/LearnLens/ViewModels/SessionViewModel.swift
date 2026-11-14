@@ -50,6 +50,7 @@ final class SessionViewModel {
 
   let glasses: GlassesManager
   let speech = SpeechInputService()
+  let glassesSpeech: GlassesSpeechService
 
   var goal = ""
   var backendURL: String {
@@ -72,6 +73,7 @@ final class SessionViewModel {
   init(wearables: any WearablesInterface) {
     self.glasses = GlassesManager(wearables: wearables)
     self.camera = CameraService(wearables: wearables)
+    self.glassesSpeech = GlassesSpeechService(wearables: wearables)
     self.backendURL = UserDefaults.standard.string(forKey: Self.backendURLKey) ?? Self.defaultBackendURL
   }
 
@@ -109,6 +111,46 @@ final class SessionViewModel {
       backendStatus = error.localizedDescription
     }
     await pushCard()
+  }
+
+  // MARK: - Voice input from the glasses
+
+  var isListening: Bool { glassesSpeech.isListening || speech.isRecording }
+
+  /// Started from the glasses card. Uses the glasses microphone when possible, else the iPhone's.
+  func startVoiceInput() async {
+    guard isIdle, !isListening else { return }
+    if let session = glasses.session, !glasses.isSimulated {
+      let started = await glassesSpeech.start(on: session) { [weak self] text in
+        self?.goal = text
+        Task { await self?.pushCard() }
+      }
+      if started {
+        await pushCard()
+        return
+      }
+    }
+    await speech.start()
+    await pushCard()
+  }
+
+  func finishVoiceInput() async {
+    if glassesSpeech.isListening {
+      glassesSpeech.finish()
+    } else {
+      speech.stop()
+      if !speech.transcript.isEmpty { goal = speech.transcript }
+    }
+    await pushCard()
+  }
+
+  /// "Photo & start" on the glasses: glasses camera when there is one, otherwise start without a photo.
+  func captureOrStart() async {
+    if canCaptureFromGlasses {
+      await captureAndStart()
+    } else {
+      await start(withPhoneJPEG: nil)
+    }
   }
 
   // MARK: - Start
@@ -363,7 +405,27 @@ final class SessionViewModel {
     let demo = isDemoMode ? "DEMO MODE · " : ""
     switch flow {
     case .disconnected, .connected:
-      return GlassesCards.card(caption: demo + "LearnLens", text: "Tell your phone what you want to build.")
+      // The whole start can be driven from the glasses: speak the goal, then photo and go.
+      if isListening {
+        return GlassesCards.card(
+          caption: demo + "Listening…",
+          text: "Say what you want to build.",
+          primary: action("Done") { await $0.finishVoiceInput() }
+        )
+      }
+      if goal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        return GlassesCards.card(
+          caption: demo + "LearnLens",
+          text: "What do you want to build?",
+          primary: action("Speak") { await $0.startVoiceInput() }
+        )
+      }
+      return GlassesCards.card(
+        caption: demo + "Your goal",
+        text: goal,
+        primary: action("Photo & start") { await $0.captureOrStart() },
+        secondary: action("Speak again") { await $0.startVoiceInput() }
+      )
     case .capturing:
       return GlassesCards.card(caption: "Capturing", text: "Look at your parts and hold still.")
     case .analyzing:

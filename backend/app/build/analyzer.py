@@ -46,6 +46,19 @@ class ReviewFindings(BaseModel):
     possible_issues: List[str] = Field(default_factory=list)
 
 
+BEHAVIOR_HELP = {
+    Behavior.toggle_on_event: "toggle_on_event (each sound event flips the board's built-in LED)",
+    Behavior.on_while_active: "on_while_active (the built-in LED is on while the sensor reports sound)",
+    Behavior.level_meter: "level_meter (the louder the sound, the more LEDs of the board's LED matrix light up)",
+}
+
+
+def offered() -> List[Behavior]:
+    """Projects users can get. The clap light still exists in the code but is not offered by default."""
+    names = os.getenv("LEARNLENS_OFFERED_PROJECTS", "level_meter").split(",")
+    return [b for b in BEHAVIOR_HELP if b.value in {n.strip() for n in names}]
+
+
 def _sensor_ids() -> List[str]:
     return [cid for cid, c in facts.catalog().items() if c["role"] == "sensor"]
 
@@ -74,7 +87,7 @@ def analysis_schema() -> dict:
                 "properties": {
                     "title": {"type": "string"},
                     "summary": {"type": "string"},
-                    "behavior": {"type": "string", "enum": [b.value for b in Behavior]},
+                    "behavior": {"type": "string", "enum": [b.value for b in offered()] + [Behavior.unsupported.value]},
                     "input_component": {"type": "string", "enum": _sensor_ids() + ["none"]},
                     "unsupported_reason": {"type": "string"},
                 },
@@ -104,6 +117,11 @@ def _catalog_block() -> str:
     return "KNOWN PARTS (the only component_id values you may use, besides \"unknown\"):\n" + "\n".join(lines)
 
 
+def analyze_system() -> str:
+    behaviors = ",\n  ".join(BEHAVIOR_HELP[b] for b in offered())
+    return ANALYZE_SYSTEM.replace("{BEHAVIORS}", behaviors)
+
+
 ANALYZE_SYSTEM = """You are the vision step of LearnLens, a hardware-building assistant on smart glasses.
 A beginner shows you a photo of the parts on their desk and says what they want to build.
 The outputs are the board's built-in LED or its LED matrix. Your answer feeds a rule-based planner, and a
@@ -119,9 +137,8 @@ components: one entry for each electronic part you can see.
 If there is no photo, return an empty components list.
 
 project: what the user wants, restricted to what the known parts can do.
-- behavior: toggle_on_event (each event flips the LED), on_while_active (LED follows the sensor),
-  level_meter (the louder the sound, the more LEDs of the board's LED matrix light up),
-  or unsupported when the request needs parts or outputs that are not known parts.
+- behavior: {BEHAVIORS},
+  or unsupported when the request is for anything else or needs parts that are not known parts.
 - input_component: the known sensor that detects the trigger, or "none".
 - unsupported_reason: one sentence for the user when unsupported, otherwise empty.
 - title: at most 5 words. summary: one sentence.
@@ -165,6 +182,8 @@ def to_spec(p: ProjectProposal) -> ProjectSpec:
     reason = p.unsupported_reason
     if p.behavior == Behavior.unsupported:
         reason = reason or "This project needs parts I do not support yet."
+    elif p.behavior not in offered():
+        reason = "With these parts I can build a sound level meter on the board's LED matrix. Ask me for that."
     elif p.input_component not in sensors:
         reason = "I need a supported sensor for that. Right now I know: " + ", ".join(sensors) + "."
     elif ("led_matrix" if p.behavior == Behavior.level_meter else "builtin_led") not in facts.catalog()[BOARD]:
@@ -217,7 +236,7 @@ class ClaudeAnalyzer:
         content = [self._image(image, media_type)] if image else []
         content.append({"type": "text", "text": f"USER WANTS TO BUILD: {instruction}\n"
                                                 + ("" if image else "(no photo was provided)")})
-        system = [{"type": "text", "text": ANALYZE_SYSTEM},
+        system = [{"type": "text", "text": analyze_system()},
                   {"type": "text", "text": _catalog_block(), "cache_control": {"type": "ephemeral"}}]
         analysis = Analysis.model_validate(self._ask(system, content, analysis_schema()))
         if not image:
@@ -255,7 +274,7 @@ class Analyzer:
             # Saved detection; the project follows the instruction by keyword, so it stays deterministic.
             saved = Analysis.model_validate(demo.SAVED_ANALYSIS)
             proposal = keyword_project(instruction)
-            if proposal.behavior != Behavior.unsupported:
+            if proposal.behavior in offered():
                 saved.project = proposal
             return saved, "demo"
         if self.claude is None:

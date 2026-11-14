@@ -181,7 +181,8 @@ struct GuideView: View {
 
   private var goalSection: some View {
     Section("What do you want to build?") {
-      TextField("I want to build a clap-activated light", text: $model.goal, axis: .vertical)
+      TextField("Build a sound level meter", text: $model.goal, axis: .vertical)
+        .onSubmit { Task { await model.pushCard() } }  // show the typed goal on the glasses too
 
       Label(
         model.speech.isRecording ? "Listening… release to stop" : "Hold to talk",
@@ -201,7 +202,7 @@ struct GuideView: View {
       .onChange(of: model.speech.transcript) { _, text in
         if !text.isEmpty { model.goal = text }
       }
-      if let message = model.speech.errorMessage {
+      if let message = model.glassesSpeech.errorMessage ?? model.speech.errorMessage {
         Text(message).font(.footnote).foregroundStyle(.secondary)
       }
 
@@ -296,7 +297,6 @@ struct GuideView: View {
       Button(model.deployError == nil ? "Approve and upload to the board" : "Approve again and retry the upload") {
         Task { await model.approve() }
       }
-      Button("Regenerate for a sensor that is LOW on sound") { Task { await model.regenerate(sensorActiveLevel: "LOW") } }
       Button("Reject", role: .destructive) { Task { await model.reject() } }
     }
   }

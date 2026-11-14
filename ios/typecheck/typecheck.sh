@@ -6,7 +6,7 @@ set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 MODS="$(mktemp -d)"
 FLAGS="-target arm64-apple-macos14.0 -parse-as-library -I $MODS"
-for m in MWDATCore MWDATDisplay MWDATCamera MWDATMockDevice; do
+for m in MWDATCore MWDATDisplay MWDATCamera MWDATMockDevice MWDATSpeech; do
   swiftc -emit-module -module-name $m -swift-version 6 $FLAGS -emit-module-path "$MODS/$m.swiftmodule" "$HERE/stubs/$m.swift"
 done
 FILES=$(find "$HERE/../LearnLens" -name '*.swift' ! -name MockDisplayPreview.swift ! -name PhotoEncoding.swift ! -name PhoneCameraPicker.swift)

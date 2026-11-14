@@ -27,8 +27,8 @@ SAVED_ANALYSIS = {
                      "and the capsule size could also match a KY-038."},
         {"component_id": "unknown", "label": "bundle of jumper wires", "confidence": 0.9, "evidence": "Loose wires."},
     ],
-    "project": {"title": "Clap-activated light", "summary": "A clap toggles the board's built-in LED.",
-                "behavior": "toggle_on_event", "input_component": "ky-037", "unsupported_reason": ""},
+    "project": {"title": "Sound level meter", "summary": "The louder it gets, the more of the LED matrix lights up.",
+                "behavior": "level_meter", "input_component": "ky-037", "unsupported_reason": ""},
 }
 
 

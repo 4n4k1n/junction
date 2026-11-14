@@ -130,3 +130,22 @@ def test_level_meter_compiles_with_the_real_uno_q_core(tmp_path, monkeypatch):
     report = compiler.ArduinoCliCompiler().compile(
         codegen.save_project("abc123", 0, codegen.template_sketch(ctx()), ctx()), ctx().fqbn)
     assert report.status == CompileStatus.ok, report.log[-1500:]
+
+
+def test_only_the_level_meter_is_offered_by_default(monkeypatch):
+    monkeypatch.setenv("LEARNLENS_OFFERED_PROJECTS", "level_meter")
+    from app.build.analyzer import analyze_system, to_spec
+
+    assert analysis_schema()["properties"]["project"]["properties"]["behavior"]["enum"] == ["level_meter", "unsupported"]
+    assert "toggle_on_event" not in analyze_system() and "level_meter" in analyze_system()
+    clap = to_spec(keyword_project("I want to build a clap-activated light"))
+    assert clap.supported is False and "sound level meter" in clap.unsupported_reason
+    assert to_spec(keyword_project(GOAL)).supported is True
+
+    sid = client.post("/sessions", json={"instruction": "clap light", "confirmed_inventory": INVENTORY}).json()["session_id"]
+    s = client.post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": "[]"}).json()
+    assert s["state"] == "unsupported" and "sound level meter" in s["spoken_text"]
+
+    monkeypatch.setenv("LEARNLENS_DEMO_MODE", "1")
+    for goal in ("clap light", "anything at all", GOAL):                 # demo mode always lands on the offered project
+        assert Analyzer().analyze(goal)[0].project.behavior == Behavior.level_meter, goal

@@ -38,7 +38,7 @@ package products above.
    on a real phone enter `http://<mac-ip>:8000` in the Backend section.
 3. Turn on **Simulated glasses (no hardware)**. This pairs a MockDeviceKit Meta Ray-Ban Display and
    renders the same display session in the app. Buttons on the simulated display work.
-4. Type a goal (or hold to talk), then **Pick a saved photo and start** or **Start without a photo**.
+4. Type a goal such as "Build a sound level meter" (or hold to talk), then **Pick a saved photo and start** or **Start without a photo**.
    The simulated glasses have no camera feed, so glasses capture is disabled in this mode.
    On a real iPhone, **Take a photo with the iPhone and start** is the capture fallback.
 5. Answer the part confirmations, confirm each wiring step, approve the sketch, then run
@@ -51,7 +51,8 @@ package products above.
 | `LearnLensApp.swift` | `Wearables.configure()`, routes Meta AI URL callbacks to `handleUrl` |
 | `Services/GlassesManager.swift` | registration, device list, `DeviceSession`, `Display`, simulated glasses |
 | `Services/CameraService.swift` | one photo: `addCamera` → stream → `capturePhoto(format: .jpeg)` → `photoDataPublisher` |
-| `Services/SpeechInputService.swift` | push-to-talk on the iPhone mic (`SFSpeechRecognizer`); the text field is the fallback |
+| `Services/GlassesSpeechService.swift` | voice input through the glasses microphone (`MWDATSpeech`, experimental in SDK 1.0) |
+| `Services/SpeechInputService.swift` | push-to-talk on the iPhone mic (`SFSpeechRecognizer`), used when glasses speech is unavailable; the text field is the last fallback |
 | `Services/APIClient.swift` | backend calls; no API keys in the app |
 | `ViewModels/SessionViewModel.swift` | UI states and the glasses card for each |
 | `Display/GlassesCards.swift` | the card drawn on the glasses (`FlexBox`, `Text`, `ButtonGroup`) |
@@ -60,6 +61,9 @@ package products above.
 UI states: Disconnected, Connected, Capturing, Analyzing, Confirm your parts, Guiding, Generating,
 Awaiting approval, Deploying, Testing, Success, Error. "Confirm your parts" was added because the
 backend holds the wiring plan back until the user has checked the physical parts.
+
+The whole flow can be driven from the glasses: **Speak** (say the goal), **Photo & start**, **Yes** for
+the part questions, **Done, next** for each wiring step, **Start flash**, and **Yes** after testing.
 
 Flashing always needs an explicit approval. It can be given on the glasses ("Start flash" button on
 the approval card) or on the phone, where the generated code is shown in full.
@@ -84,6 +88,9 @@ Apart from the build, nothing below has been run. Tick each one on a real device
 - [ ] Capture with the display session running: a JPEG arrives (camera and display share one session;
       BirdSpotter does this with the standalone photo path, here it is the in-stream path).
 - [ ] The card comes back on the glasses after a capture.
-- [ ] Push-to-talk fills the goal field while the glasses are connected over Bluetooth.
+- [ ] Glasses card "Speak": microphone permission is granted in Meta AI, the spoken goal appears on the card.
+      If glasses speech is unavailable, the iPhone microphone takes over.
+- [ ] Glasses card "Photo & start": takes the photo with the glasses camera and starts the flow.
+- [ ] Push-to-talk on the phone fills the goal field while the glasses are connected over Bluetooth.
 - [ ] Backend reachable from the phone over the LAN (local network permission prompt accepted).
 - [ ] iPhone camera fallback opens, and its photo starts the flow (`PhoneCameraPicker.swift` is not covered by the typecheck).

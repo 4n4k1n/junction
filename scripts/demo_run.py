@@ -7,7 +7,6 @@ It does what the phone app does, so the flow can be rehearsed and timed without 
 
     python3 scripts/demo_run.py --photo demo/desk.jpg     # send a real photo (normal mode: analyzed by Claude)
     python3 scripts/demo_run.py --auto                    # answer every prompt except the upload approval
-    python3 scripts/demo_run.py --goal "Build a sound level meter on the LED matrix"   # the second project
 
 The upload approval is always typed by a person. Standard library only.
 """
@@ -19,7 +18,7 @@ import urllib.error
 import urllib.request
 import uuid
 
-GOAL = "I want to build a clap-activated light."
+GOAL = "Build a sound level meter."
 
 
 class Api:

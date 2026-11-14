@@ -20,7 +20,13 @@ INSTRUCTION = "Build a clap-activated light"
 FAKE_JPEG = b"\xff\xd8\xff\xe0" + b"0" * 100
 
 sys.path.insert(0, str(ROOT / "backend"))
-from app.build.demo import SAVED_ANALYSIS as CANNED_ANALYSIS  # noqa: E402  (the saved demo answer)
+from app.build.demo import SAVED_ANALYSIS  # noqa: E402
+
+# This recording exercises the clap light, which is no longer offered to users by default.
+os.environ.setdefault("LEARNLENS_OFFERED_PROJECTS", "level_meter,toggle_on_event,on_while_active")
+CANNED_ANALYSIS = dict(SAVED_ANALYSIS, project={
+    "title": "Clap-activated light", "summary": "A clap toggles the board's built-in LED.",
+    "behavior": "toggle_on_event", "input_component": "ky-037", "unsupported_reason": ""})
 
 CANNED_REVIEW = {
     "observations": ["Three jumper wires run from the sensor to the board's headers.",
