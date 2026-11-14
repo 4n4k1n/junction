@@ -7,6 +7,7 @@ POST /sessions/{id}/analyze       multipart: image and/or confirmed_inventory (J
 POST /sessions/{id}/confirm-step  the user confirms the current wiring step
 POST /sessions/{id}/generate      write, check and compile the sketch; never uploads
 POST /sessions/{id}/extend        develop a finished build further: add a known part or change what it does
+POST /sessions/{id}/ask           a question about the build, answered from the plan and the verified facts
 GET  /sessions/{id}/status
 
 State machine:
@@ -32,7 +33,7 @@ from pydantic import TypeAdapter, ValidationError
 from . import codegen, demo, facts, planner
 from .analyzer import Analyzer, to_spec
 from .models import (
-    Behavior, BuildStatus, ConfirmationKind, ConfirmStepRequest, CreateGuideSessionRequest, ExtendRequest, GenerateRequest,
+    AskRequest, StepAnswer, Behavior, BuildStatus, ConfirmationKind, ConfirmStepRequest, CreateGuideSessionRequest, ExtendRequest, GenerateRequest,
     GenerationResult, GuideState, GuideStatus, InventoryItem, PendingConfirmation, Provenance, WiringReview,
 )
 from .router import ALLOWED_MEDIA, MAX_IMAGE_BYTES, builds, create_awaiting_approval
@@ -183,7 +184,8 @@ async def analyze(session_id: str, image: Optional[UploadFile] = File(None),
     if data is not None or s.project is None:
         analysis, s.analysis_source = analyzer.analyze(s.instruction, data, media_type or "image/jpeg")
         s.detected_components = analysis.components
-        s.project = to_spec(analysis.project)
+        if not (s.project and s.project.requests):
+            s.project = to_spec(analysis.project)  # a build being developed further keeps its project
     _advance(s)
     return s
 
@@ -275,6 +277,11 @@ def extend(session_id: str, req: ExtendRequest):
         cid = proposal.component_id
         if cid not in cat or cat[cid]["role"] != "sensor" or cid in s.project.components:
             raise HTTPException(422, "I don't know a part for that yet.")
+        if proposal.needs_purpose or not proposal.behavior.strip():
+            # The part is clear, its job is not: ask instead of deciding for the user. Nothing changes yet.
+            s.clarification = f"What should the {cat[cid]['name']} do in your build?"
+            s.suggestions = [" ".join(i.split())[:80] for i in proposal.ideas if i.strip()][:3]
+            return s
         try:
             steps += planner.plan_extension(steps, cid)
         except ValueError as e:
@@ -296,13 +303,45 @@ def extend(session_id: str, req: ExtendRequest):
     if build is not None and build.sketch is not None:
         running_code[s.session_id] = build.sketch.code
     s.project, s.wiring_steps = project, steps
-    s.build_id, s.review, s.generation_progress = None, None, []
+    s.build_id, s.review, s.generation_progress, s.clarification, s.suggestions = None, None, [], "", []
     if proposal.kind == "add_part":
         _advance(s)  # confirmations for the new part, then only the new wiring steps
     else:
         s.current_step, s.state = None, GuideState.wiring_complete
         _say(s, "Updating the code", "No new wiring needed. I am updating the code now.")
     return s
+
+
+def _answer_context(s: GuideStatus) -> str:
+    lines = [f"BUILD: {s.project.title}. {s.project.custom_behavior or s.project.summary}", "WIRING PLAN:"]
+    for step in s.wiring_steps:
+        mark = "done" if step.index in s.confirmed_steps else "CURRENT STEP" if step.index == s.current_step else "later"
+        lines.append(f"- [{mark}] {step.spoken_text or step.display_text}")
+    lines.append("VERIFIED FACTS (source quality in brackets):")
+    lines += [f"- {f.statement} [{f.confidence.value}]" for f in s.hardware_facts]
+    return "\n".join(lines)
+
+
+def _short(text: str, limit: int = 220) -> str:
+    text = " ".join(text.split())
+    return text if len(text) <= limit else text[:limit - 1].rsplit(" ", 1)[0] + "…"
+
+
+@router.post("/sessions/{session_id}/ask", response_model=StepAnswer)
+def ask(session_id: str, req: AskRequest):
+    """Answer a question during the build. Changes nothing in the session."""
+    s = _load(session_id)
+    if s.project is None:
+        raise HTTPException(409, "there is no build to ask about yet")
+    answer = analyzer.answer(req.question.strip(), _answer_context(s))
+    if answer:
+        return StepAnswer(question=req.question, answer=_short(answer), source="llm", step_index=s.current_step)
+    # No AI: say what is verified about the current step instead of guessing.
+    step = s.wiring_steps[s.current_step] if s.current_step is not None else None
+    known = [f.statement for f in s.hardware_facts if step and f.id in step.fact_ids]
+    text = ("I can't answer free questions right now. What I know for this step: " + " ".join(known)) if known \
+        else "I can't answer free questions right now. Follow the step as shown; it was checked against the board's limits."
+    return StepAnswer(question=req.question, answer=_short(text, 320), source="facts", step_index=s.current_step)
 
 
 @router.get("/sessions/{session_id}/status", response_model=GuideStatus)

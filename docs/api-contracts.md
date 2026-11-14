@@ -19,6 +19,7 @@ hands over a **build**, which carries the sketch through approval, deploy and te
 | `POST /sessions/{id}/confirm-step` | JSON `{"step_index": int, "confirmed": bool, "note": str}` | `wiring` | next step, or `wiring_complete` |
 | `POST /sessions/{id}/generate` | optional JSON `{"sensor_active_level": "HIGH"\|"LOW", "debounce_ms": int}` | `wiring_complete`, `code_generated` | `code_generated`; returns `GenerationResult` with `build_id` |
 | `POST /sessions/{id}/extend` | JSON `{"instruction": str}` | `code_generated` (not while an upload runs) | new part: `needs_confirmation`, then `wiring` with only the added steps; behaviour change: `wiring_complete` |
+| `POST /sessions/{id}/ask` | JSON `{"question": str}` | any state with a project | returns `StepAnswer` `{question, answer, source, step_index}`; the session is unchanged |
 | `GET /sessions/{id}/status` | – | any | – |
 
 Every endpoint returns the full `GuideStatus`, except `generate`, which returns a `GenerationResult`
@@ -41,8 +42,13 @@ never uploads. It can take a minute.
 is not in the build yet (currently the KY-032 infrared obstacle sensor) or only a change of behaviour.
 
 - **New part:** the project gains the component, the confirmed wiring stays, and new steps are appended.
-  The session asks the new part's confirmation questions, then walks through the new steps only
+  The client may send a photo of the new part to `analyze` (it updates `detected_components` only; the
+  project stays as it is). The session asks the new part's confirmation questions, then walks through the new steps only
   (`current_step` starts at the first unconfirmed one). The whole wiring is safety-checked again.
+- **Part without a purpose:** if the request names a part but not what it should do ("add the infrared
+  sensor"), nothing changes, `clarification` carries a question for the user, and `suggestions` up to
+  three example answers. The client sends
+  `extend` again with the request and the answer together.
 - **Behaviour change:** no wiring; the session goes to `wiring_complete`.
 - In both cases `project.behavior` becomes `custom`, `project.custom_behavior` describes what the build
   should now do, `build_id` is cleared, and the client calls `generate` again. The new sketch is a new

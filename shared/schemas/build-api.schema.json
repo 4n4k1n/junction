@@ -13,6 +13,21 @@
       "title": "ApproveRequest",
       "type": "object"
     },
+    "AskRequest": {
+      "properties": {
+        "question": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Question",
+          "type": "string"
+        }
+      },
+      "required": [
+        "question"
+      ],
+      "title": "AskRequest",
+      "type": "object"
+    },
     "Behavior": {
       "enum": [
         "toggle_on_event",
@@ -767,6 +782,11 @@
           "default": null,
           "title": "Build Id"
         },
+        "clarification": {
+          "default": "",
+          "title": "Clarification",
+          "type": "string"
+        },
         "confirmed_inventory": {
           "default": [],
           "items": {
@@ -876,6 +896,14 @@
         },
         "state": {
           "$ref": "#/$defs/GuideState"
+        },
+        "suggestions": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Suggestions",
+          "type": "array"
         },
         "wiring_steps": {
           "default": [],
@@ -1126,6 +1154,42 @@
         "provenance"
       ],
       "title": "Sketch",
+      "type": "object"
+    },
+    "StepAnswer": {
+      "description": "Answer to a question the user asked during the build.",
+      "properties": {
+        "answer": {
+          "title": "Answer",
+          "type": "string"
+        },
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "step_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step Index"
+        }
+      },
+      "required": [
+        "question",
+        "answer",
+        "source"
+      ],
+      "title": "StepAnswer",
       "type": "object"
     },
     "TestResultRequest": {

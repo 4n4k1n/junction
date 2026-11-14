@@ -73,6 +73,8 @@ class ExtensionProposal(BaseModel):
     component_id: str = "none"  # the part to add, from the hardware database
     behavior: str = ""         # what the whole build should do afterwards
     reason: str = ""           # for the user, when unsupported
+    needs_purpose: bool = False  # a part was named, but not what it should do: ask the user
+    ideas: List[str] = Field(default_factory=list)  # with needs_purpose: examples of what the part could do
 
 
 def extension_schema(spec: ProjectSpec) -> dict:
@@ -83,8 +85,10 @@ def extension_schema(spec: ProjectSpec) -> dict:
             "component_id": {"type": "string", "enum": addable_sensors(spec) + ["none"]},
             "behavior": {"type": "string"},
             "reason": {"type": "string"},
+            "needs_purpose": {"type": "boolean"},
+            "ideas": {"type": "array", "items": {"type": "string"}},
         },
-        "required": ["kind", "component_id", "behavior", "reason"],
+        "required": ["kind", "component_id", "behavior", "reason", "needs_purpose", "ideas"],
         "additionalProperties": False,
     }
 
@@ -103,7 +107,39 @@ kind:
 behavior: one or two plain sentences describing what the whole build should do after the change,
 including what it did before if that should stay. This text is handed to the code generator.
 
+needs_purpose: true when they ask for a part but say nothing about what it should do in the build
+("add the infrared sensor"). Then leave behavior empty: the user will be asked. Do not invent a
+purpose for them. Otherwise false.
+
+ideas: only with needs_purpose, otherwise empty. Three different things the new part could do in
+this particular build, for a user who has no idea yet. Each must work with the parts already wired
+plus the new one and nothing else, be a complete instruction they could have said themselves, and
+stay under 60 characters so it fits on a glasses display.
+
 Never state pin names, voltages or wiring. Those come from a verified hardware database."""
+
+
+ANSWER_SCHEMA = {
+    "type": "object",
+    "properties": {"answer": {"type": "string"}},
+    "required": ["answer"],
+    "additionalProperties": False,
+}
+
+ANSWER_SYSTEM = """You are LearnLens, guiding a beginner through a small hardware build on smart glasses. They
+are in the middle of the build and ask a question.
+
+Answer in at most two short sentences, under 200 characters, in plain words. The answer is shown
+on a small display in their glasses, and they asked because they are unsure, so be direct.
+
+For anything about pins, voltages, wiring or what a part can take, use only the BUILD and the
+VERIFIED FACTS in the request. If they do not cover the question, say that you don't know that for
+this hardware. A wrong guess here can damage a part.
+
+If they ask whether they can wire something differently from the plan, tell them to keep to the
+plan: it was checked against the board's limits, and a variation was not.
+
+Explaining what a part does or why a step is needed is welcome."""
 
 
 def keyword_extension(instruction: str, spec: ProjectSpec) -> ExtensionProposal:
@@ -113,6 +149,12 @@ def keyword_extension(instruction: str, spec: ProjectSpec) -> ExtensionProposal:
     text = instruction.lower()
     wants_ir = re.search(r"\b(ir|infrared|infrarot|obstacle|hindernis|hand|proximity|distance|ky-?032)\b", text)
     if wants_ir and "ky-032" in addable_sensors(spec):
+        # A purpose is some instruction beyond naming the part ("... so it only shows when my hand is near").
+        states_purpose = re.search(r"\b(so|when|only|if|while|should|to show|to turn|until|damit|wenn|nur|soll|sobald)\b", text)
+        if not states_purpose:
+            # Without AI, suggest only what the prevalidated sketch really does.
+            return ExtensionProposal(kind="add_part", component_id="ky-032", needs_purpose=True,
+                                     ideas=facts.catalog()["ky-032"]["ideas_without_ai"])
         return ExtensionProposal(kind="add_part", component_id="ky-032",
                                  behavior="Keep the previous behaviour, but only while the infrared sensor detects "
                                           "something in front of it. Otherwise all LEDs stay off.")
@@ -312,6 +354,11 @@ class ClaudeAnalyzer:
         return ExtensionProposal.model_validate(
             self._ask([{"type": "text", "text": EXTEND_SYSTEM}], [{"type": "text", "text": text}], extension_schema(spec)))
 
+    def answer(self, question: str, context: str) -> str:
+        raw = self._ask([{"type": "text", "text": ANSWER_SYSTEM}],
+                        [{"type": "text", "text": f"{context}\n\nTHE USER ASKS: {question}"}], ANSWER_SCHEMA)
+        return str(raw["answer"])
+
     def review(self, image: bytes, media_type: str, steps: List[WiringStep]) -> ReviewFindings:
         content = [self._image(image, media_type), {"type": "text", "text": _steps_block(steps)}]
         return ReviewFindings.model_validate(
@@ -363,6 +410,16 @@ class Analyzer:
         except Exception as e:
             log.exception("extension call failed: %s", e)
         return keyword_extension(instruction, spec), "fallback"
+
+    def answer(self, question: str, context: str) -> Optional[str]:
+        """Claude's answer, or None when there is no AI (the caller then answers from the facts)."""
+        if self.claude is None or self.mode == "demo":
+            return None
+        try:
+            return self.claude.answer(question, context)
+        except Exception as e:
+            log.exception("answer call failed: %s", e)
+        return None
 
     def review(self, image: bytes, media_type: str, steps: List[WiringStep]) -> Tuple[ReviewFindings, str]:
         if self.claude is None:

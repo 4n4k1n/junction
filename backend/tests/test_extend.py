@@ -175,3 +175,44 @@ def test_gated_level_meter_compiles_with_the_real_uno_q_core(tmp_path, monkeypat
     ctx = gated_ctx()
     report = compiler.ArduinoCliCompiler().compile(codegen.save_project("abc123", 0, codegen.template_sketch(ctx), ctx), ctx.fqbn)
     assert report.status == CompileStatus.ok, report.log[-1500:]
+
+
+def test_a_new_photo_of_the_added_part_updates_detection_but_not_the_project():
+    sid, _ = finished_level_meter()
+    extend(sid, ADD_IR)
+    seen = {"components": [{"component_id": "ky-032", "label": "board with two LEDs at the front", "confidence": 0.93,
+                            "evidence": "Two LEDs side by side, two blue trim pots, a jumper."}],
+            "project": {"title": "Something else", "summary": "x", "behavior": "unsupported",
+                        "input_component": "none", "unsupported_reason": "not relevant"}}
+    example.use_fake_ai(seen)
+    photo = {"image": ("part.jpg", __import__("io").BytesIO(example.FAKE_JPEG), "image/jpeg")}
+    s = client.post(f"/sessions/{sid}/analyze", files=photo).json()
+    assert s["project"]["behavior"] == "custom" and s["project"]["components"][-1] == "ky-032"   # project untouched
+    assert [d["component_id"] for d in s["detected_components"]] == ["ky-032"]
+    # Seen with high confidence: no presence question, but the pin labels are still asked.
+    assert s["state"] == "needs_confirmation" and [p["id"] for p in s["pending_confirmations"]] == ["ky032-pin-labels"]
+
+
+def test_a_part_without_a_purpose_gets_a_question_back_and_changes_nothing():
+    sid, first = finished_level_meter()
+    s = extend(sid, "I want to add the infrared sensor")
+    assert s["clarification"] == "What should the KY-032 infrared obstacle sensor do in your build?"
+    assert s["state"] == "code_generated" and s["build_id"] == first["build_id"]
+    assert s["project"]["behavior"] == "level_meter" and len(s["wiring_steps"]) == 5
+    assert s["suggestions"] == ["Show the sound level only while a hand is near"]   # offline: only what is prevalidated
+
+    s = extend(sid, "I want to add the infrared sensor. " + s["suggestions"][0])     # picking a suggestion is an answer
+    assert s["clarification"] == "" and s["suggestions"] == [] and s["state"] == "needs_confirmation"
+    assert len(s["wiring_steps"]) == 10
+
+    # With AI the model decides, and is told not to invent a purpose.
+    sid, _ = finished_level_meter()
+    fake = example.use_fake_ai({"kind": "add_part", "component_id": "ky-032", "behavior": "", "reason": "",
+                                "needs_purpose": True,
+                                "ideas": ["Show the meter only when a hand is near", "  Wave to freeze the bar ",
+                                          "Blink when something blocks the sensor", "a fourth idea", ""]})
+    s = extend(sid, "add the IR sensor")
+    assert s["clarification"].startswith("What should the KY-032")
+    assert s["suggestions"] == ["Show the meter only when a hand is near", "Wave to freeze the bar",
+                                "Blink when something blocks the sensor"]                  # at most three, tidied
+    assert "Do not invent a\npurpose" in fake.requests[0]["system"][0]["text"]

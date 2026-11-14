@@ -55,6 +55,19 @@ final class SessionViewModel {
   var goal = ""
   /// After a finished build: what the user wants to add or change next.
   var extensionText = ""
+  /// The backend asked what a new part should do. The answer is sent together with the first request.
+  private(set) var extensionQuestion: String?
+  /// Example answers to that question, for a user who has no idea yet.
+  private(set) var extensionIdeas: [String] = []
+  private var showingIdeas = false
+  @ObservationIgnored private var extensionBase = ""
+  /// A question typed on the phone during the build.
+  var questionText = ""
+  /// The answer to the last question, shown until the user goes back to the step.
+  private(set) var stepAnswer: StepAnswer?
+  private(set) var isAnswering = false
+  /// A part is being added to a finished build and the user is asked for a photo of it first.
+  private(set) var awaitingPartPhoto = false
   var backendURL: String {
     didSet { UserDefaults.standard.set(backendURL, forKey: Self.backendURLKey) }
   }
@@ -125,7 +138,7 @@ final class SessionViewModel {
 
   /// Started from the glasses card. Uses the glasses microphone when possible, else the iPhone's.
   func startVoiceInput() async {
-    guard isIdle || flow == .success, !isListening else { return }
+    guard isIdle || flow == .success || flow == .guiding, !isListening else { return }
     if let session = glasses.session, !glasses.isSimulated {
       let started = await glassesSpeech.start(on: session) { [weak self] text in
         self?.heard(text)
@@ -154,9 +167,36 @@ final class SessionViewModel {
   func heard(_ text: String) {
     if flow == .success {
       extensionText = text
+    } else if flow == .guiding {
+      Task { await ask(text) }  // during wiring, speech is a question about the step
     } else {
       goal = text
     }
+  }
+
+  // MARK: - Questions during the build
+
+  /// Asks the backend a question about the current step. The step itself does not change.
+  func ask(_ question: String) async {
+    let question = question.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let guide, !question.isEmpty, !isAnswering else { return }
+    isAnswering = true
+    stepAnswer = nil
+    await pushCard()
+    do {
+      stepAnswer = try await api.ask(guide.sessionId, question: question)
+      questionText = ""
+    } catch {
+      glasses.errorMessage = error.localizedDescription
+    }
+    isAnswering = false
+    await pushCard()
+  }
+
+  /// Back to the step card.
+  func dismissAnswer() async {
+    stepAnswer = nil
+    await pushCard()
   }
 
   // MARK: - Developing a finished build further
@@ -164,18 +204,39 @@ final class SessionViewModel {
   /// Sends the follow-up request. A new part leads to its confirmation and wiring steps; a behaviour
   /// change goes straight to new code. Either way the new sketch needs a new approval.
   func submitExtension() async {
-    let request = extensionText.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard flow == .success, let guide, !request.isEmpty else { return }
+    let answer = extensionText.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard flow == .success, let guide, !answer.isEmpty else { return }
+    // An answer to "what should it do?" is sent together with the request it belongs to.
+    let request = extensionQuestion == nil ? answer : extensionBase + ". " + answer
     do {
       let status = try await api.extend(guide.sessionId, instruction: request)
       extensionText = ""
+      if !status.clarification.isEmpty {
+        // The part is clear but not its job: ask, and keep the finished build as it is.
+        extensionQuestion = status.clarification
+        extensionIdeas = status.suggestions
+        showingIdeas = false
+        extensionBase = request
+        await pushCard()
+        return
+      }
+      extensionQuestion = nil
+      extensionIdeas = []
+      showingIdeas = false
+      extensionBase = ""
       build = nil
       generation = nil
+      // A new part: ask for a photo of it before the confirmation questions.
+      awaitingPartPhoto = status.state == .needsConfirmation
       await apply(status)
     } catch {
       // Not fatal: the finished build stays as it is.
       glasses.errorMessage = error.localizedDescription
       extensionText = ""
+      extensionQuestion = nil
+      extensionIdeas = []
+      showingIdeas = false
+      extensionBase = ""
       await pushCard()
     }
   }
@@ -256,6 +317,67 @@ final class SessionViewModel {
     }
   }
 
+  /// "I don't know": show or hide the example answers.
+  func showIdeas(_ show: Bool) async {
+    showingIdeas = show
+    await pushCard()
+  }
+
+  /// Picks one of the example answers and continues with it.
+  func chooseIdea(_ index: Int) async {
+    guard extensionIdeas.indices.contains(index) else { return }
+    extensionText = extensionIdeas[index]
+    showingIdeas = false
+    await submitExtension()
+  }
+
+  /// Drops a follow-up request that was waiting for an answer.
+  func cancelExtension() async {
+    extensionIdeas = []
+    showingIdeas = false
+    extensionQuestion = nil
+    extensionBase = ""
+    extensionText = ""
+    await pushCard()
+  }
+
+  // MARK: - Photo of an added part
+
+  /// Takes a photo of the new part with the glasses camera and has the backend look at it.
+  func takePartPhoto() async {
+    guard awaitingPartPhoto, flow == .confirmingParts else { return }
+    guard canCaptureFromGlasses else {
+      await skipPartPhoto()
+      return
+    }
+    await setFlow(.capturing)
+    guard let photo = await glassesPhoto(fatal: false) else {
+      await setFlow(.confirmingParts)  // stay on the photo card; the error is shown on the phone
+      return
+    }
+    await submitPartPhoto(photo)
+  }
+
+  /// Sends a photo of the new part (from the glasses or the iPhone camera).
+  func submitPartPhoto(_ jpeg: Data) async {
+    guard awaitingPartPhoto, let guide else { return }
+    await setFlow(.analyzing)
+    awaitingPartPhoto = false
+    do {
+      await apply(try await api.analyze(guide.sessionId, photoJPEG: jpeg, confirmedInventory: nil))
+    } catch {
+      // Not fatal: without the photo the part is confirmed by questions alone.
+      glasses.errorMessage = error.localizedDescription
+      await setFlow(.confirmingParts)
+    }
+  }
+
+  /// Continue without a photo: the part is confirmed by questions alone.
+  func skipPartPhoto() async {
+    awaitingPartPhoto = false
+    await pushCard()
+  }
+
   // MARK: - Confirming parts
 
   /// The user answers the question on screen after checking the physical part.
@@ -280,6 +402,7 @@ final class SessionViewModel {
   /// The user confirms the current wiring step. After the last one the sketch is generated.
   func next() async {
     guard flow == .guiding, let guide, let index = guide.currentStep else { return }
+    stepAnswer = nil
     do {
       await apply(try await api.confirmStep(guide.sessionId, index: index, confirmed: true))
     } catch {
@@ -430,6 +553,13 @@ final class SessionViewModel {
     generation = nil
     deployError = nil
     extensionText = ""
+    awaitingPartPhoto = false
+    stepAnswer = nil
+    questionText = ""
+    extensionQuestion = nil
+    extensionIdeas = []
+    showingIdeas = false
+    extensionBase = ""
     guide = nil
     await setFlow(.connected)
   }
@@ -490,6 +620,14 @@ final class SessionViewModel {
     case .analyzing:
       return GlassesCards.card(caption: demo + "Analyzing", text: "Working out the wiring…")
     case .confirmingParts:
+      if awaitingPartPhoto {
+        return GlassesCards.card(
+          caption: demo + "New part",
+          text: "Look at the new part and take a photo of it.",
+          primary: action("Take photo") { await $0.takePartPhoto() },
+          secondary: action("Skip") { await $0.skipPartPhoto() }
+        )
+      }
       return GlassesCards.card(
         caption: "Check your part",
         text: pendingConfirmation?.question ?? "Confirm your parts on the phone.",
@@ -500,10 +638,30 @@ final class SessionViewModel {
       guard let guide, let step = currentStep else {
         return GlassesCards.card(caption: "Guiding", text: "No wiring steps.")
       }
+      // A question about the step: listen, think, answer, then back to the step.
+      if isListening {
+        return GlassesCards.card(
+          caption: "Listening…",
+          text: "Ask your question about this step.",
+          primary: action("Done") { await $0.finishVoiceInput() }
+        )
+      }
+      if isAnswering {
+        return GlassesCards.card(caption: "Question", text: "Thinking…")
+      }
+      if let stepAnswer {
+        return GlassesCards.card(
+          caption: "Answer",
+          text: stepAnswer.answer,
+          primary: action("Back to step") { await $0.dismissAnswer() },
+          secondary: action("Ask again") { await $0.startVoiceInput() }
+        )
+      }
       return GlassesCards.card(
         caption: demo + "Step \(stepIndex + 1) of \(guide.wiringSteps.count)",
         text: step.displayText,
-        primary: action(isLastStep ? "Wiring done" : "Done, next") { await $0.next() }
+        primary: action(isLastStep ? "Wiring done" : "Done, next") { await $0.next() },
+        secondary: action("Ask") { await $0.startVoiceInput() }
       )
     case .generating:
       return GlassesCards.card(caption: demo + "Generating", text: (generationStage ?? "Starting") + "…")
@@ -548,6 +706,27 @@ final class SessionViewModel {
           text: extensionText,
           primary: action("Go") { await $0.submitExtension() },
           secondary: action("Speak again") { await $0.startVoiceInput() }
+        )
+      }
+      if let extensionQuestion {
+        if showingIdeas {
+          return GlassesCards.choices(
+            caption: "Ideas",
+            text: "Pick one, or go back and say your own.",
+            options: extensionIdeas.indices.map { index in
+              action(extensionIdeas[index]) { await $0.chooseIdea(index) }
+            },
+            primary: action("Back") { await $0.showIdeas(false) },
+            secondary: action("Cancel") { await $0.cancelExtension() }
+          )
+        }
+        return GlassesCards.card(
+          caption: "One question",
+          text: extensionQuestion,
+          primary: action("Answer") { await $0.startVoiceInput() },
+          secondary: extensionIdeas.isEmpty
+            ? action("Cancel") { await $0.cancelExtension() }
+            : action("Ideas") { await $0.showIdeas(true) }
         )
       }
       return GlassesCards.card(

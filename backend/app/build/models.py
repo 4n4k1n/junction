@@ -233,6 +233,8 @@ class GuideStatus(BaseModel):
     review: Optional[WiringReview] = None
     safety_problems: List[str] = []
     generation_progress: List[str] = []  # what /generate is doing right now (last entry) and did before
+    clarification: str = ""              # a question back to the user before /extend can go on
+    suggestions: List[str] = []          # 1-3 example answers to that question
     build_id: Optional[str] = None
 
 
@@ -332,6 +334,18 @@ class ExtendRequest(BaseModel):
     instruction: str = Field(min_length=1)
 
 
+class AskRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=500)
+
+
+class StepAnswer(BaseModel):
+    """Answer to a question the user asked during the build."""
+    question: str
+    answer: str               # short enough for the glasses display
+    source: str               # llm | facts (no AI: the verified facts for the current step)
+    step_index: Optional[int] = None
+
+
 class GenerationResult(BaseModel):
     session_id: str
     build_id: str
@@ -364,5 +378,5 @@ class ConfirmStepRequest(BaseModel):
 API_MODELS = [
     Build, CreateBuildRequest, ApproveRequest, TestResultRequest, ClaimRequest, DeployJob, DeployResult,
     DeployEvent, GuideStatus, CreateGuideSessionRequest, ConfirmStepRequest, GenerateRequest, GenerationResult,
-    ExtendRequest,
+    ExtendRequest, AskRequest, StepAnswer,
 ]

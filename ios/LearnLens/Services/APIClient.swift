@@ -69,6 +69,11 @@ struct APIClient: Sendable {
     try await decode(jsonRequest("/sessions/\(id)/extend", ["instruction": instruction]))
   }
 
+  /// A question about the build, answered from the wiring plan and the verified hardware facts.
+  func ask(_ id: String, question: String) async throws -> StepAnswer {
+    try await decode(jsonRequest("/sessions/\(id)/ask", ["question": question]))
+  }
+
   func status(_ id: String) async throws -> GuideStatus {
     try await decode(request("GET", "/sessions/\(id)/status"))
   }

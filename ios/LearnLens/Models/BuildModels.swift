@@ -148,7 +148,16 @@ struct GuideStatus: Decodable, Sendable {
   let review: WiringReview?
   let safetyProblems: [String]
   let generationProgress: [String]  // what code generation is doing; the last entry is current
+  let clarification: String         // a question back to the user before a build can be developed further
+  let suggestions: [String]         // example answers to that question
   let buildId: String?
+}
+
+/// Answer to a question asked during the build (POST /sessions/{id}/ask).
+struct StepAnswer: Decodable, Sendable {
+  let question: String
+  let answer: String
+  let source: String  // llm | facts (no AI: the verified facts for the current step)
 }
 
 // MARK: - Code generation (POST /sessions/{id}/generate)

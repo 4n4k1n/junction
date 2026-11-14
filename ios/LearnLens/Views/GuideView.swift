@@ -39,7 +39,14 @@ struct GuideView: View {
         PhoneCameraPicker { data in
           showPhoneCamera = false
           guard let data else { return }
-          Task { await model.start(withPhoneJPEG: PhotoEncoding.uploadJPEG(from: data)) }
+          Task {
+            let jpeg = PhotoEncoding.uploadJPEG(from: data)
+            if model.awaitingPartPhoto, let jpeg {
+              await model.submitPartPhoto(jpeg)  // photo of a part that is being added
+            } else {
+              await model.start(withPhoneJPEG: jpeg)
+            }
+          }
         }
       }
       .task { await model.checkBackend() }
@@ -161,7 +168,15 @@ struct GuideView: View {
       Section("Success") {
         Text(model.isSimulatedDeploy ? "Flow complete with a SIMULATED upload. No board was flashed." : "The build works.")
         // Keep developing the same build: add a known part, or change what it does.
-        TextField("Add a part or change what it does", text: $model.extensionText, axis: .vertical)
+        if let question = model.extensionQuestion {
+          Text(question).font(.title3)  // the backend needs to know what the new part should do
+          // No idea yet? Example answers; tapping one continues with it.
+          ForEach(model.extensionIdeas.indices, id: \.self) { index in
+            Button(model.extensionIdeas[index]) { Task { await model.chooseIdea(index) } }
+          }
+        }
+        TextField(model.extensionQuestion == nil ? "Add a part or change what it does" : "Your answer",
+                  text: $model.extensionText, axis: .vertical)
           .onSubmit { Task { await model.pushCard() } }
         Button("Continue building") { Task { await model.submitExtension() } }
           .disabled(model.extensionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -235,7 +250,14 @@ struct GuideView: View {
           Text("No parts were detected from a photo (\(guide.analysisSource)).").font(.footnote)
         }
       }
-      if let pending = model.pendingConfirmation {
+      if model.awaitingPartPhoto {
+        Text("Take a photo of the new part.").font(.title3)
+        Button("Take photo with the glasses") { Task { await model.takePartPhoto() } }
+          .disabled(!model.canCaptureFromGlasses)
+        Button("Take photo with the iPhone") { showPhoneCamera = true }
+          .disabled(!PhoneCameraPicker.isAvailable)
+        Button("Skip the photo") { Task { await model.skipPartPhoto() } }
+      } else if let pending = model.pendingConfirmation {
         Text(pending.question).font(.title3)
         Text(pending.reason).font(.footnote).foregroundStyle(.secondary)
         Button("Yes") { Task { await model.answerConfirmation(true) } }
@@ -268,6 +290,17 @@ struct GuideView: View {
         }
       }
       Button(model.isLastStep ? "I did this. Wiring done" : "I did this. Next") { Task { await model.next() } }
+
+      // A question about this step, answered from the wiring plan and the verified facts.
+      TextField("Ask a question about this step", text: $model.questionText, axis: .vertical)
+      Button(model.isAnswering ? "Thinking…" : "Ask") { Task { await model.ask(model.questionText) } }
+        .disabled(model.isAnswering || model.questionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+      if let answer = model.stepAnswer {
+        VStack(alignment: .leading, spacing: 2) {
+          Text(answer.question).font(.caption2).foregroundStyle(.secondary)
+          Text(answer.answer).font(.footnote)
+        }
+      }
 
       Button("Check my wiring with a glasses photo") { Task { await model.reviewWiring(phoneJPEG: nil) } }
         .disabled(!model.canCaptureFromGlasses)

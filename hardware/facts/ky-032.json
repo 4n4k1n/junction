@@ -4,6 +4,9 @@
   "role": "sensor",
   "senses": "an object or hand in front of it",
   "projects": [],
+  "ideas_without_ai": [
+    "Show the sound level only while a hand is near"
+  ],
   "identification": "Small PCB with two LEDs side by side sticking out at the front (one clear infrared emitter, one dark receiver), two blue trim potentiometers, a small green or yellow jumper, and 4 header pins at the back.",
   "sources": {
     "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-032"

@@ -66,9 +66,13 @@ The whole flow can be driven from the glasses: **Speak** (say the goal), **Take 
 photo of the components), **Yes** for
 the part questions, **Done, next** for each wiring step, **Start flash**, and **Yes** after testing.
 
+During wiring every step card has an **Ask** button: say a question ("Can I use the 5V pin instead?")
+and the answer appears on the glasses, then **Back to step**. Answers come from the wiring plan and the
+verified hardware facts.
+
 After **Success** the glasses offer **Add or change**: say what to add (a known part) or how the build
-should behave differently, then **Go**. The flow continues with the new part's questions and wiring
-steps, or directly with new code.
+should behave differently, then **Go**. For a new part the glasses first ask for a photo of it (**Take photo** or **Skip**), then
+continue with the part's questions and wiring steps. A behaviour change goes directly to new code.
 
 Flashing always needs an explicit approval. It can be given on the glasses ("Start flash" button on
 the approval card) or on the phone, where the generated code is shown in full.

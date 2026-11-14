@@ -250,3 +250,28 @@ def test_offline_mock_and_request_validation():
     assert client.post(f"/sessions/{sid}/analyze", files=photo("image/heic")).status_code == 415
     analyze(sid, image=False, inventory=[{"component_id": "esp32"}], expect=422)
     analyze(sid, image=False, inventory=[{"component_id": "ky-037", "confirmations": ["made-up"]}], expect=422)
+
+
+def test_questions_during_the_build_are_answered_from_plan_and_facts():
+    fake = example.use_fake_ai(analysis(ky_037=0.95), {"answer": "The sensor runs on 3.3 V here.  Keep the wire on +3V3: "
+                                                                  "the analog pin takes at most about 3.6 V."})
+    sid = new_session(inventory=PIN_LABELS)
+    assert analyze(sid)["state"] == "wiring"
+    client.post(f"/sessions/{sid}/confirm-step", json={"step_index": 0})
+
+    r = client.post(f"/sessions/{sid}/ask", json={"question": "Can I use the 5V pin instead?"})
+    assert r.status_code == 200, r.text
+    a = r.json()
+    assert a["source"] == "llm" and a["step_index"] == 1 and "+3V3" in a["answer"] and "  " not in a["answer"]
+    sent = fake.requests[1]["messages"][0]["content"][0]["text"]
+    for needed in ("[done] Unplug the USB cable", "[CURRENT STEP]", "VERIFIED FACTS", "[official_doc]",
+                   "THE USER ASKS: Can I use the 5V pin instead?"):
+        assert needed in sent, needed
+    assert "keep to the\nplan" in fake.requests[1]["system"][0]["text"]
+    assert client.get(f"/sessions/{sid}/status").json()["current_step"] == 1      # asking changes nothing
+
+    session_router.analyzer = Analyzer(mode="mock")                                # no AI: verified facts only
+    a = client.post(f"/sessions/{sid}/ask", json={"question": "why?"}).json()
+    assert a["source"] == "facts" and a["answer"].startswith("I can't answer free questions right now.")
+    assert client.post(f"/sessions/{sid}/ask", json={"question": ""}).status_code == 422
+    assert client.post(f"/sessions/{new_session()}/ask", json={"question": "hi"}).status_code == 409
