@@ -41,9 +41,10 @@
   </section>
   <section class="card">
     <h1>Test console</h1>
+    <label>Lesson <select id="lesson"></select></label>
     <div class="row">
       <button onclick="start()">New session</button>
-      <button class="secondary" onclick="confirmStep()">Confirm (LED lights)</button>
+      <button class="secondary" onclick="confirmStep()">Confirm (it works)</button>
       <button class="secondary" onclick="send('hint')">Hint</button>
     </div>
     <label>Photo <input type="file" id="photo" accept="image/*" capture="environment"></label>
@@ -69,8 +70,12 @@ function render(r) {
   $('src').textContent = `${r.source} · ${r.latency_ms}ms`;
   if (r.action === 'ask_question') $('type').value = 'answer';
 }
+fetch('/lessons').then(r => r.json()).then(ls => {
+  $('lesson').innerHTML = ls.map(l => `<option value="${l.lesson_id}">${l.title}</option>`).join('');
+});
 async function start() {
-  const r = await (await fetch('/sessions', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})).json();
+  const body = JSON.stringify({lesson_id: $('lesson').value || 'led-basics'});
+  const r = await (await fetch('/sessions', {method:'POST', headers:{'Content-Type':'application/json'}, body})).json();
   sid = r.session_id; render(r);
 }
 async function send(forceType) {

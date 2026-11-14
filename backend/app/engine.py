@@ -160,7 +160,7 @@ def apply_decision(
         nxt = _advance(lesson, s)
         if nxt is None:
             resp = _respond(lesson, s, TutorAction.confirm_progress, "All steps done. Well done!",
-                            "Excellent. You built, debugged and explained your LED circuit.",
+                            f"Excellent. You finished: {lesson.title}.",
                             decision, source, status=status, advanced=True)
             return resp
         if nxt.verification == Verification.question:

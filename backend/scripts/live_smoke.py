@@ -54,9 +54,10 @@ def main():
     if len(sys.argv) > 1:
         path = Path(sys.argv[1])
         media = "image/png" if path.suffix.lower() == ".png" else "image/jpeg"
-        s2 = SessionState(session_id="smoke2", lesson_id="led-basics", step_index=0)
-        engine.intro(lesson, s2)
-        times.append(run(tutor, lesson, s2, InteractionType.photo, "", path.read_bytes(), media))
+        photo_lesson = get_lesson(os.getenv("SMOKE_PHOTO_LESSON", "led-basics"))
+        s2 = SessionState(session_id="smoke2", lesson_id=photo_lesson.lesson_id, step_index=0)
+        engine.intro(photo_lesson, s2)
+        times.append(run(tutor, photo_lesson, s2, InteractionType.photo, "", path.read_bytes(), media))
     else:
         print("\n(no image given – pass a breadboard photo to test vision)")
 

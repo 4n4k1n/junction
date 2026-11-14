@@ -69,3 +69,20 @@ def test_rejects_non_image_upload():
 
 def test_unknown_session_404():
     assert client.get("/sessions/nope").status_code == 404
+
+
+def test_full_ir_hand_detector_lesson(monkeypatch):
+    monkeypatch.setenv("LEARNLENS_MOCK_VISION", "verified")
+    assert {l["lesson_id"] for l in client.get("/lessons").json()} >= {"led-basics", "ir-hand-detector"}
+    sid = client.post("/sessions", json={"lesson_id": "ir-hand-detector"}).json()["session_id"]
+
+    interact(sid, "photo", image=True)
+    assert interact(sid, "answer", "GND, +V and OUT")["step"]["step_id"] == "understand"
+    r = interact(sid, "answer", "plus gives power, GND is the way back, OUT sends the signal")
+    assert r["step"]["step_id"] == "power"
+    assert client.post(f"/sessions/{sid}/confirm").json()["step"]["step_id"] == "signal"
+    assert client.post(f"/sessions/{sid}/confirm").json()["step"]["step_id"] == "debug"
+    r = interact(sid, "answer", "The signal wire was on the wrong pin, the code reads D2")
+    assert r["step"]["step_id"] == "explain"
+    r = interact(sid, "answer", "IR light reflects off my hand, OUT goes low and the board reads pin D2")
+    assert r["lesson_complete"]

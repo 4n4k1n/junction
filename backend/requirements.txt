@@ -3,6 +3,7 @@ uvicorn[standard]>=0.30
 pydantic>=2.7
 python-multipart>=0.0.9
 anthropic>=0.125
+pillow>=10
 # dev
 pytest>=8
 httpx>=0.27

@@ -1,0 +1,121 @@
+{
+  "lesson_id": "ir-hand-detector",
+  "title": "Build a hand detector with an IR sensor",
+  "safety": [
+    "Unplug the USB cable before changing any wire.",
+    "Power the sensor from the 3.3V pin, not 5V: the UNO Q pins use 3.3V logic.",
+    "Never connect 3.3V or 5V directly to GND.",
+    "Never connect the board's 5V pin to a signal pin."
+  ],
+  "materials": [
+    "Arduino UNO Q",
+    "Joy-IT SEN-KY032IR infrared obstacle sensor (pins: EN, OUT/Signal, +V, GND; green EN jumper fitted)",
+    "mini breadboard",
+    "3 male-male jumper wires (red, black, orange)",
+    "USB-C cable"
+  ],
+  "steps": [
+    {
+      "id": "identify",
+      "title": "Identify the parts",
+      "goal": "Learner identifies the UNO Q, the KY-032 IR sensor, the breadboard and the jumper wires, and finds the sensor's +V, GND and signal pins.",
+      "intro_display": "Find the board, IR sensor and breadboard.",
+      "intro_spoken": "Let's build a hand detector. Put the Arduino, the infrared sensor and the breadboard in front of you and take a photo.",
+      "visual_success_criteria": "An Arduino board, a small sensor board with an IR LED and IR receiver (KY-032 / SEN-KY032IR), a breadboard and jumper wires are visible.",
+      "hint_levels": [
+        "The sensor is the small black board with pins.",
+        "Read the tiny labels next to the sensor's pins.",
+        "Look for GND, +V and OUT (signal) on the sensor."
+      ],
+      "check_question": "Which three sensor pins do we need?",
+      "expected_concepts": [["gnd", "ground", "masse", "minus"], ["+v", "vcc", "power", "plus", "3.3", "5v", "strom"], ["out", "signal", "data"]],
+      "min_concepts": 2,
+      "verification": "vision_and_question"
+    },
+    {
+      "id": "understand",
+      "title": "Power, ground, signal",
+      "goal": "Learner explains that the sensor needs power (+V), ground (GND) and a signal wire, and that the signal changes when something is in front of it.",
+      "intro_display": "Why does the sensor need three wires?",
+      "intro_spoken": "Before wiring: why does the sensor need three wires and not just one?",
+      "visual_success_criteria": "",
+      "hint_levels": [
+        "The sensor needs energy to work. Where from?",
+        "Energy needs a way in and a way back.",
+        "Plus and GND power it; the third wire reports."
+      ],
+      "check_question": "What does each of the three wires do?",
+      "expected_concepts": [["power", "energy", "strom", "plus", "+v", "vcc", "versorg"], ["ground", "gnd", "back", "return", "minus", "masse", "zurück"], ["signal", "out", "report", "tell", "data", "information", "detect", "melde"]],
+      "min_concepts": 2,
+      "verification": "question"
+    },
+    {
+      "id": "power",
+      "title": "Power the sensor",
+      "goal": "Sensor sits in the breadboard; +V row wired to the UNO Q 3.3V pin, GND row to a GND pin. With USB connected, the sensor's own LED lights up when a hand is close.",
+      "intro_display": "Wire +V to 3.3V and GND to GND.",
+      "intro_spoken": "Unplug the USB cable. Put the sensor into the breadboard, then connect its plus pin to 3.3 volts and its ground pin to GND. Take a photo when you are done.",
+      "visual_success_criteria": "Sensor plugged into the breadboard; one wire from the sensor's +V row to the board's 3.3V header pin and one from the GND row to a GND header pin. No wire between 3.3V/5V and GND directly.",
+      "hint_levels": [
+        "Male wires can't go into the sensor pins directly.",
+        "Plug the sensor into the breadboard first.",
+        "Red: +V row to 3.3V. Black: GND row to GND."
+      ],
+      "check_question": "Hold your hand close. Does the sensor LED light?",
+      "expected_concepts": [["yes", "ja", "lights", "leuchtet", "on", "an", "works"]],
+      "min_concepts": 1,
+      "verification": "visual_and_manual"
+    },
+    {
+      "id": "signal",
+      "title": "Read the signal",
+      "goal": "Signal (OUT) row wired to digital pin D2; the sketch from hardware/ir_hand_detector is uploaded; the board's LED turns on when a hand is close.",
+      "intro_display": "Connect OUT to pin D2, upload the sketch.",
+      "intro_spoken": "Now connect the sensor's OUT pin to digital pin 2 and upload the hand detector sketch. Then test it with your hand.",
+      "visual_success_criteria": "A third wire runs from the sensor's OUT/signal row to header pin D2 (digital 2).",
+      "hint_levels": [
+        "The sketch reads pin 2. Where must OUT go?",
+        "Digital pins are on the header labelled D0-D13.",
+        "Orange: OUT row to D2."
+      ],
+      "check_question": "Does the board LED react to your hand?",
+      "expected_concepts": [["yes", "ja", "lights", "leuchtet", "on", "reacts", "works", "funktioniert"]],
+      "min_concepts": 1,
+      "verification": "visual_and_manual"
+    },
+    {
+      "id": "debug",
+      "title": "Find the bug",
+      "goal": "A partner moves the signal wire from D2 to D3 (the sketch still reads D2). Learner finds that the code and the wiring disagree and fixes it.",
+      "intro_display": "I changed something. Find the bug!",
+      "intro_spoken": "Ask your partner to move one wire while you look away. Then find out why the board no longer reacts, even though the sensor LED still lights.",
+      "visual_success_criteria": "The signal wire is visible and on pin D2 again after the fix.",
+      "hint_levels": [
+        "The sensor LED still works. So power is fine.",
+        "Which pin does the sketch read? Which one is wired?",
+        "The signal wire must go to D2, like in the code."
+      ],
+      "check_question": "Why did the board stop reacting?",
+      "expected_concepts": [["pin", "d2", "d3", "wrong", "falsch", "moved", "anderen", "other"], ["signal", "out", "code", "sketch", "read", "liest"]],
+      "min_concepts": 1,
+      "verification": "question"
+    },
+    {
+      "id": "explain",
+      "title": "Explain it back",
+      "goal": "Learner explains the full chain: IR light reflects off the hand, the sensor pulls OUT LOW (active low), the board reads D2 and switches its LED.",
+      "intro_display": "Explain how your detector works.",
+      "intro_spoken": "Last step. In your own words: what happens from your hand to the light on the board?",
+      "visual_success_criteria": "",
+      "hint_levels": [
+        "Start with the light the sensor sends out.",
+        "What happens to the OUT signal near a hand?",
+        "Reflection, OUT goes LOW, board reads D2, LED on."
+      ],
+      "check_question": "How does your hand turn the LED on?",
+      "expected_concepts": [["infrared", "ir", "light", "licht", "reflect", "reflekt"], ["low", "signal", "out", "0", "changes", "ändert"], ["d2", "pin", "read", "code", "sketch", "board", "arduino"]],
+      "min_concepts": 2,
+      "verification": "question"
+    }
+  ]
+}

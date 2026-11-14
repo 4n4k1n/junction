@@ -10,7 +10,9 @@ GET  /                            browser test console (no glasses needed)
 """
 from __future__ import annotations
 
+import io
 import logging
+import os
 import time
 import uuid
 from pathlib import Path
@@ -20,7 +22,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from . import engine
-from .lessons import get_lesson
+from .lessons import all_lessons, get_lesson
 from .models import (
     ConfirmRequest, CreateSessionRequest, InteractionType, Lesson, SessionState, TutorResponse,
 )
@@ -45,6 +47,28 @@ def _warmup() -> None:
         threading.Thread(target=tutor.claude.warmup, daemon=True).start()
 
 
+MAX_IMAGE_SIDE = int(os.getenv("LEARNLENS_MAX_IMAGE_SIDE", "1024"))
+
+
+def downscale(data: bytes, media_type: str):
+    """Shrink phone photos (e.g. 3000 px) before they go to the model: big latency win."""
+    try:
+        from PIL import Image, ImageOps
+    except ImportError:
+        return data, media_type
+    try:
+        im = ImageOps.exif_transpose(Image.open(io.BytesIO(data)))
+        if max(im.size) <= MAX_IMAGE_SIDE and len(data) < 400_000:
+            return data, media_type
+        im.thumbnail((MAX_IMAGE_SIDE, MAX_IMAGE_SIDE))
+        out = io.BytesIO()
+        im.convert("RGB").save(out, format="JPEG", quality=85)
+        return out.getvalue(), "image/jpeg"
+    except Exception as e:
+        log.warning("could not downscale image: %s", e)
+        return data, media_type
+
+
 def _load(session_id: str) -> SessionState:
     s = store.load(session_id)
     if s is None:
@@ -55,6 +79,11 @@ def _load(session_id: str) -> SessionState:
 @app.get("/health")
 def health():
     return {"ok": True, "tutor": "claude" if tutor.claude else "mock"}
+
+
+@app.get("/lessons")
+def lessons():
+    return [{"lesson_id": l.lesson_id, "title": l.title} for l in all_lessons().values()]
 
 
 @app.get("/lessons/{lesson_id}", response_model=Lesson)
@@ -112,6 +141,7 @@ async def interact(
             raise HTTPException(413, "image larger than 5 MB – downscale on the phone")
         if interaction_type != InteractionType.photo:
             interaction_type = InteractionType.photo
+        img_bytes, media_type = downscale(img_bytes, media_type)
 
     t0 = time.perf_counter()
     decision, source = tutor.decide(lesson_, s, interaction_type, user_message, img_bytes, media_type)
