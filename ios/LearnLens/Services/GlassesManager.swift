@@ -52,6 +52,8 @@ final class GlassesManager {
   @ObservationIgnored private var selector: any DeviceSelector
   @ObservationIgnored private var display: Display?
   @ObservationIgnored private var currentCard: FlexBox?
+  @ObservationIgnored private var cardNeedsSending = false
+  @ObservationIgnored private var cardSender: Task<Void, Never>?
   @ObservationIgnored private var displayStateToken: (any AnyListenerToken)?
   @ObservationIgnored private var linkStateTokens: [any AnyListenerToken] = []
   @ObservationIgnored private var registrationTask: Task<Void, Never>?
@@ -277,14 +279,33 @@ final class GlassesManager {
   }
 
   /// Draws a card on the glasses. Before the display is ready the card is kept and drawn on connect.
+  ///
+  /// Returns at once: the app's flow never waits for the glasses. Cards are sent one at a time in the
+  /// background, and when several arrive while one is still being sent, only the newest is drawn.
   func show(_ card: FlexBox) async {
     currentCard = card
-    guard let display, isDisplayReady else { return }
-    do {
-      try await display.send(card)
-    } catch {
-      errorMessage = (error as? DisplayError)?.description ?? error.localizedDescription
+    cardNeedsSending = true
+    guard display != nil, isDisplayReady, cardSender == nil else { return }
+    cardSender = Task { [weak self] in
+      await self?.sendCards()
     }
+  }
+
+  private func sendCards() async {
+    while cardNeedsSending, let display, isDisplayReady, let card = currentCard {
+      cardNeedsSending = false
+      let started = ContinuousClock.now
+      do {
+        try await display.send(card)
+      } catch {
+        errorMessage = (error as? DisplayError)?.description ?? error.localizedDescription
+      }
+      let took = ContinuousClock.now - started
+      if took > .seconds(2) {
+        NSLog("[LearnLens] the glasses took \(took) to accept a card")
+      }
+    }
+    cardSender = nil
   }
 
   /// Stop Display first, then the session (teardown cascades parent to child, not the reverse).
@@ -319,6 +340,8 @@ final class GlassesManager {
     session = nil
     isDisplayReady = false
     isConnecting = false
+    cardSender?.cancel()
+    cardSender = nil
   }
 
   // MARK: - Simulated glasses (MockDeviceKit)

@@ -87,6 +87,13 @@ final class GlassesSpeechService {
     onFinal = nil
   }
 
+  /// Stops listening without delivering anything (the flow moved on).
+  func cancel() {
+    onFinal = nil
+    transcript = ""
+    finish()
+  }
+
   private func handle(_ result: TranscriptionResult) {
     guard isListening else { return }
     transcript = result.text

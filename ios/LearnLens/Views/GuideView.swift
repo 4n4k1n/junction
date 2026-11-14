@@ -171,8 +171,10 @@ struct GuideView: View {
         if let question = model.extensionQuestion {
           Text(question).font(.title3)  // the backend needs to know what the new part should do
           // No idea yet? Example answers; tapping one continues with it.
-          ForEach(model.extensionIdeas.indices, id: \.self) { index in
-            Button(model.extensionIdeas[index]) { Task { await model.chooseIdea(index) } }
+          // Iterates over the values, not the indices: the list is emptied when an idea is chosen, and
+          // a row that still looked up its old index would crash the app.
+          ForEach(Array(model.extensionIdeas.enumerated()), id: \.offset) { index, idea in
+            Button(idea) { Task { await model.chooseIdea(index) } }
           }
         }
         TextField(model.extensionQuestion == nil ? "Add a part or change what it does" : "Your answer",
@@ -239,8 +241,7 @@ struct GuideView: View {
     Section("Confirm your parts") {
       if let guide = model.guide {
         // What the vision model thinks it saw: a suggestion, shown with its confidence.
-        ForEach(guide.detectedComponents.indices, id: \.self) { index in
-          let part = guide.detectedComponents[index]
+        ForEach(Array(guide.detectedComponents.enumerated()), id: \.offset) { _, part in
           VStack(alignment: .leading, spacing: 2) {
             Text("\(part.label) · \(Int(part.confidence * 100))%").font(.footnote)
             Text(part.evidence).font(.caption2).foregroundStyle(.secondary)

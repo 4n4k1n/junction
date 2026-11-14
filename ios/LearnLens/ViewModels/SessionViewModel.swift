@@ -88,6 +88,7 @@ final class SessionViewModel {
 
   @ObservationIgnored private let camera: CameraService
   @ObservationIgnored private var pollTask: Task<Void, Never>?
+  @ObservationIgnored private var phoneSpeechTimeout: Task<Void, Never>?
 
   init(wearables: any WearablesInterface) {
     self.glasses = GlassesManager(wearables: wearables)
@@ -154,10 +155,28 @@ final class SessionViewModel {
       }
     }
     await speech.start()
+    // The phone microphone does not end by itself: stop after a while, like the glasses do.
+    phoneSpeechTimeout?.cancel()
+    phoneSpeechTimeout = Task { [weak self] in
+      try? await Task.sleep(for: .seconds(15))
+      guard let self, !Task.isCancelled, self.speech.isRecording else { return }
+      await self.finishVoiceInput()
+    }
     await pushCard()
   }
 
+  /// Ends any voice input without using what was heard. Called when the flow moves on, so a
+  /// recording that was never finished cannot linger into later steps.
+  private func stopListening() {
+    phoneSpeechTimeout?.cancel()
+    phoneSpeechTimeout = nil
+    glassesSpeech.cancel()
+    if speech.isRecording { speech.stop() }
+  }
+
   func finishVoiceInput() async {
+    phoneSpeechTimeout?.cancel()
+    phoneSpeechTimeout = nil
     if glassesSpeech.isListening {
       glassesSpeech.finish()
     } else {
@@ -587,6 +606,9 @@ final class SessionViewModel {
   // MARK: - Glasses card
 
   private func setFlow(_ newFlow: SessionPhase) async {
+    if newFlow != flow, isListening {
+      stopListening()
+    }
     flow = newFlow
     await pushCard()
   }
