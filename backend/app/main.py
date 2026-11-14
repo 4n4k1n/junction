@@ -38,6 +38,13 @@ store = Store()
 tutor = Tutor()
 
 
+@app.on_event("startup")
+def _warmup() -> None:
+    if tutor.claude is not None:
+        import threading
+        threading.Thread(target=tutor.claude.warmup, daemon=True).start()
+
+
 def _load(session_id: str) -> SessionState:
     s = store.load(session_id)
     if s is None:

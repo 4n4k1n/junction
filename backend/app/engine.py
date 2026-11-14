@@ -152,7 +152,8 @@ def apply_decision(
         action = TutorAction.ask_question
         display = step.check_question
         spoken = decision.spoken_text or ""
-        if step.check_question.lower().rstrip("?") not in spoken.lower():
+        # Only append the check question if the tutor didn't already ask one (any wording).
+        if "?" not in spoken:
             spoken = (spoken + " " + step.check_question).strip()
 
     if gate_open:

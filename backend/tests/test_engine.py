@@ -56,6 +56,16 @@ def test_verified_photo_triggers_check_question():
     assert s.visual_ok and s.question_pending
     assert r.action == TutorAction.ask_question
     assert r.display_text == LESSON.steps[0].check_question
+    assert r.spoken_text == "Nice. " + LESSON.steps[0].check_question
+
+
+def test_check_question_not_repeated_when_tutor_already_asked():
+    s = new_session()
+    r = engine.apply_decision(LESSON, s, InteractionType.photo, "",
+                              d(action=TutorAction.ask_question, confidence=0.9,
+                                verification_status=VerificationStatus.verified,
+                                spoken_text="I see it all. Which leg goes to plus?"), "llm")
+    assert r.spoken_text.count("?") == 1
 
 
 def test_hint_requests_escalate_and_cap():

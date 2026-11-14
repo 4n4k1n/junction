@@ -147,6 +147,16 @@ class ClaudeTutor:
         text = next(b.text for b in response.content if b.type == "text")
         return TutorDecision.model_validate(json.loads(text))
 
+    def warmup(self) -> None:
+        """Open the connection and wake the model/proxy so the first real hint isn't slow."""
+        try:
+            self.client.messages.create(model=MODEL, max_tokens=64,
+                                        output_config={"effort": "low"},
+                                        messages=[{"role": "user", "content": "ok"}])
+            log.info("LLM warmup done")
+        except Exception as e:
+            log.warning("LLM warmup failed: %s", e)
+
 
 class Tutor:
     """Facade: try Claude, fall back to the mock. Returns (decision, source)."""
