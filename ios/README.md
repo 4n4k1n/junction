@@ -62,7 +62,9 @@ UI states: Disconnected, Connected, Capturing, Analyzing, Confirm your parts, Gu
 Awaiting approval, Deploying, Testing, Success, Error. "Confirm your parts" was added because the
 backend holds the wiring plan back until the user has checked the physical parts.
 
-The whole flow can be driven from the glasses: **Speak** (say the goal), **Photo & start**, **Yes** for
+The whole flow can be driven from the glasses: **Speak** (say the goal), **Hardware** or **Software**
+(software projects are answered with "not supported yet"), **Take photo** (the glasses ask for a photo of
+the components), **Yes** for
 the part questions, **Done, next** for each wiring step, **Start flash**, and **Yes** after testing.
 
 Flashing always needs an explicit approval. It can be given on the glasses ("Start flash" button on
