@@ -66,8 +66,9 @@ The whole flow can be driven from the glasses: **Speak** (say the goal), **Take 
 photo of the components), **Yes** for
 the part questions, **Done, next** for each wiring step, **Start flash**, and **Yes** after testing.
 
-During wiring every step card has an **Ask** button: say a question ("Can I use the 5V pin instead?")
-and the answer appears on the glasses, then **Back to step**. Answers come from the wiring plan and the
+During wiring every step card has three buttons: **Back** (look at the previous step again, nothing is
+undone), **Next** (selected by default) and **Ask**. Ask listens for a question ("Can I use the 5V pin
+instead?") while the step stays on screen; the answer then appears with **Back to step**. Answers come from the wiring plan and the
 verified hardware facts.
 
 After **Success** the glasses offer **Add or change**: say what to add (a known part) or how the build

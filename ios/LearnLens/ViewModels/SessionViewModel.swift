@@ -104,12 +104,16 @@ final class SessionViewModel {
   }
 
   var isIdle: Bool { flow == .connected }
-  var stepIndex: Int { guide?.currentStep ?? 0 }
+  /// The step on screen. "Back" looks at earlier steps without undoing them (`stepsBack` > 0).
+  var stepIndex: Int { max((guide?.currentStep ?? 0) - stepsBack, 0) }
+  private(set) var stepsBack = 0
+  var isLookingBack: Bool { stepsBack > 0 }
+  var canGoBack: Bool { stepIndex > 0 }
   var currentStep: WiringStep? {
     guard let steps = guide?.wiringSteps, steps.indices.contains(stepIndex) else { return nil }
     return steps[stepIndex]
   }
-  var isLastStep: Bool { stepIndex >= (guide?.wiringSteps.count ?? 0) - 1 }
+  var isLastStep: Bool { !isLookingBack && stepIndex >= (guide?.wiringSteps.count ?? 0) - 1 }
   var pendingConfirmation: PendingConfirmation? { guide?.pendingConfirmations.first }
   var isDemoMode: Bool { backendInfo?.demoMode == true }
   /// True when the upload was simulated by an agent in --mock mode: no board was flashed.
@@ -172,6 +176,14 @@ final class SessionViewModel {
     } else {
       goal = text
     }
+  }
+
+  /// Shows the previous step again. Nothing is undone; "Next" comes back to the open step.
+  func back() async {
+    guard flow == .guiding, canGoBack else { return }
+    stepAnswer = nil
+    stepsBack += 1
+    await pushCard()
   }
 
   // MARK: - Questions during the build
@@ -300,6 +312,7 @@ final class SessionViewModel {
 
   /// Moves the UI to wherever the backend's session state machine is.
   private func apply(_ status: GuideStatus) async {
+    if status.currentStep != guide?.currentStep { stepsBack = 0 }  // a new open step: show it
     guide = status
     switch status.state {
     case .awaitingAnalysis:
@@ -403,6 +416,12 @@ final class SessionViewModel {
   func next() async {
     guard flow == .guiding, let guide, let index = guide.currentStep else { return }
     stepAnswer = nil
+    if stepsBack > 0 {
+      // Moving forward again through steps that are already confirmed.
+      stepsBack -= 1
+      await pushCard()
+      return
+    }
     do {
       await apply(try await api.confirmStep(guide.sessionId, index: index, confirmed: true))
     } catch {
@@ -555,6 +574,7 @@ final class SessionViewModel {
     extensionText = ""
     awaitingPartPhoto = false
     stepAnswer = nil
+    stepsBack = 0
     questionText = ""
     extensionQuestion = nil
     extensionIdeas = []
@@ -638,17 +658,6 @@ final class SessionViewModel {
       guard let guide, let step = currentStep else {
         return GlassesCards.card(caption: "Guiding", text: "No wiring steps.")
       }
-      // A question about the step: listen, think, answer, then back to the step.
-      if isListening {
-        return GlassesCards.card(
-          caption: "Listening…",
-          text: "Ask your question about this step.",
-          primary: action("Done") { await $0.finishVoiceInput() }
-        )
-      }
-      if isAnswering {
-        return GlassesCards.card(caption: "Question", text: "Thinking…")
-      }
       if let stepAnswer {
         return GlassesCards.card(
           caption: "Answer",
@@ -657,11 +666,18 @@ final class SessionViewModel {
           secondary: action("Ask again") { await $0.startVoiceInput() }
         )
       }
+      // The step stays on screen while a question is heard and answered; only the caption changes.
+      // Next is the default; Back looks at earlier steps; Ask takes a question about this step.
+      let position = "Step \(stepIndex + 1) of \(guide.wiringSteps.count)"
+      let caption = isListening ? "Listening… ask your question" : isAnswering ? "Thinking…" : demo + position
       return GlassesCards.card(
-        caption: demo + "Step \(stepIndex + 1) of \(guide.wiringSteps.count)",
+        caption: caption,
         text: step.displayText,
-        primary: action(isLastStep ? "Wiring done" : "Done, next") { await $0.next() },
-        secondary: action("Ask") { await $0.startVoiceInput() }
+        primary: action(isLastStep ? "Wiring done" : "Next") { await $0.next() },
+        secondary: canGoBack ? action("Back") { await $0.back() } : nil,
+        tertiary: isListening
+          ? action("Done") { await $0.finishVoiceInput() }
+          : action("Ask") { await $0.startVoiceInput() }
       )
     case .generating:
       return GlassesCards.card(caption: demo + "Generating", text: (generationStage ?? "Starting") + "…")

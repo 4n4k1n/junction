@@ -14,13 +14,15 @@ struct CardAction: Sendable {
 }
 
 enum GlassesCards {
-  /// One instruction card: a small caption, the instruction, and up to two buttons.
+  /// One instruction card: a small caption, the instruction, and up to three buttons in the order
+  /// secondary, primary, tertiary. The primary one has the focus when the card appears.
   /// Each send replaces the previous card and its button handlers.
   static func card(
     caption: String,
     text: String,
     primary: CardAction? = nil,
-    secondary: CardAction? = nil
+    secondary: CardAction? = nil,
+    tertiary: CardAction? = nil
   ) -> FlexBox {
     FlexBox(direction: .column, spacing: 12) {
       FlexBox(direction: .column, spacing: 4) {
@@ -49,6 +51,14 @@ enum GlassesCards {
                 onClick: primary.handler
               )
               .actionRole(.primary)
+            }
+            if let tertiary {
+              Button(
+                label: tertiary.label,
+                style: .secondary,
+                iconName: tertiary.icon,
+                onClick: tertiary.handler
+              )
             }
           }
         }

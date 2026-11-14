@@ -289,7 +289,11 @@ struct GuideView: View {
           }
         }
       }
-      Button(model.isLastStep ? "I did this. Wiring done" : "I did this. Next") { Task { await model.next() } }
+      Button(model.isLookingBack ? "Next" : model.isLastStep ? "I did this. Wiring done" : "I did this. Next") {
+        Task { await model.next() }
+      }
+      Button("Back") { Task { await model.back() } }
+        .disabled(!model.canGoBack)
 
       // A question about this step, answered from the wiring plan and the verified facts.
       TextField("Ask a question about this step", text: $model.questionText, axis: .vertical)
