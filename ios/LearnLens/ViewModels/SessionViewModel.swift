@@ -62,6 +62,8 @@ final class SessionViewModel {
   private(set) var generation: GenerationResult?
   /// Why the last upload failed. Shown next to the approve button, which doubles as "retry".
   private(set) var deployError: String?
+  /// True until the user has read the "how it works" card that precedes the upload approval.
+  private var showingHowItWorks = false
   private(set) var build: Build?
 
   /// What the flow is doing. `.connected` here means "idle"; `phase` folds in the glasses link.
@@ -273,6 +275,7 @@ final class SessionViewModel {
     do {
       let result = try await api.generate(guide.sessionId, sensorActiveLevel: sensorActiveLevel)
       generation = result
+      showingHowItWorks = true
       build = try await api.getBuild(result.buildId)
       await setFlow(.awaitingApproval)
     } catch {
@@ -292,6 +295,7 @@ final class SessionViewModel {
   func approve() async {
     guard flow == .awaitingApproval, let build, let sketch = build.sketch else { return }
     deployError = nil
+    showingHowItWorks = false
     do {
       self.build = try await api.approve(build.buildId, sketchSHA256: sketch.sha256)
       await setFlow(.deploying)
@@ -299,6 +303,12 @@ final class SessionViewModel {
     } catch {
       await fail(error.localizedDescription)
     }
+  }
+
+  /// Leaves the "how it works" card and shows the upload approval.
+  func continueToApproval() async {
+    showingHowItWorks = false
+    await pushCard()
   }
 
   func reject() async {
@@ -451,6 +461,13 @@ final class SessionViewModel {
     case .awaitingApproval:
       // Flashing still needs an explicit yes, but it can be given on the glasses. The code itself
       // stays readable on the phone for anyone who wants to check it first.
+      if showingHowItWorks, deployError == nil, let summary = generation?.displaySummary, !summary.isEmpty {
+        return GlassesCards.card(
+          caption: demo + "How it works",
+          text: summary,
+          primary: action("Continue") { await $0.continueToApproval() }
+        )
+      }
       let compiled = generation?.compile.status == "ok" ? "Code is ready and compiled." : "Code is ready (not compiled)."
       return GlassesCards.card(
         caption: demo + (deployError == nil ? "Approve upload" : "Upload failed"),

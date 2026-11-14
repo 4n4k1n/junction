@@ -270,6 +270,7 @@ class GeneratedSketch(BaseModel):
     """What the model must return (and what the template returns)."""
     source_code: str = Field(min_length=1)
     explanation: str
+    display_summary: str = ""  # one or two short sentences for the glasses display
     assumptions: List[str]
     expected_serial_events: List[SerialEvent]
 
@@ -315,6 +316,7 @@ class GenerationResult(BaseModel):
     source: str           # llm | template
     sketch: Sketch
     explanation: str
+    display_summary: str  # how the build works, short enough for the glasses display
     assumptions: List[str]
     expected_serial_events: List[SerialEvent]
     parameters: dict

@@ -77,7 +77,8 @@ def test_prompt_is_built_from_the_plan_and_hardware_database():
         assert needed in task, needed
     assert "not a classic Arduino UNO" in req["system"][0]["text"]
     schema = req["output_config"]["format"]["schema"]
-    assert schema["required"] == ["source_code", "explanation", "assumptions", "expected_serial_events"]
+    assert schema["required"] == ["source_code", "explanation", "display_summary", "assumptions",
+                                  "expected_serial_events"]
     assert schema["additionalProperties"] is False
 
 
@@ -91,6 +92,11 @@ def test_generated_sketch_is_checked_saved_and_waits_for_approval():
     assert g["sketch"]["code"] == CODE and g["sketch"]["provenance"] == "llm"
     assert [e["event"] for e in g["expected_serial_events"]] == ["READY", "SOUND_DETECTED", "LED_ON", "LED_OFF"]
     assert g["explanation"] and g["assumptions"]
+    # The canned answer has no display_summary: the first two sentences of the explanation are used.
+    assert g["display_summary"] == ("The sketch watches the sound sensor on pin D2. When the signal switches to its "
+                                    "active level, it flips the built-in LED and prints what happened.")
+    long = codegen.GeneratedSketch.model_validate(dict(GOOD, display_summary="word " * 100))
+    assert len(codegen.display_summary(long)) <= 180 and codegen.display_summary(long).endswith("…")
     assert g["parameters"] == {"SENSOR_ACTIVE_LEVEL": "HIGH", "DEBOUNCE_MS": 300, "sensor_pin": "D2",
                                "led": "LED_BUILTIN", "led_on_level": "LOW", "fqbn": "arduino:zephyr:unoq"}
     assert g["flashed"] is False and g["hardware_verified"] is False

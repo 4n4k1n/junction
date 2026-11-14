@@ -1,6 +1,6 @@
 {
-  "session_id": "034f8cfabfdb",
-  "build_id": "d30300b9409a",
+  "session_id": "60338f699cdf",
+  "build_id": "8840eb968a1f",
   "source": "template",
   "sketch": {
     "filename": "learnlens_sketch.ino",
@@ -9,6 +9,7 @@
     "provenance": "rules"
   },
   "explanation": "The sketch reads the sensor's digital output on D2 every pass through loop(). Each new sound event flips the LED. It reacts only to the moment the signal becomes active and then ignores further events for 300 ms, so one clap counts once. Status lines are printed through Monitor.",
+  "display_summary": "Each clap flips the board's LED. After a clap the sensor is ignored briefly, so one clap counts once.",
   "assumptions": [
     "The sensor's DO pin is HIGH while it reports sound. If the LED reacts to silence instead, regenerate with the other sensor_active_level.",
     "The sensor's trim potentiometer is set so that DO is inactive in a quiet room.",

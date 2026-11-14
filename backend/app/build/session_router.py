@@ -233,7 +233,8 @@ def generate(session_id: str, req: Optional[GenerateRequest] = None):
     _say(s, "Code ready. Review it on your phone", "The code is ready. Review and approve it on your phone.")
     return GenerationResult(
         session_id=s.session_id, build_id=build.build_id, source=source, sketch=sketch,
-        explanation=generated.explanation, assumptions=generated.assumptions,
+        explanation=generated.explanation, display_summary=codegen.display_summary(generated),
+        assumptions=generated.assumptions,
         expected_serial_events=generated.expected_serial_events,
         parameters=({"SAMPLE_WINDOW_MS": ctx.sample_window_ms, "sensor_pin": ctx.sensor_pin, "output": ctx.output,
                      "fqbn": ctx.fqbn} if ctx.signal_kind == "analog" else

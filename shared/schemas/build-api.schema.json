@@ -649,6 +649,10 @@
         "compile": {
           "$ref": "#/$defs/CompileReport"
         },
+        "display_summary": {
+          "title": "Display Summary",
+          "type": "string"
+        },
         "expected_serial_events": {
           "items": {
             "$ref": "#/$defs/SerialEvent"
@@ -703,6 +707,7 @@
         "source",
         "sketch",
         "explanation",
+        "display_summary",
         "assumptions",
         "expected_serial_events",
         "parameters",

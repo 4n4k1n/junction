@@ -43,6 +43,7 @@ SKETCH_SCHEMA = {
     "properties": {
         "source_code": {"type": "string"},
         "explanation": {"type": "string"},
+        "display_summary": {"type": "string"},
         "assumptions": {"type": "array", "items": {"type": "string"}},
         "expected_serial_events": {
             "type": "array",
@@ -54,7 +55,7 @@ SKETCH_SCHEMA = {
             },
         },
     },
-    "required": ["source_code", "explanation", "assumptions", "expected_serial_events"],
+    "required": ["source_code", "explanation", "display_summary", "assumptions", "expected_serial_events"],
     "additionalProperties": False,
 }
 
@@ -73,6 +74,8 @@ The request lists what the static analyzer rejects for this project. Each rule e
 thing it forbids either touches hardware outside the wiring plan or can hang the board.
 
 Return source_code (the complete .ino file), explanation (3-5 sentences a beginner can follow),
+display_summary (how the finished build behaves and why, in at most 2 short sentences and under 160
+characters, shown on the glasses right before the upload),
 assumptions (each thing that must be true about the hardware for the sketch to work), and
 expected_serial_events (each log line and when it appears)."""
 
@@ -261,6 +264,8 @@ void loop() {{
 """
     return GeneratedSketch(
         source_code=code,
+        display_summary="Each clap flips the board's LED. After a clap the sensor is ignored briefly, so one "
+                        "clap counts once.",
         explanation=(f"The sketch reads the sensor's digital output on {ctx.sensor_pin} every pass through loop(). "
                      f"{does} It reacts only to the moment the signal becomes active and then ignores further "
                      f"events for {ctx.debounce_ms} ms, so one clap counts once. Status lines are printed through "
@@ -352,6 +357,8 @@ void loop() {{
 """
     return GeneratedSketch(
         source_code=code,
+        display_summary="The microphone's signal is measured many times a second. The louder it is, the more "
+                        "columns of the LED matrix light up.",
         explanation=(f"The sketch reads the microphone's analog output on {ctx.sensor_pin} many times during a short "
                      f"window of {ctx.sample_window_ms} ms and takes the difference between the highest and lowest "
                      "reading as the loudness. It keeps track of the quietest and loudest values it has seen and "
@@ -364,6 +371,15 @@ void loop() {{
             f"The READY line is visible only where {ctx.log_object} output is shown (App Lab or IDE console).",
         ],
         expected_serial_events=[SerialEvent(event="READY", when="once after power-up, when setup() has finished")])
+
+
+def display_summary(sketch: GeneratedSketch, limit: int = 180) -> str:
+    """The short text for the glasses: the model's summary, or the start of its explanation."""
+    text = " ".join((sketch.display_summary or "").split())
+    if not text:
+        sentences = re.split(r"(?<=[.!?])\s+", " ".join(sketch.explanation.split()))
+        text = " ".join(sentences[:2])
+    return text if len(text) <= limit else text[:limit - 1].rsplit(" ", 1)[0] + "…"
 
 
 def check_response(sketch: GeneratedSketch, ctx: CodegenContext) -> List[CodeIssue]:

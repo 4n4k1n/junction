@@ -167,6 +167,7 @@ struct GenerationResult: Decodable, Sendable {
   let buildId: String
   let source: String  // llm | template
   let explanation: String
+  let displaySummary: String   // short version for the glasses display
   let assumptions: [String]
   let expectedSerialEvents: [SerialEvent]
   let repairsUsed: Int
