@@ -14,10 +14,14 @@ After a finished build the glasses offer three ways on:
   gets its own confirmation and wiring steps, then the sketch is regenerated for all parts.
 - **Build something new**: back to the question, with a new session.
 
-Offered projects are Pong and Snake. The hardware database knows the whole 41-part KY sensor kit; 22
-of those parts can be added to a build, the others are refused with the reason. The earlier projects
-(sound level meter, clap-activated light) are still in the code and its tests:
-`LEARNLENS_OFFERED_PROJECTS=pong,snake,level_meter` offers the level meter again.
+Any wish works that the known parts can do with the board's LED matrix and LED as outputs: Claude
+proposes up to three buildable parts and what the build should do ("a Breakout game", "a light meter",
+"a reaction game with the button"), the planner wires them from the hardware database, and Claude
+writes the sketch. Pong, Snake and the sound level meter (KY-037 microphone on A0) also have a
+prevalidated sketch, so they work without the AI service and in demo mode; everything else needs it
+(`LEARNLENS_FREE_PROJECTS=0` switches free projects off). The hardware database knows the whole
+41-part KY sensor kit; 22 of those parts can be built with, the others are refused with the reason. `LEARNLENS_OFFERED_PROJECTS` (default `pong,snake,level_meter`) chooses
+what is offered; the clap-activated light (`toggle_on_event`) is still in the code and its tests.
 
 ```
 Glasses ── iOS app ──HTTP──▶ Backend (FastAPI) ◀──polls── Deploy agent (Mac) ──USB──▶ Arduino UNO Q ── KY-037

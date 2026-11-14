@@ -195,3 +195,120 @@ def test_every_prevalidated_game_sketch_passes_the_static_checks(game, with_rese
         monkeypatch.setattr(codegen, "PROJECTS_DIR", tmp_path)
         report = compiler.ArduinoCliCompiler().compile(codegen.save_project("abc123", 0, sketch, ctx), ctx.fqbn)
         assert report.status == CompileStatus.ok, report.log[-1500:]
+
+
+JPEG = {"image": ("part.jpg", b"\xff\xd8\xff\xe0 not a real photo", "image/jpeg")}
+SEEN_IR = {"components": [{"component_id": "ky-032", "label": "board with two LEDs at the front", "confidence": 0.9,
+                           "evidence": "two LEDs, two trim pots"}],
+           "project": {"title": "x", "summary": "x", "behavior": "unsupported", "input_component": "none",
+                       "unsupported_reason": "", "game": "none"}}
+
+
+def test_a_photo_of_the_new_part_says_which_part_this_sensor_is():
+    sid, _ = built()
+    fake = example.use_fake_ai(SEEN_IR, {"kind": "add_part", "component_id": "ky-032", "reason": "", "ideas": [],
+                                         "needs_purpose": False, "behavior": "Pong; a hand restarts the game."})
+    s = post(f"/sessions/{sid}/analyze", data={"purpose": "part"}, files=JPEG)
+    assert s["state"] == "code_generated" and [d["component_id"] for d in s["detected_components"]] == ["ky-032"]
+    assert s["project"]["components"] == ["uno-q", "ky-023"]                      # a photo adds nothing by itself
+    s = extend(sid, "I want to add that sensor so the game restarts when my hand is over it")
+    asked = fake.requests[1]["messages"][0]["content"][0]["text"]
+    assert "A PHOTO OF THE PART THEY WANT TO ADD WAS TAKEN" in asked and "ky-032 (KY-032 infrared obstacle sensor)" in asked
+    assert s["state"] == "needs_confirmation" and s["project"]["game"] == "pong"
+    assert [p["id"] for p in s["pending_confirmations"]] == ["ky032-pin-labels"]   # seen in the photo; labels still asked
+    assert sid not in session_router.part_seen                                    # used once
+
+
+def test_without_a_named_or_photographed_part_the_user_is_asked_to_name_it():
+    sid, _ = built()
+    post(f"/sessions/{sid}/analyze", data={"purpose": "part"}, files=JPEG)        # no AI: the photo shows nothing
+    s = extend(sid, "I want to add that sensor")
+    assert "could not tell which part" in s["extension_problem"] and s["state"] == "code_generated"
+    post(f"/sessions/{sid}/analyze", expect=422, data={"purpose": "part"})        # a part photo needs a photo
+
+
+def test_a_pause_request_is_not_turned_into_a_restart():
+    sid, _ = built()
+    example.use_fake_codegen()
+    example.use_fake_ai({"kind": "add_part", "component_id": "ky-032", "reason": "", "needs_purpose": False, "ideas": [],
+                         "behavior": "Pong as before; a miss starts a new game. The game pauses while a hand is near."})
+    s = extend(sid, "add the infrared sensor. Pause the game while a hand is in front of the sensor")
+    assert s["state"] == "needs_confirmation" and s["project"]["game"] == ""       # free-form: written by Claude
+    assert s["project"]["custom_behavior"].endswith("The game pauses while a hand is near.")
+
+
+def test_the_sound_level_meter_is_offered_next_to_the_games(monkeypatch):
+    monkeypatch.delenv("LEARNLENS_OFFERED_PROJECTS")
+    _, s = start("I want to build a sound level meter")
+    assert s["state"] == "needs_confirmation" and s["project"]["behavior"] == "level_meter"
+    assert s["parts_needed"] == ["Arduino UNO Q", "KY-037 microphone sound sensor"]
+    assert start()[1]["project"]["game"] == "pong"
+    _, s = start("a weather station")
+    assert "Pong or Snake with the joystick, or a sound level meter" in s["project"]["unsupported_reason"]
+
+
+def proposal(parts, what="Show the brightness as a bar on the LED matrix. A button press clears it.", **more):
+    return {"components": [], "project": dict({
+        "title": "Light meter", "summary": "Shows how bright it is.", "behavior": "unsupported",
+        "input_component": "none", "unsupported_reason": "", "game": "none", "parts": parts, "what": what}, **more)}
+
+
+def test_any_wish_becomes_a_project_from_known_parts_planned_by_rules():
+    fake = example.use_fake_ai(proposal(["ky-018", "ky-004"]))
+    sid, s = start("a light meter I can clear with a button")
+    asked = fake.requests[0]["messages"][0]["content"][0]["text"]
+    assert "BUILDABLE PARTS:" in asked and "ky-018 (KY-018 photoresistor): senses brightness" in asked
+    assert "KY-019 relay: It needs 5 volts" in asked                             # so it can say why something is impossible
+    enum = fake.requests[0]["output_config"]["format"]["schema"]["properties"]["project"]["properties"]["parts"]["items"]["enum"]
+    assert "ky-018" in enum and "ky-019" not in enum and "uno-q" not in enum
+    assert s["state"] == "needs_confirmation" and s["project"]["behavior"] == "custom" and s["project"]["game"] == ""
+    assert s["parts_needed"] == ["Arduino UNO Q", "KY-018 photoresistor", "KY-004 button"]
+    assert s["project"]["custom_behavior"].startswith("Show the brightness as a bar")
+
+    inventory = ('[{"component_id": "uno-q"}, {"component_id": "ky-018", "confirmations": ["ky018-pin-labels"]},'
+                 ' {"component_id": "ky-004", "confirmations": ["ky004-pin-labels"]}]')
+    s = post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": inventory})
+    assert s["state"] == "wiring" and s["safety_problems"] == []
+    assert [w["connection"]["to_pin"]["pin"] for w in s["wiring_steps"]] == ["GND", "3V3", "A0", "GND", "3V3", "D2"]
+    assert "(shared)" in s["wiring_steps"][4]["display_text"]
+
+    written = dict(example.CANNED_SKETCH, source_code=codegen.template_sketch(
+        codegen.build_context(*spec_for("pong"))).source_code.replace("A1", "A0").replace(
+        "void loop() {", "const int BUTTON = 2;\nvoid loop() {\n  pinMode(BUTTON, INPUT);\n  digitalRead(BUTTON);"))
+    code = example.use_fake_codegen(written, written, written)
+    for i in range(6):
+        post(f"/sessions/{sid}/confirm-step", json={"step_index": i})
+    r = client.post(f"/sessions/{sid}/generate")
+    task = code.requests[0]["messages"][0]["content"]
+    task = task if isinstance(task, str) else task[0]["text"]
+    assert "WHAT THE BUILD MUST DO:\nShow the brightness as a bar" in task and "A new build" in task
+    assert "KY-018 photoresistor, analog output on header A0" in task and "KY-004 button, digital output on header D2" in task
+    assert r.status_code == 200 and r.json()["source"] == "llm", r.text
+
+
+def test_a_free_project_cannot_bring_in_parts_or_pins_the_database_does_not_allow():
+    example.use_fake_ai(proposal(["ky-019"]), proposal(["ky-004", "ky-017", "ky-020", "ky-021"]),
+                        proposal(["ky-040", "ky-004", "ky-017"]), proposal(["esp32"]), proposal([], what=""))
+    _, s = start("switch a lamp")                                     # a part that is known but not buildable
+    assert s["state"] == "unsupported" and s["project"]["unsupported_reason"] == facts.catalog()["ky-019"]["not_buildable"]
+    _, s = start("four switches")
+    assert s["state"] == "unsupported" and "more than 3 parts" in s["project"]["unsupported_reason"]
+    sid, s = start("knob, button and tilt")                           # 3 + 1 + 1 digital signals, 4 free inputs
+    assert s["state"] == "needs_confirmation"
+    everything = [{"component_id": "uno-q"}] + [{"component_id": c, "confirmations": [c.replace("-", "") + "-pin-labels"]}
+                                                 for c in ("ky-040", "ky-004", "ky-017")]
+    import json
+    s = post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": json.dumps(everything)})
+    assert s["state"] == "unsupported" and "more input pins" in s["spoken_text"] and s["wiring_steps"] == []
+    _, s = start("something with an esp32")
+    assert s["state"] == "unsupported" and s["project"]["components"] == ["uno-q"]
+    _, s = start("a robot arm")
+    assert s["state"] == "unsupported"
+
+
+def test_without_ai_a_free_wish_is_refused_with_what_works(monkeypatch):
+    _, s = start("a light meter")                                     # mock analyzer: no model to propose parts
+    assert s["state"] == "unsupported" and "Pong or Snake" in s["project"]["unsupported_reason"]
+    monkeypatch.setenv("LEARNLENS_FREE_PROJECTS", "0")                 # switched off: even a proposal is not used
+    example.use_fake_ai(proposal(["ky-018"]))
+    assert start("a light meter")[1]["state"] == "unsupported"

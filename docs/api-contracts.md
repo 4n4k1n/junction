@@ -40,11 +40,20 @@ never uploads. It can take a minute.
 
 A session starts from the spoken goal alone. The first `analyze` (no image needed) decides the project:
 
+- **The sound level meter** (`level_meter`): as before, with the KY-037 as its one sensor.
 - **A game** (`pong`, `snake`; `LEARNLENS_OFFERED_PROJECTS`): named in plain words it is recognised
   without a model call (`analysis_source: rules`), otherwise Claude may name it. `project.game` is set,
   `project.behavior` is `custom`, and `project.components` comes from rules (board and KY-023 joystick),
   never from the model. `parts_needed` carries the part names for the parts-list card.
-- **Anything else:** `state` is `unsupported` and `project.unsupported_reason` says what can be built.
+- **Any other wish** (needs the AI service; `LEARNLENS_FREE_PROJECTS`, default on): Claude proposes
+  `parts` (one to three ids, restricted by the schema to parts with wiring rules) and `what` the build
+  should do. The backend checks every id against the hardware database again and plans the wiring by
+  rules. `project.behavior` is `custom`, `project.custom_behavior` is the description, `project.game`
+  is empty: there is no prevalidated sketch, so the code is written by Claude and must pass the static
+  checks and the compile like any other.
+- **Not buildable:** `state` is `unsupported` and `project.unsupported_reason` says why: a part that
+  cannot be built with (the reason from the hardware database), more than three parts, more signals
+  than the board has free inputs, an output the board does not have, or no AI service.
 
 The state is then `needs_confirmation`. Without a photo there is one `presence` question per part; a
 client may answer them all at once by sending every `component_id` in `confirmed_inventory` after the
@@ -64,9 +73,11 @@ service such a change is refused with `extension_problem`.
 `extend` takes a request in the user's words. The backend decides whether it needs a known part that
 is not in the build yet (currently the KY-032 infrared obstacle sensor) or only a change of behaviour.
 
-- **New part:** the project gains the component, the confirmed wiring stays, and new steps are appended.
-  The client may send a photo of the new part to `analyze` (it updates `detected_components` only; the
-  project stays as it is). The session asks the new part's confirmation questions, then walks through the new steps only
+- **Photo of the new part (optional, before `extend`):** `analyze` with the form field `purpose=part`
+  and an image, in state `code_generated`. It updates `detected_components` and nothing else. The best
+  match is passed to the next `extend` as the part that "this sensor" means; it is a suggestion, and
+  the part's pin labels are still confirmed by the user.
+- **New part:** the project gains the component, the confirmed wiring stays, and new steps are appended. The session asks the new part's confirmation questions, then walks through the new steps only
   (`current_step` starts at the first unconfirmed one). The whole wiring is safety-checked again.
 - **Part without a purpose:** if the request names a part but not what it should do ("add the infrared
   sensor"), nothing changes, `clarification` carries a question for the user, and `suggestions` up to

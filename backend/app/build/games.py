@@ -13,6 +13,7 @@ from typing import List, Optional
 
 from .models import CodegenContext, GeneratedSketch, InputPin, SerialEvent
 
+DEFAULT_OFFER = "pong,snake,level_meter"  # LEARNLENS_OFFERED_PROJECTS: the games here and the fixed projects
 JOYSTICK = "ky-023"
 RESET_SENSOR = "ky-032"
 
@@ -49,7 +50,7 @@ RESET_WORDS = ("reset", "restart", "start again", "start over", "new game", "neu
 
 
 def offered() -> List[str]:
-    names = {n.strip() for n in os.getenv("LEARNLENS_OFFERED_PROJECTS", "pong,snake").split(",")}
+    names = {n.strip() for n in os.getenv("LEARNLENS_OFFERED_PROJECTS", DEFAULT_OFFER).split(",")}
     return [g for g in GAMES if g in names]
 
 
@@ -70,9 +71,12 @@ def behavior(game: str, reset: bool = False) -> str:
 
 
 def offer() -> str:
-    """What to tell a user whose wish is not one of the games."""
-    titles = [GAMES[g]["title"] for g in offered()]
-    return f"Right now I can build {' or '.join(titles)} with the joystick. Ask me for one of them."
+    """What to tell a user whose wish is not one of the offered projects."""
+    names = {n.strip() for n in os.getenv("LEARNLENS_OFFERED_PROJECTS", DEFAULT_OFFER).split(",")}
+    text = f"Right now I can build {' or '.join(GAMES[g]['title'] for g in offered())} with the joystick"
+    if "level_meter" in names:
+        text += ", or a sound level meter with the microphone sensor"
+    return text + ". Ask me for one of them."
 
 
 # ---------- prevalidated sketches ----------

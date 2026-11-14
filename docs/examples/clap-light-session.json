@@ -9,7 +9,7 @@
       }
     },
     "response": {
-      "session_id": "d6b9331e6983",
+      "session_id": "a29d4c0a7038",
       "state": "awaiting_analysis",
       "instruction": "Build a clap-activated light",
       "display_text": "Checking what you need",
@@ -38,13 +38,13 @@
     "step": "2. Analyze the desk photo: the sensor is uncertain, so the plan is held back",
     "request": {
       "method": "POST",
-      "path": "/sessions/d6b9331e6983/analyze",
+      "path": "/sessions/a29d4c0a7038/analyze",
       "files": {
         "image": "<desk photo, image/jpeg>"
       }
     },
     "response": {
-      "session_id": "d6b9331e6983",
+      "session_id": "a29d4c0a7038",
       "state": "needs_confirmation",
       "instruction": "Build a clap-activated light",
       "display_text": "Please confirm your parts",
@@ -246,13 +246,13 @@
     "step": "3. The user confirms the sensor and its pin labels: wiring plan released",
     "request": {
       "method": "POST",
-      "path": "/sessions/d6b9331e6983/analyze",
+      "path": "/sessions/a29d4c0a7038/analyze",
       "data": {
         "confirmed_inventory": "[{\"component_id\": \"ky-037\", \"confirmations\": [\"ky037-pin-labels\"]}]"
       }
     },
     "response": {
-      "session_id": "d6b9331e6983",
+      "session_id": "a29d4c0a7038",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
       "display_text": "Unplug USB. KY-037 G to board GND",
@@ -507,14 +507,14 @@
     "step": "4.0 Confirm wiring step 0",
     "request": {
       "method": "POST",
-      "path": "/sessions/d6b9331e6983/confirm-step",
+      "path": "/sessions/a29d4c0a7038/confirm-step",
       "json": {
         "step_index": 0,
         "confirmed": true
       }
     },
     "response": {
-      "session_id": "d6b9331e6983",
+      "session_id": "a29d4c0a7038",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
       "display_text": "KY-037 + to board +3V3",
@@ -772,14 +772,14 @@
     "step": "4.1 Confirm wiring step 1",
     "request": {
       "method": "POST",
-      "path": "/sessions/d6b9331e6983/confirm-step",
+      "path": "/sessions/a29d4c0a7038/confirm-step",
       "json": {
         "step_index": 1,
         "confirmed": true
       }
     },
     "response": {
-      "session_id": "d6b9331e6983",
+      "session_id": "a29d4c0a7038",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
       "display_text": "KY-037 DO to board D2. Plug USB in",
@@ -1038,13 +1038,13 @@
     "step": "   Optional photo review mid-wiring (never an electrical verification)",
     "request": {
       "method": "POST",
-      "path": "/sessions/d6b9331e6983/analyze",
+      "path": "/sessions/a29d4c0a7038/analyze",
       "files": {
         "image": "<desk photo, image/jpeg>"
       }
     },
     "response": {
-      "session_id": "d6b9331e6983",
+      "session_id": "a29d4c0a7038",
       "state": "wiring",
       "instruction": "Build a clap-activated light",
       "display_text": "KY-037 DO to board D2. Plug USB in",
@@ -1313,14 +1313,14 @@
     "step": "4.2 Confirm wiring step 2",
     "request": {
       "method": "POST",
-      "path": "/sessions/d6b9331e6983/confirm-step",
+      "path": "/sessions/a29d4c0a7038/confirm-step",
       "json": {
         "step_index": 2,
         "confirmed": true
       }
     },
     "response": {
-      "session_id": "d6b9331e6983",
+      "session_id": "a29d4c0a7038",
       "state": "wiring_complete",
       "instruction": "Build a clap-activated light",
       "display_text": "Wiring done. Writing the code",
@@ -1590,14 +1590,14 @@
     "step": "5. Generate the sketch (here: canned AI answer; static checks; compile if arduino-cli is set up)",
     "request": {
       "method": "POST",
-      "path": "/sessions/d6b9331e6983/generate",
+      "path": "/sessions/a29d4c0a7038/generate",
       "json": {
         "debounce_ms": 300
       }
     },
     "response": {
-      "session_id": "d6b9331e6983",
-      "build_id": "46925afda6eb",
+      "session_id": "a29d4c0a7038",
+      "build_id": "ae86d9b52d0f",
       "source": "template",
       "sketch": {
         "filename": "learnlens_sketch.ino",
@@ -1669,12 +1669,12 @@
               "--warnings",
               "default",
               "--no-color",
-              "/Users/robinstumpf/Desktop/learnlens/backend/generated/d6b9331e6983/attempt-1/learnlens_sketch"
+              "/Users/robinstumpf/Desktop/learnlens/backend/generated/a29d4c0a7038/attempt-1/learnlens_sketch"
             ],
             "log": "Sketch uses 87032 bytes (11%) of program storage space. Maximum is 786432 bytes.\nGlobal variables use 36988 bytes (14%) of dynamic memory, leaving 225156 bytes for local variables. Maximum is 262144 bytes.\n",
             "detail": ""
           },
-          "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/d6b9331e6983/attempt-1/learnlens_sketch"
+          "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/a29d4c0a7038/attempt-1/learnlens_sketch"
         }
       ],
       "repairs_used": 0,
@@ -1689,12 +1689,12 @@
           "--warnings",
           "default",
           "--no-color",
-          "/Users/robinstumpf/Desktop/learnlens/backend/generated/d6b9331e6983/attempt-1/learnlens_sketch"
+          "/Users/robinstumpf/Desktop/learnlens/backend/generated/a29d4c0a7038/attempt-1/learnlens_sketch"
         ],
         "log": "Sketch uses 87032 bytes (11%) of program storage space. Maximum is 786432 bytes.\nGlobal variables use 36988 bytes (14%) of dynamic memory, leaving 225156 bytes for local variables. Maximum is 262144 bytes.\n",
         "detail": ""
       },
-      "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/d6b9331e6983/attempt-1/learnlens_sketch",
+      "project_dir": "/Users/robinstumpf/Desktop/learnlens/backend/generated/a29d4c0a7038/attempt-1/learnlens_sketch",
       "flashed": false,
       "hardware_verified": false
     }
@@ -1703,10 +1703,10 @@
     "step": "   Status",
     "request": {
       "method": "GET",
-      "path": "/sessions/d6b9331e6983/status"
+      "path": "/sessions/a29d4c0a7038/status"
     },
     "response": {
-      "session_id": "d6b9331e6983",
+      "session_id": "a29d4c0a7038",
       "state": "code_generated",
       "instruction": "Build a clap-activated light",
       "display_text": "Code ready. Review it on your phone",
@@ -1971,17 +1971,17 @@
         "KY-037 microphone sound sensor"
       ],
       "background_notice": "",
-      "build_id": "46925afda6eb"
+      "build_id": "ae86d9b52d0f"
     }
   },
   {
     "step": "6. The generated sketch, waiting for approval",
     "request": {
       "method": "GET",
-      "path": "/builds/46925afda6eb"
+      "path": "/builds/ae86d9b52d0f"
     },
     "response": {
-      "build_id": "46925afda6eb",
+      "build_id": "ae86d9b52d0f",
       "goal": "Build a clap-activated light",
       "status": "awaiting_approval",
       "provenance": "rules",
@@ -2193,13 +2193,13 @@
     "step": "7. Explicit approval of that exact sketch",
     "request": {
       "method": "POST",
-      "path": "/builds/46925afda6eb/approve",
+      "path": "/builds/ae86d9b52d0f/approve",
       "json": {
         "sketch_sha256": "bf22cdeca759f0ea7ffce702f42ef919ae7c48deee2e18a5ef21b254a392ee28"
       }
     },
     "response": {
-      "build_id": "46925afda6eb",
+      "build_id": "ae86d9b52d0f",
       "goal": "Build a clap-activated light",
       "status": "approved",
       "provenance": "rules",
@@ -2411,10 +2411,10 @@
     "step": "8. After the (mock) deploy agent ran",
     "request": {
       "method": "GET",
-      "path": "/builds/46925afda6eb"
+      "path": "/builds/ae86d9b52d0f"
     },
     "response": {
-      "build_id": "46925afda6eb",
+      "build_id": "ae86d9b52d0f",
       "goal": "Build a clap-activated light",
       "status": "awaiting_test",
       "provenance": "rules",
@@ -2625,31 +2625,31 @@
           "stage": "validate",
           "status": "ok",
           "message": "artifact accepted",
-          "ts": 1794694915.15869
+          "ts": 1794696958.28498
         },
         {
           "stage": "compile",
           "status": "started",
           "message": "compiling for arduino:zephyr:unoq",
-          "ts": 1794694915.161442
+          "ts": 1794696958.2875588
         },
         {
           "stage": "compile",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794694915.163126
+          "ts": 1794696958.2894678
         },
         {
           "stage": "approval",
           "status": "ok",
           "message": "approval token accepted",
-          "ts": 1794694915.164865
+          "ts": 1794696958.291151
         },
         {
           "stage": "upload",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794694915.1668348
+          "ts": 1794696958.2926989
         }
       ],
       "precompiled": null,
@@ -2667,13 +2667,13 @@
     "step": "9. The user claps and reports the result",
     "request": {
       "method": "POST",
-      "path": "/builds/46925afda6eb/test-result",
+      "path": "/builds/ae86d9b52d0f/test-result",
       "json": {
         "passed": true
       }
     },
     "response": {
-      "build_id": "46925afda6eb",
+      "build_id": "ae86d9b52d0f",
       "goal": "Build a clap-activated light",
       "status": "done",
       "provenance": "rules",
@@ -2884,31 +2884,31 @@
           "stage": "validate",
           "status": "ok",
           "message": "artifact accepted",
-          "ts": 1794694915.15869
+          "ts": 1794696958.28498
         },
         {
           "stage": "compile",
           "status": "started",
           "message": "compiling for arduino:zephyr:unoq",
-          "ts": 1794694915.161442
+          "ts": 1794696958.2875588
         },
         {
           "stage": "compile",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794694915.163126
+          "ts": 1794696958.2894678
         },
         {
           "stage": "approval",
           "status": "ok",
           "message": "approval token accepted",
-          "ts": 1794694915.164865
+          "ts": 1794696958.291151
         },
         {
           "stage": "upload",
           "status": "ok",
           "message": "SIMULATED (--mock): no tool was run and no board was flashed",
-          "ts": 1794694915.1668348
+          "ts": 1794696958.2926989
         }
       ],
       "precompiled": null,

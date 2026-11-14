@@ -44,12 +44,13 @@ You need a breadboard or a Y-cable, because both parts share the board's single 
 
 ## What runs in which mode
 
-- **Real mode** (`./scripts/start.sh`): Claude writes each sketch (about a minute; Act 1 hides most of
+- **Real mode** (`./scripts/start.sh`): any wish the known parts can do works, for example "a Breakout
+  game" or "a light meter". Claude writes each sketch (about a minute; Act 1 hides most of
   it behind the wiring). If no attempt passes the checks, the prevalidated sketch for that game is used
   and the result says `source: template`.
 - **Demo mode** (`--demo`): Pong, Snake and both with the hand restart come from prevalidated sketches.
-  Any other wish is answered with "Right now I can build Pong or Snake with the joystick." Any other
-  change to a game needs the AI service and says so.
+  The sound level meter works too. Any other wish is answered with what can be built. Any other
+  change to a game (pause, speed, …) needs the AI service and says so.
 
 ## Rules for the live run
 
@@ -67,4 +68,5 @@ You need a breadboard or a Y-cable, because both parts share the board's single 
 | Upload fails twice | Presenter: "Uploads over USB can be moody." Play the recorded video. |
 | Paddle or snake does not move | Check VRx → A0, VRy → A1 and +5V pin → +3V3; unplug and replug USB without touching the joystick |
 | A direction is reversed | Turn the joystick around; left/right mirrored cannot be fixed that way, say so |
-| The app says it can build Pong or Snake | The goal was not understood as one of them. Say or type "Pong". |
+| The app says what it can build | The goal was not understood as Pong, Snake or the sound level meter. Say or type "Pong". |
+| "I could not tell which part you mean" | The photo of the new part was not recognised. Name the part: "add the infrared sensor …". |

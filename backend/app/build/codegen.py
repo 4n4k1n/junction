@@ -240,11 +240,11 @@ def custom_task(ctx: CodegenContext, includes: str, logging_: str) -> str:
     previous = (f"\n\nTHE SKETCH THAT IS RUNNING NOW (it works; keep what should stay, change what the new behaviour "
                 f"needs):\n{ctx.previous_code}" if ctx.previous_code else "")
     return f"""
-THE BUILD WAS DEVELOPED FURTHER. WHAT IT MUST DO NOW:
+{"THE BUILD WAS DEVELOPED FURTHER. WHAT IT MUST DO NOW:" if ctx.project.requests else "WHAT THE BUILD MUST DO:"}
 {ctx.custom_behavior}
 
-HOW IT GOT HERE (the user's requests, oldest first):
-{chr(10).join("- " + r for r in ctx.project.requests) or "- (none)"}
+{"HOW IT GOT HERE (the user's requests, oldest first):" if ctx.project.requests else "A new build: there is no earlier sketch."}
+{chr(10).join("- " + r for r in ctx.project.requests)}
 
 APPROVED HARDWARE ACCESS (nothing else may be touched):
 {chr(10).join(lines)}

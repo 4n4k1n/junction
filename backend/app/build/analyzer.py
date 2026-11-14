@@ -35,6 +35,8 @@ class ProjectProposal(BaseModel):
     input_component: str  # a sensor id from the hardware database, or "none"
     unsupported_reason: str = ""
     game: str = ""        # "pong" | "snake": a game from games.py; its parts are chosen by rules
+    parts: List[str] = Field(default_factory=list)  # a free project: the buildable parts it needs
+    what: str = ""        # a free project: what the build should do, for the code generator
 
 
 class Analysis(BaseModel):
@@ -55,9 +57,9 @@ BEHAVIOR_HELP = {
 
 
 def offered() -> List[Behavior]:
-    """Fixed projects users can get. By default none: the games in games.py are offered instead. The
-    level meter and the clap light still exist in the code."""
-    names = os.getenv("LEARNLENS_OFFERED_PROJECTS", "pong,snake").split(",")
+    """Fixed projects users can get, next to the games in games.py. By default the sound level meter;
+    the clap light still exists in the code."""
+    names = os.getenv("LEARNLENS_OFFERED_PROJECTS", games.DEFAULT_OFFER).split(",")
     return [b for b in BEHAVIOR_HELP if b.value in {n.strip() for n in names}]
 
 
@@ -170,8 +172,9 @@ plan: it was checked against the board's limits, and a variation was not.
 Explaining what a part does or why a step is needed is welcome."""
 
 
-def keyword_extension(instruction: str, spec: ProjectSpec) -> ExtensionProposal:
-    """Offline stand-in for the model's reading of a follow-up request."""
+def keyword_extension(instruction: str, spec: ProjectSpec, seen: Optional[str] = None) -> ExtensionProposal:
+    """Offline stand-in for the model's reading of a follow-up request. `seen` is the part a photo
+    of the new part showed, for requests like "add this sensor"."""
     import re
 
     text = instruction.lower()
@@ -180,7 +183,8 @@ def keyword_extension(instruction: str, spec: ProjectSpec) -> ExtensionProposal:
         # "Snake instead": same parts, the other game.
         return ExtensionProposal(kind="change_behavior",
                                  behavior=games.behavior(other, reset=games.RESET_SENSOR in spec.components))
-    wants_ir = re.search(r"\b(ir|infrared|infrarot|obstacle|hindernis|hand|proximity|distance|ky-?032)\b", text)
+    wants_ir = (re.search(r"\b(ir|infrared|infrarot|obstacle|hindernis|hand|proximity|distance|ky-?032)\b", text)
+                or (seen == "ky-032" and re.search(r"\b(add|adding|attach|connect|hinzuf\w*|anschlie\w*|dazu)\b", text)))
     # In demo mode every follow-up adds the infrared sensor, whatever words are used: it is the one
     # extension that works without AI.
     if (wants_ir or demo.enabled()) and "ky-032" in addable_sensors(spec):
@@ -199,7 +203,11 @@ def keyword_extension(instruction: str, spec: ProjectSpec) -> ExtensionProposal:
                                      ideas=[v["idea"] for v in demo.EXTENSION_VARIANTS.values()])
         return ExtensionProposal(kind="add_part", component_id="ky-032",
                                  behavior=demo.EXTENSION_VARIANTS[demo.variant_for(text)]["behavior"])
-    part = _mentioned(text)
+    adding = re.search(r"\b(add|adding|attach|connect|hinzuf\w*|anschlie\w*|dazu)\b", text)
+    part = _mentioned(text) or (seen if adding else None)
+    if adding and part is None:
+        return ExtensionProposal(kind="unsupported", reason="I could not tell which part you mean. Name it, for "
+                                                            "example the infrared sensor, or take a photo of it.")
     if part in not_buildable():
         return ExtensionProposal(kind="unsupported", reason=not_buildable()[part])
     if part in addable_sensors(spec):
@@ -236,8 +244,11 @@ def analysis_schema() -> dict:
                     "input_component": {"type": "string", "enum": _sensor_ids() + ["none"]},
                     "unsupported_reason": {"type": "string"},
                     "game": {"type": "string", "enum": games.offered() + ["none"]},
+                    "parts": {"type": "array", "items": {"type": "string", "enum": buildable_parts()}},
+                    "what": {"type": "string"},
                 },
-                "required": ["title", "summary", "behavior", "input_component", "unsupported_reason", "game"],
+                "required": ["title", "summary", "behavior", "input_component", "unsupported_reason", "game",
+                             "parts", "what"],
                 "additionalProperties": False,
             },
         },
@@ -290,6 +301,15 @@ project: what the user wants, restricted to what the known parts can do.
   Then behavior is unsupported and input_component is "none": the parts a game needs are chosen by
   rules. Otherwise "none".
 - unsupported_reason: one sentence for the user when unsupported, otherwise empty.
+- parts and what: for any other wish that CAN be built from the buildable parts listed in the
+  request, with the board's LED matrix and its one LED as the only outputs (no sound, no motors, no
+  network, no other displays). parts: the one to three buildable parts it needs, as few as possible.
+  When two parts would do the job equally well, take the one without a reliability note.
+  what: two to four plain sentences describing exactly what the build should do, including how it
+  is shown on the LED matrix. This text is handed to the code generator. Then behavior is
+  unsupported, game is "none" and unsupported_reason is empty.
+  If the wish cannot be built that way, parts is empty, what is empty, and unsupported_reason says in
+  one sentence what is missing. For a part that cannot be built with yet, give the reason listed.
 - title: at most 5 words. summary: one sentence.
 
 Never state pin names, voltages, wiring or electrical ratings anywhere in your answer. Those come
@@ -305,6 +325,30 @@ Say "appears to", and say what you cannot see.
 
 observations: up to 4 short factual statements about what is visible.
 possible_issues: up to 4 short things for the user to re-check by hand. Empty if nothing stands out."""
+
+
+MAX_PARTS = 3
+
+
+def free_projects() -> bool:
+    """Whether Claude may propose any project from the buildable parts (LEARNLENS_FREE_PROJECTS, default on)."""
+    return os.getenv("LEARNLENS_FREE_PROJECTS", "1") not in ("0", "false", "")
+
+
+def buildable_parts() -> List[str]:
+    return [cid for cid, c in facts.catalog().items() if c.get("add_on")]
+
+
+def _parts_block() -> str:
+    cat = facts.catalog()
+    def caveat(cid: str) -> str:
+        # Parts whose vendor example needs a pull-up that LearnLens sketches do not switch on.
+        unsure = any("pull-up" in f["statement"] for f in cat[cid]["facts"])
+        return " (its signal is not confirmed to read reliably here)" if unsure else ""
+
+    can = "\n".join(f"- {cid} ({cat[cid]['name']}): senses {cat[cid]['senses']}{caveat(cid)}" for cid in buildable_parts())
+    cannot = "\n".join(f"- {cat[cid]['name']}: {why}" for cid, why in not_buildable().items())
+    return f"BUILDABLE PARTS:\n{can}\nPARTS THAT CANNOT BE BUILT WITH YET, AND WHY:\n{cannot}"
 
 
 def game_proposal(game: str) -> ProjectProposal:
@@ -340,10 +384,24 @@ def to_spec(p: ProjectProposal) -> ProjectSpec:
                            behavior=Behavior.custom, custom_behavior=games.behavior(p.game), game=p.game, board=BOARD,
                            input_component=games.JOYSTICK, components=[BOARD, games.JOYSTICK], output="led_matrix")
     sensors = _sensor_ids()
+    parts = list(dict.fromkeys(p.parts))
+    if p.behavior not in offered() and parts and p.what.strip() and free_projects():
+        # A free project: the model names known parts and the behaviour; everything else is rules.
+        cat = facts.catalog()
+        blocked = next((c for c in parts if c not in buildable_parts()), None)
+        if blocked is None and len(parts) <= MAX_PARTS:
+            return ProjectSpec(title=p.title, summary=p.summary, behavior=Behavior.custom,
+                               custom_behavior=" ".join(p.what.split()), board=BOARD, input_component=parts[0],
+                               components=[BOARD] + parts, output="led_matrix")
+        why = (cat[blocked].get("not_buildable") or f"I can't build with the {cat[blocked]['name']} yet."
+               if blocked in cat else "This project needs a part I do not know.") if blocked else \
+            f"This project needs more than {MAX_PARTS} parts at once. Start with fewer and add parts afterwards."
+        return ProjectSpec(title=p.title, summary=p.summary, behavior=Behavior.unsupported, board=BOARD,
+                           components=[BOARD], supported=False, unsupported_reason=why)
     reason = p.unsupported_reason
     if p.behavior == Behavior.unsupported:
         reason = reason or "This project needs parts I do not support yet."
-        if games.offered() and games.offer() not in reason:
+        if games.offered() and games.offer() not in reason and not free_projects():
             reason = f"{reason} {games.offer()}"
     elif p.behavior not in offered():
         reason = games.offer() if games.offered() else \
@@ -398,7 +456,7 @@ class ClaudeAnalyzer:
 
     def analyze(self, instruction: str, image: Optional[bytes], media_type: str) -> Analysis:
         content = [self._image(image, media_type)] if image else []
-        content.append({"type": "text", "text": f"USER WANTS TO BUILD: {instruction}\n"
+        content.append({"type": "text", "text": f"{_parts_block()}\n\nUSER WANTS TO BUILD: {instruction}\n"
                                                 + ("" if image else "(no photo was provided)")})
         system = [{"type": "text", "text": analyze_system()},
                   {"type": "text", "text": _catalog_block(), "cache_control": {"type": "ephemeral"}}]
@@ -410,14 +468,17 @@ class ClaudeAnalyzer:
                 c.component_id = UNKNOWN  # an id outside the database is never passed on
         return analysis
 
-    def extend(self, instruction: str, spec: ProjectSpec) -> ExtensionProposal:
+    def extend(self, instruction: str, spec: ProjectSpec, seen: Optional[str] = None) -> ExtensionProposal:
         cat = facts.catalog()
+        photo = (f"A PHOTO OF THE PART THEY WANT TO ADD WAS TAKEN. The vision step thinks it shows: {seen} "
+                 f"({cat[seen]['name']}). When the request does not name a part (\"this sensor\"), that is the "
+                 f"part they mean.\n" if seen else "")
         known = "\n".join(f"- {cid} ({cat[cid]['name']}): senses {cat[cid]['senses']}" for cid in addable_sensors(spec))
         blocked = "\n".join(f"- {cat[cid]['name']}: {why}" for cid, why in not_buildable().items())
         text = (f"THE BUILD SO FAR: {spec.title}. {spec.custom_behavior or spec.summary}\n"
                 f"PARTS ALREADY WIRED: {', '.join(cat[c]['name'] for c in spec.components)}\n"
                 f"KNOWN PARTS THAT COULD BE ADDED:\n{known or '(none)'}\n"
-                f"PARTS THAT CANNOT BE BUILT WITH YET, AND WHY:\n{blocked}\n\n"
+                f"PARTS THAT CANNOT BE BUILT WITH YET, AND WHY:\n{blocked}\n{photo}\n"
                 f"THE USER NOW SAYS: {instruction}")
         return ExtensionProposal.model_validate(
             self._ask([{"type": "text", "text": EXTEND_SYSTEM}], [{"type": "text", "text": text}], extension_schema(spec)))
@@ -481,15 +542,31 @@ class Analyzer:
         # Detect nothing rather than guess: the session then asks the user to confirm each part.
         return Analysis(components=[], project=keyword_project(instruction)), "fallback"
 
-    def extend(self, instruction: str, spec: ProjectSpec) -> Tuple[ExtensionProposal, str]:
-        """What a follow-up request on a finished build means. Falls back to keywords without AI."""
+    def extend(self, instruction: str, spec: ProjectSpec, seen: Optional[str] = None
+               ) -> Tuple[ExtensionProposal, str]:
+        """What a follow-up request on a finished build means. Falls back to keywords without AI.
+        `seen` is the part a photo of the new part showed, if one was taken."""
         if self.claude is None or self.mode == "demo":
-            return keyword_extension(instruction, spec), "demo" if self.mode == "demo" else "mock"
+            return keyword_extension(instruction, spec, seen), "demo" if self.mode == "demo" else "mock"
         try:
-            return self.claude.extend(instruction, spec), "llm"
+            return self.claude.extend(instruction, spec, seen), "llm"
         except Exception as e:
             log.exception("extension call failed: %s", e)
-        return keyword_extension(instruction, spec), "fallback"
+        return keyword_extension(instruction, spec, seen), "fallback"
+
+    def identify(self, image: bytes, media_type: str, spec: ProjectSpec) -> Tuple[List[DetectedComponent], str]:
+        """What a photo of a part to be added shows. A suggestion: the user still confirms the part."""
+        if self.mode == "demo":
+            return [DetectedComponent.model_validate(d) for cid, d in demo.SAVED_PART_DETECTION.items()
+                    if cid not in spec.components], "demo"
+        if self.claude is None:
+            return [], "mock"
+        try:
+            return self.claude.analyze("(the photo shows a part the user wants to add to a finished build)",
+                                       image, media_type).components, "llm"
+        except Exception as e:
+            log.exception("part photo call failed: %s", e)
+        return [], "fallback"
 
     def answer(self, question: str, context: str) -> Optional[str]:
         """Claude's answer, or None when there is no AI (the caller then answers from the facts)."""

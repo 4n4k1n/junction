@@ -37,9 +37,15 @@ struct APIClient: Sendable {
 
   /// Multipart upload. Before wiring it detects the parts and plans; during wiring it reviews the photo.
   /// `confirmedInventory` carries what the user confirmed; an empty list means "no photo, ask me".
-  func analyze(_ id: String, photoJPEG: Data?, confirmedInventory: [InventoryItem]?) async throws -> GuideStatus {
+  /// `purpose: "part"` marks a photo of a part to add to a finished build: it tells the backend
+  /// which part "this sensor" is, and changes nothing else.
+  func analyze(_ id: String, photoJPEG: Data?, confirmedInventory: [InventoryItem]?,
+               purpose: String? = nil) async throws -> GuideStatus {
     let boundary = "learnlens-\(UUID().uuidString)"
     var body = Data()
+    if let purpose {
+      body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"purpose\"\r\n\r\n\(purpose)\r\n")
+    }
     if let confirmedInventory {
       let items = confirmedInventory.map { ["component_id": $0.componentId, "confirmations": $0.confirmations] as [String: Any] }
       let json = String(data: try JSONSerialization.data(withJSONObject: items), encoding: .utf8) ?? "[]"

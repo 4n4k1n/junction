@@ -74,6 +74,7 @@ def _pregenerate(s: GuideStatus) -> None:
     s.generation_progress = []
     future: Future = _background.submit(generator.generate, s.session_id, ctx, s.generation_progress.append)
     pregenerated[s.session_id] = (_plan_key(s), generator, future)
+part_seen: Dict[str, str] = {}     # per session: the part a photo of a part to add showed (a suggestion)
 running_code: Dict[str, str] = {}  # per session: the sketch before the build was developed further
 _inventory = TypeAdapter(List[InventoryItem])
 
@@ -154,7 +155,14 @@ def _advance(s: GuideStatus) -> None:
         _say(s, "Please confirm your parts", first.question)
         return
     # A build that is being developed further keeps its confirmed wiring; only the added steps are open.
-    steps = s.wiring_steps if s.project.requests else planner.plan_wiring(s.project)
+    try:
+        steps = s.wiring_steps if s.project.requests else planner.plan_wiring(s.project)
+    except ValueError:
+        # More signals than the board has free inputs of that kind.
+        s.state = GuideState.unsupported
+        _say(s, "I can't build that yet", "These parts need more input pins than the board has free. "
+                                          "Try it with fewer parts.")
+        return
     s.safety_problems = facts.check_safety(steps)
     if s.safety_problems:
         s.state = GuideState.blocked
@@ -190,12 +198,25 @@ def create_session(req: CreateGuideSessionRequest):
 
 @router.post("/sessions/{session_id}/analyze", response_model=GuideStatus)
 async def analyze(session_id: str, image: Optional[UploadFile] = File(None),
-                  confirmed_inventory: Optional[str] = Form(None)):
+                  confirmed_inventory: Optional[str] = Form(None), purpose: Optional[str] = Form(None)):
     s = _load(session_id, GuideState.awaiting_analysis, GuideState.needs_confirmation,
               GuideState.wiring, GuideState.wiring_complete, GuideState.code_generated)
     data, media_type = await _read_image(image)
     if data is None and demo.enabled():
         data, media_type = demo.saved_photo()  # demo mode can start from the saved desk photo
+
+    if purpose == "part" and s.state == GuideState.code_generated:
+        # A photo of a part to add to the finished build. It says which part "this sensor" is; the
+        # user still confirms the part and its pin labels before anything is wired.
+        if data is None:
+            raise HTTPException(422, "send an image of the part")
+        s.detected_components, s.analysis_source = analyzer.identify(data, media_type, s.project)
+        seen = [d for d in s.detected_components if d.component_id in facts.catalog()
+                and d.component_id not in s.project.components and d.confidence >= 0.5]
+        part_seen.pop(s.session_id, None)
+        if seen:
+            part_seen[s.session_id] = max(seen, key=lambda d: d.confidence).component_id
+        return s
 
     if s.state in (GuideState.wiring, GuideState.wiring_complete, GuideState.code_generated):
         if data is None:
@@ -316,7 +337,7 @@ def extend(session_id: str, req: ExtendRequest):
     if build is not None and build.status in (BuildStatus.approved, BuildStatus.deploying):
         raise HTTPException(409, "an upload is in progress")
 
-    proposal, _ = analyzer.extend(req.instruction.strip(), s.project)
+    proposal, _ = analyzer.extend(req.instruction.strip(), s.project, part_seen.get(s.session_id))
     cat = facts.catalog()
 
     def cannot(reason: str) -> GuideStatus:
@@ -327,7 +348,7 @@ def extend(session_id: str, req: ExtendRequest):
             ideas = [f"Play {games.GAMES[g]['title']} instead" for g in games.offered() if g != s.project.game]
             if games.RESET_SENSOR in addable_sensors(s.project):
                 ideas.append("Add the infrared sensor to restart the game")
-        elif not ideas and "ky-032" in addable_sensors(s.project):
+        elif not ideas and s.project.input_component == "ky-037" and "ky-032" in addable_sensors(s.project):
             ideas = [v["idea"] for v in demo.EXTENSION_VARIANTS.values()]  # these always work
         s.extension_problem, s.suggestions, s.clarification = reason, ideas[:3], ""
         return s
@@ -364,7 +385,7 @@ def extend(session_id: str, req: ExtendRequest):
         # A game keeps its prevalidated sketch only for the changes that sketch covers: the other
         # game, and a restart by the infrared sensor. Anything else is free-form and needs the AI.
         other = games.game_for(req.instruction, project.game)
-        asked = req.instruction + " " + proposal.behavior
+        asked = req.instruction  # the user's own words: the model's text describes the whole game
         if proposal.kind == "change_behavior" and other and other != project.game:
             project.game, project.title, project.summary = other, games.GAMES[other]["title"], games.GAMES[other]["summary"]
             project.custom_behavior = games.behavior(other, reset=games.RESET_SENSOR in project.components)
@@ -381,6 +402,7 @@ def extend(session_id: str, req: ExtendRequest):
 
     if build is not None and build.sketch is not None:
         running_code[s.session_id] = build.sketch.code
+    part_seen.pop(s.session_id, None)
     s.project, s.wiring_steps = project, steps
     s.build_id, s.review, s.generation_progress, s.clarification, s.suggestions = None, None, [], "", []
     s.extension_problem = ""

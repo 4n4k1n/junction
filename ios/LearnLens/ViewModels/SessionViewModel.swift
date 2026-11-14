@@ -77,7 +77,8 @@ final class SessionViewModel {
   @ObservationIgnored private var noticeGivenFor = ""
   /// The user is asked for a photo of the part they want to add, before saying what they want.
   private(set) var awaitingPartPhoto = false
-  @ObservationIgnored private var partPhoto: Data?
+  /// The photo of a part to add is looked at by the backend while the user says what they want.
+  @ObservationIgnored private var partPhotoTask: Task<Void, Never>?
   var backendURL: String {
     didSet { UserDefaults.standard.set(backendURL, forKey: Self.backendURLKey) }
   }
@@ -300,6 +301,8 @@ final class SessionViewModel {
     guard flow == .success, let guide, !answer.isEmpty else { return }
     // An answer to "what should it do?" is sent together with the request it belongs to.
     let request = extensionQuestion == nil ? answer : extensionBase + ". " + answer
+    await partPhotoTask?.value  // the backend should know which part the photo showed
+    partPhotoTask = nil
     do {
       let status = try await api.extend(guide.sessionId, instruction: request)
       extensionText = ""
@@ -332,16 +335,6 @@ final class SessionViewModel {
       generation = nil
       isExtending = false
       partsAcknowledged = true  // an added part is asked for by itself, without a parts list
-      // A new part and a photo of it was taken at the start: let the backend look at it now.
-      if status.state == .needsConfirmation, let photo = partPhoto {
-        partPhoto = nil
-        self.guide = status
-        await setFlow(.analyzing)
-        let seen = try? await api.analyze(status.sessionId, photoJPEG: photo, confirmedInventory: nil)
-        await apply(seen ?? status)  // without the photo the part is confirmed by questions alone
-        return
-      }
-      partPhoto = nil
       await apply(status)
     } catch {
       // Not fatal: the finished build stays as it is. Say what went wrong on the glasses too.
@@ -471,7 +464,7 @@ final class SessionViewModel {
     extensionText = ""
     isExtending = false
     awaitingPartPhoto = false
-    partPhoto = nil
+    partPhotoTask = nil
     cancelAutoGo()
     if isListening { stopListening() }
     await pushCard()
@@ -485,7 +478,7 @@ final class SessionViewModel {
     guard flow == .success, !isExtending else { return }
     isExtending = true
     awaitingPartPhoto = true
-    partPhoto = nil
+    partPhotoTask = nil
     await pushCard()
   }
 
@@ -494,7 +487,7 @@ final class SessionViewModel {
     guard flow == .success, !isExtending else { return }
     isExtending = true
     awaitingPartPhoto = false
-    partPhoto = nil
+    partPhotoTask = nil
     await startVoiceInput()
     await pushCard()
   }
@@ -516,9 +509,14 @@ final class SessionViewModel {
 
   /// Keeps a photo of the new part (from the glasses or the iPhone camera) for the request that follows.
   func keepPartPhoto(_ jpeg: Data) async {
-    guard awaitingPartPhoto else { return }
-    partPhoto = jpeg
+    guard awaitingPartPhoto, let guide else { return }
     awaitingPartPhoto = false
+    // Sent right away: it tells the backend which part "this sensor" is. If it fails, the part is
+    // named in words and confirmed by questions alone.
+    let api = self.api
+    partPhotoTask = Task {
+      _ = try? await api.analyze(guide.sessionId, photoJPEG: jpeg, confirmedInventory: nil, purpose: "part")
+    }
     await startVoiceInput()  // next: say what to add or change
     await pushCard()
   }
@@ -747,7 +745,7 @@ final class SessionViewModel {
     extensionText = ""
     isExtending = false
     awaitingPartPhoto = false
-    partPhoto = nil
+    partPhotoTask = nil
     stepAnswer = nil
     stepsBack = 0
     questionText = ""
