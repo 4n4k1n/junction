@@ -62,6 +62,9 @@ class Config:
     upload_timeout_s: float = float(os.getenv("LEARNLENS_UPLOAD_TIMEOUT", "120"))
     log_transport: str = os.getenv("LEARNLENS_LOG_TRANSPORT", "cli-monitor")  # cli-monitor | adb-app-cli | none
     log_capture_s: float = float(os.getenv("LEARNLENS_LOG_CAPTURE_S", "6"))
+    # The board's Linux side needs a while after power-up before adb (and with it the upload) works.
+    ready_timeout_s: float = float(os.getenv("LEARNLENS_BOARD_READY_TIMEOUT", "90"))
+    ready_poll_s: float = 2.0
 
     @property
     def executables(self) -> set:
@@ -138,6 +141,17 @@ def board_list_cmd(config: Config) -> List[str]:
 
 def core_list_cmd(config: Config) -> List[str]:
     return [config.cli, "core", "list", "--json"]
+
+
+def adb_state_cmd(config: Config, serial: str) -> List[str]:
+    """Prints "device" once the board's Linux side accepts adb connections, which the upload needs."""
+    if not SERIAL_RE.match(serial):
+        raise ToolError(f"refusing serial number {serial!r}")
+    return [config.adb, "-s", serial, "get-state"]
+
+
+def adb_reconnect_cmd(config: Config) -> List[str]:
+    return [config.adb, "reconnect", "offline"]
 
 
 def monitor_cmd(config: Config, port: str, serial: str) -> Optional[List[str]]:

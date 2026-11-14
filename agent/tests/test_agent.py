@@ -12,6 +12,7 @@ from app.build import approval as backend_approval  # the backend side of the to
 from lldeploy import core, server, tools
 
 CLI = "/fake/bin/arduino-cli"
+ADB = "/fake/bin/adb"
 PORT = "/dev/cu.usbmodem14101"
 CODE = """#include <Arduino_RouterBridge.h>
 void setup() { Monitor.begin(); Monitor.println("READY"); }
@@ -47,13 +48,24 @@ class FakeTools:
                  upload=(0, "Upload completed"), monitor=("READY", "SOUND_DETECTED", "LED_ON")):
         self.calls, self.results, self.monitor = [], {"board": (0, board), "core": (0, CORE_JSON),
                                                       "compile": compile, "upload": upload}, monitor
+        self.adb_states = ["device"]
         monkeypatch.setattr(subprocess, "run", self.run)
         monkeypatch.setattr(subprocess, "Popen", self.popen)
 
     def run(self, argv, **kwargs):
         assert kwargs.get("shell") is False and isinstance(argv, list)
         self.calls.append(argv)
-        code, out = self.results[argv[1]]
+        if argv[0] == ADB:  # adb get-state / reconnect: scripted board states, the last one repeats
+            if argv[-1] != "get-state":
+                return subprocess.CompletedProcess(argv, 0, stdout="reconnecting", stderr="")
+            state = self.adb_states.pop(0) if len(self.adb_states) > 1 else self.adb_states[0]
+            ok = state == "device"
+            return subprocess.CompletedProcess(argv, 0 if ok else 1, stdout="device\n" if ok else "",
+                                               stderr="" if ok else f"error: device {state}")
+        outcome = self.results[argv[1]]
+        if isinstance(outcome, list):  # a list of outcomes: one per call, the last one repeats
+            outcome = outcome.pop(0) if len(outcome) > 1 else outcome[0]
+        code, out = outcome
         if isinstance(code, Exception):
             raise code
         return subprocess.CompletedProcess(argv, code, stdout=out, stderr="")
@@ -100,7 +112,8 @@ def test_device_found_by_usb_id(agent, monkeypatch):
     FakeTools(monkeypatch)
     d = agent.device()
     assert d["connected"] and d["toolchain"] == {"arduino_cli": CLI, "core": "1.1.0", "ready": True}
-    assert d["boards"] == [{"port": PORT, "protocol": "serial", "serial_number": "2E4A9F0113", "fqbn": "arduino:zephyr:unoq"}]
+    assert d["boards"] == [{"port": PORT, "protocol": "serial", "serial_number": "2E4A9F0113",
+                            "fqbn": "arduino:zephyr:unoq", "adb_state": "unknown"}]   # this agent has no adb configured
 
 
 def test_missing_device_and_missing_toolchain(agent, monkeypatch):
@@ -334,3 +347,53 @@ def test_led_matrix_header_is_accepted(agent, monkeypatch):
     FakeTools(monkeypatch)
     code = "#include <Arduino_RouterBridge.h>\n#include <Arduino_LED_Matrix.h>\nvoid setup(){}\nvoid loop(){}\n"
     assert agent.compile(artifact(code=code))["status"] == "ok"
+
+
+# ---------- the board is plugged in but its Linux side is not up yet ----------
+
+@pytest.fixture
+def adb_agent():
+    a = core.DeployAgent(tools.Config(cli=CLI, adb=ADB, log_capture_s=0, ready_timeout_s=0.4, ready_poll_s=0.01))
+    yield a
+    a.close()
+
+
+def test_upload_waits_for_a_board_that_is_still_starting(adb_agent, monkeypatch):
+    fake = FakeTools(monkeypatch)
+    fake.adb_states = ["offline", "offline", "device"]
+    seen = []
+    adb_agent.on_event = lambda _, e: seen.append((e["stage"], e["status"], e["message"]))
+    adb_agent.compile(artifact())
+    r = adb_agent.flash("abc123", token())
+    assert r["status"] == "flashed" and fake.commands().count("upload") == 1
+    assert ("device", "started", "the board is still starting up, waiting for it") in seen
+    assert ("device", "ok", "the board is ready") in seen
+    assert [ADB, "-s", "2E4A9F0113", "get-state"] in fake.calls
+    assert adb_agent.device()["boards"][0]["adb_state"] == "device"
+
+
+def test_a_board_that_never_gets_ready_is_reported_and_nothing_is_uploaded(adb_agent, monkeypatch):
+    fake = FakeTools(monkeypatch)
+    fake.adb_states = ["offline"]
+    adb_agent.compile(artifact())
+    stage, message = reject_stage(lambda: adb_agent.flash("abc123", token()))
+    assert stage == "device" and "not ready for uploads (adb: offline)" in message and "wait about a minute" in message
+    assert "upload" not in fake.commands() and [ADB, "reconnect", "offline"] in fake.calls
+    assert "still starting up" in adb_agent.device()["problem"]
+
+
+def test_upload_that_loses_the_board_is_retried_once(adb_agent, monkeypatch):
+    fake = FakeTools(monkeypatch, upload=[(1, "adb: error: device offline\nFailed uploading"), (0, "Upload completed")])
+    adb_agent.compile(artifact())
+    assert adb_agent.flash("abc123", token())["status"] == "flashed"
+    assert fake.commands().count("upload") == 2
+
+    fake.results["upload"] = [(1, "adb: error: device offline")]             # still failing after the retry
+    adb_agent.compile(artifact())
+    stage, message = reject_stage(lambda: adb_agent.flash("abc123", token()))
+    assert stage == "upload" and "device offline" in message and fake.commands().count("upload") == 4
+
+    fake.results["upload"] = [(1, "Error: verification failed at 0x08100000")]  # a different failure is not retried
+    adb_agent.compile(artifact())
+    assert reject_stage(lambda: adb_agent.flash("abc123", token()))[0] == "upload"
+    assert fake.commands().count("upload") == 5

@@ -37,6 +37,7 @@ CLI="/Applications/Arduino IDE.app/Contents/Resources/app/lib/backend/resources/
 | `LEARNLENS_AGENT_PORT` | `8765` | local API port (always on 127.0.0.1) |
 | `LEARNLENS_LOG_TRANSPORT` | `cli-monitor` | `cli-monitor`, `adb-app-cli` or `none` |
 | `LEARNLENS_LOG_CAPTURE_S` | `6` | seconds of board output read after an upload |
+| `LEARNLENS_BOARD_READY_TIMEOUT` | `90` | seconds to wait for a freshly plugged-in board to finish starting before an upload |
 
 ## Run
 
@@ -50,6 +51,21 @@ With the backend: the user approves a sketch in the app → the backend signs an
 queues a job → the agent claims it, compiles, uploads, and posts each stage to
 `/agent/jobs/{id}/events` and the outcome to `/agent/jobs/{id}/result`. The app shows the stages
 while it polls the build.
+
+## Uploads right after plugging in
+
+The UNO Q's serial port appears a few seconds after power-up, but uploads go through the board's Linux
+side (adb), which needs longer to start: observed about 5 s after the port in the best case, and it can
+sit in adb state `offline` for much longer. An upload in that window fails with "device offline".
+
+The agent therefore asks `adb -s <serial> get-state` before uploading and waits until it says `device`
+(event "the board is still starting up, waiting for it"). Halfway through the wait it runs
+`adb reconnect offline` once. If the upload itself loses the board, it waits and retries once. If the
+board never gets ready, the deploy fails at stage `device` with advice to replug and wait a minute.
+`GET /device` shows each board's `adb_state`.
+
+If a board stays `offline` for minutes: unplug it, wait five seconds, plug it back in. Restarting adb
+(`~/Library/Arduino15/packages/arduino/tools/adb/*/adb kill-server`) also clears a stuck connection.
 
 ## Local API (127.0.0.1 only)
 

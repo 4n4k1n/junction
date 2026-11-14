@@ -97,9 +97,13 @@ class DeployAgent:
                 info["problem"] = "board core missing: arduino-cli core install arduino:zephyr"
             _, listing = tools.run(self.config, tools.board_list_cmd(self.config), 30)
             info["boards"] = tools.find_boards(listing, self.config.fqbn)
+            for board in info["boards"]:
+                board["adb_state"] = self.board_state(board["serial_number"])  # "device" = ready for uploads
             info["connected"] = bool(info["boards"])
             if info["toolchain"]["ready"] and not info["connected"]:
                 info["problem"] = "no Arduino UNO Q found on USB"
+            elif info["boards"] and info["boards"][0]["adb_state"] in ("offline", "not found"):
+                info["problem"] = "the board is plugged in but still starting up (not ready for uploads yet)"
         except tools.ToolError as e:
             info["problem"] = str(e)
         return info
@@ -216,15 +220,14 @@ class DeployAgent:
                 raise Rejected("device", "no Arduino UNO Q found on USB. Plug it in with a data cable and retry.")
             board, paths = boards[0], state["paths"]
             self._event(build_id, "device", "ok", f"UNO Q on {board['port']}")
+            self._wait_until_ready(build_id, board)
 
-            self._event(build_id, "upload", "started", f"uploading to {board['port']}")
-            try:
-                code, log = tools.run(self.config, tools.upload_cmd(self.config, board["port"], paths["sketch_dir"],
-                                                                    paths["build_dir"]), self.config.upload_timeout_s)
-            except tools.ToolError as e:
-                self._event(build_id, "upload", "failed", str(e))
-                raise Rejected("upload", str(e))
-            log = log.replace(str(self.workspace), "<workspace>")[-4000:]
+            code, log = self._upload(build_id, board, paths)
+            if code != 0 and re.search(r"offline|not found|no devices", log, re.I):
+                # The board dropped off adb during the upload (typical right after plugging in): one more try.
+                self._event(build_id, "upload", "failed", "the board was not reachable; trying once more")
+                self._wait_until_ready(build_id, board)
+                code, log = self._upload(build_id, board, paths)
             if code != 0:
                 self._event(build_id, "upload", "failed", f"upload tool exited with {code}")
                 raise Rejected("upload", f"upload tool exited with {code}:\n{log}")
@@ -235,6 +238,54 @@ class DeployAgent:
             observed = [e for e in (expected_events or []) if any(e in line for line in lines)]
             return {"status": "flashed", "upload_ok": True, "mock": False, "port": board["port"], "log": log,
                     "runtime_log": lines, "observed_events": observed, "logs_captured": bool(lines)}
+
+    def _upload(self, build_id: str, board: dict, paths: Dict[str, Path]):
+        self._event(build_id, "upload", "started", f"uploading to {board['port']}")
+        try:
+            code, log = tools.run(self.config, tools.upload_cmd(self.config, board["port"], paths["sketch_dir"],
+                                                                paths["build_dir"]), self.config.upload_timeout_s)
+        except tools.ToolError as e:
+            self._event(build_id, "upload", "failed", str(e))
+            raise Rejected("upload", str(e))
+        return code, log.replace(str(self.workspace), "<workspace>")[-4000:]
+
+    def board_state(self, serial: str) -> str:
+        """adb's view of the board: "device" when uploads can work, else "offline", "not found" or "unknown"."""
+        if not self.config.adb or not tools.SERIAL_RE.match(serial or ""):
+            return "unknown"
+        try:
+            code, out = tools.run(self.config, tools.adb_state_cmd(self.config, serial), 10)
+        except tools.ToolError:
+            return "unknown"
+        out = out.strip().lower()
+        return "device" if code == 0 and out == "device" else "offline" if "offline" in out else "not found"
+
+    def _wait_until_ready(self, build_id: str, board: dict) -> None:
+        """The serial port shows up before the board's Linux side is up. Uploads go through that side
+        (adb), so wait for it instead of failing. Raises Rejected("device") when it never comes up."""
+        serial = board["serial_number"]
+        state = self.board_state(serial)
+        if state in ("device", "unknown"):  # unknown: no adb to ask, let the upload tool decide
+            return
+        self._event(build_id, "device", "started", "the board is still starting up, waiting for it")
+        deadline = time.monotonic() + self.config.ready_timeout_s
+        nudged = False
+        while time.monotonic() < deadline:
+            time.sleep(self.config.ready_poll_s)
+            state = self.board_state(serial)
+            if state == "device":
+                self._event(build_id, "device", "ok", "the board is ready")
+                return
+            if not nudged and time.monotonic() > deadline - self.config.ready_timeout_s / 2:
+                nudged = True  # stuck offline for a while: ask adb to reconnect once
+                try:
+                    tools.run(self.config, tools.adb_reconnect_cmd(self.config), 10)
+                except tools.ToolError:
+                    pass
+        message = (f"the board is plugged in but not ready for uploads (adb: {state}). Unplug it, plug it back in, "
+                   "wait about a minute for it to start, then retry.")
+        self._event(build_id, "device", "failed", message)
+        raise Rejected("device", message)
 
     # ---------- logs ----------
 
