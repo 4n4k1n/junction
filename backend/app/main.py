@@ -1,11 +1,16 @@
 """LearnLens API.
 
-POST /sessions                    create a learning session (returns the first step's intro)
-GET  /sessions/{id}               current step + state
-POST /sessions/{id}/interact      multipart: image (optional), user_message, interaction_type
-POST /sessions/{id}/confirm       manual confirmation of a physical result ("LED lights up")
-GET  /sessions/{id}/events        structured log for debugging the demo
-GET  /lessons/{id}                lesson content
+Tutor (Socratic lessons):
+POST /tutor/sessions                    create a learning session (returns the first step's intro)
+GET  /tutor/sessions/{id}               current step + state
+POST /tutor/sessions/{id}/interact      multipart: image (optional), user_message, interaction_type
+POST /tutor/sessions/{id}/confirm       manual confirmation of a physical result ("LED lights up")
+GET  /tutor/sessions/{id}/events        structured log for debugging the demo
+GET  /lessons/{id}                      lesson content
+
+Build assistant:
+/sessions                         photo + instruction -> confirmed parts -> wiring, see build/session_router.py
+/builds, /agent/jobs              sketch approval and deploy, see build/router.py
 GET  /                            browser test console (no glasses needed)
 """
 from __future__ import annotations
@@ -22,6 +27,10 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from . import engine
+from .build import demo
+from .build.router import agent_status
+from .build.router import router as build_router
+from .build.session_router import router as guide_router
 from .lessons import all_lessons, get_lesson
 from .models import (
     ConfirmRequest, CreateSessionRequest, InteractionType, Lesson, SessionState, TutorResponse,
@@ -38,6 +47,8 @@ ALLOWED_MEDIA = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 app = FastAPI(title="LearnLens", version="0.1.0")
 store = Store()
 tutor = Tutor()
+app.include_router(build_router)
+app.include_router(guide_router)
 
 
 @app.on_event("startup")
@@ -78,7 +89,11 @@ def _load(session_id: str) -> SessionState:
 
 @app.get("/health")
 def health():
-    return {"ok": True, "tutor": "claude" if tutor.claude else "mock"}
+    from .build import session_router  # read at request time: tests swap these objects
+
+    return {"ok": True, "tutor": "claude" if tutor.claude else "mock",
+            "demo_mode": demo.enabled(), "analyzer": session_router.analyzer.mode,
+            "codegen": session_router.generator.mode, **agent_status()}
 
 
 @app.get("/lessons")
@@ -94,7 +109,7 @@ def lesson(lesson_id: str):
         raise HTTPException(404, str(e))
 
 
-@app.post("/sessions", response_model=TutorResponse)
+@app.post("/tutor/sessions", response_model=TutorResponse)
 def create_session(req: Optional[CreateSessionRequest] = None):
     req = req or CreateSessionRequest()
     try:
@@ -108,7 +123,7 @@ def create_session(req: Optional[CreateSessionRequest] = None):
     return resp
 
 
-@app.get("/sessions/{session_id}")
+@app.get("/tutor/sessions/{session_id}")
 def get_session(session_id: str):
     s = _load(session_id)
     lesson_ = get_lesson(s.lesson_id)
@@ -121,7 +136,7 @@ def get_session(session_id: str):
     }
 
 
-@app.post("/sessions/{session_id}/interact", response_model=TutorResponse)
+@app.post("/tutor/sessions/{session_id}/interact", response_model=TutorResponse)
 async def interact(
     session_id: str,
     interaction_type: InteractionType = Form(InteractionType.question),
@@ -161,7 +176,7 @@ async def interact(
     return resp
 
 
-@app.post("/sessions/{session_id}/confirm", response_model=TutorResponse)
+@app.post("/tutor/sessions/{session_id}/confirm", response_model=TutorResponse)
 def confirm(session_id: str, req: Optional[ConfirmRequest] = None):
     s = _load(session_id)
     lesson_ = get_lesson(s.lesson_id)
@@ -171,7 +186,7 @@ def confirm(session_id: str, req: Optional[ConfirmRequest] = None):
     return resp
 
 
-@app.get("/sessions/{session_id}/events")
+@app.get("/tutor/sessions/{session_id}/events")
 def events(session_id: str, limit: int = 50):
     _load(session_id)
     return store.events(session_id, limit)

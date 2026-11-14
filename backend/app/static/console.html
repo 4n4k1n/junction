@@ -75,7 +75,7 @@ fetch('/lessons').then(r => r.json()).then(ls => {
 });
 async function start() {
   const body = JSON.stringify({lesson_id: $('lesson').value || 'led-basics'});
-  const r = await (await fetch('/sessions', {method:'POST', headers:{'Content-Type':'application/json'}, body})).json();
+  const r = await (await fetch('/tutor/sessions', {method:'POST', headers:{'Content-Type':'application/json'}, body})).json();
   sid = r.session_id; render(r);
 }
 async function send(forceType) {
@@ -84,12 +84,12 @@ async function send(forceType) {
   fd.append('interaction_type', forceType || $('type').value);
   fd.append('user_message', $('msg').value);
   if ($('photo').files[0] && !forceType) fd.append('image', $('photo').files[0]);
-  render(await (await fetch(`/sessions/${sid}/interact`, {method:'POST', body: fd})).json());
+  render(await (await fetch(`/tutor/sessions/${sid}/interact`, {method:'POST', body: fd})).json());
   $('msg').value = ''; $('photo').value = '';
 }
 async function confirmStep() {
   if (!sid) await start();
-  render(await (await fetch(`/sessions/${sid}/confirm`, {method:'POST'})).json());
+  render(await (await fetch(`/tutor/sessions/${sid}/confirm`, {method:'POST'})).json());
 }
 </script>
 </body>

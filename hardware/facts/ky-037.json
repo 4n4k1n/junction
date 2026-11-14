@@ -1,0 +1,43 @@
+{
+  "component": "ky-037",
+  "name": "KY-037 microphone sound sensor",
+  "role": "sensor",
+  "senses": "sound",
+  "identification": "Small PCB (often red or black) with a large cylindrical electret microphone capsule at one end, a blue square trim potentiometer with a brass screw, a small 8-pin chip (LM393), two tiny LEDs, and 4 header pins at the other end. The KY-038 looks the same with a smaller microphone capsule; say so in the evidence if you cannot tell them apart.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-037"
+  },
+  "pins": {
+    "AO": {"kind": "analog_out", "high_level": "supply", "fact": "ky037-outputs"},
+    "G": {"kind": "ground", "fact": "ky037-pins"},
+    "+": {"kind": "supply", "min_v": 3.3, "max_v": 5.0, "fact": "ky037-supply"},
+    "DO": {"kind": "digital_out", "high_level": "supply", "active_level": "HIGH", "fact": "ky037-outputs"}
+  },
+  "confirmations": [
+    {
+      "id": "ky037-pin-labels",
+      "question": "Read the 4 pin labels printed on your sensor. Are they AO, G, + and DO?",
+      "reason": "Clone modules differ. The wiring plan is only valid for a module with exactly these labels."
+    }
+  ],
+  "facts": [
+    {
+      "id": "ky037-pins",
+      "statement": "The module has four pins: analog signal (AO), ground (G), supply (+) and digital signal (DO). The order differs between makers, so go by the printed labels.",
+      "source": "Joy-IT SensorKit, KY-037 (vendor documentation for the Joy-IT module; clones may differ)",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky037-supply",
+      "statement": "The vendor wires the module to 3.3 V on Raspberry Pi and micro:bit and to 5 V on a classic Arduino. No supply rating is published.",
+      "source": "Joy-IT SensorKit, KY-037, wiring tables",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky037-outputs",
+      "statement": "An LM393 comparator drives DO high when the sound level exceeds the threshold set with the trim potentiometer. Powered from 3.3 V, neither output can rise above 3.3 V. The level on your module is not confirmed, so the sketch reacts to a change, not to a fixed level.",
+      "source": "Joy-IT SensorKit, KY-037, 'functionality'",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

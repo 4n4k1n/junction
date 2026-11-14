@@ -1,0 +1,1171 @@
+{
+  "$defs": {
+    "ApproveRequest": {
+      "properties": {
+        "sketch_sha256": {
+          "title": "Sketch Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sketch_sha256"
+      ],
+      "title": "ApproveRequest",
+      "type": "object"
+    },
+    "Behavior": {
+      "enum": [
+        "toggle_on_event",
+        "on_while_active",
+        "unsupported"
+      ],
+      "title": "Behavior",
+      "type": "string"
+    },
+    "Build": {
+      "properties": {
+        "build_id": {
+          "title": "Build Id",
+          "type": "string"
+        },
+        "components": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Components",
+          "type": "array"
+        },
+        "deploy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeployResult"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "deploy_events": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DeployEvent"
+          },
+          "title": "Deploy Events",
+          "type": "array"
+        },
+        "error": {
+          "default": "",
+          "title": "Error",
+          "type": "string"
+        },
+        "expected_serial_events": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Expected Serial Events",
+          "type": "array"
+        },
+        "goal": {
+          "title": "Goal",
+          "type": "string"
+        },
+        "hardware_facts": {
+          "items": {
+            "$ref": "#/$defs/HardwareFact"
+          },
+          "title": "Hardware Facts",
+          "type": "array"
+        },
+        "photo_received": {
+          "default": false,
+          "title": "Photo Received",
+          "type": "boolean"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "sketch": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Sketch"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "status": {
+          "$ref": "#/$defs/BuildStatus"
+        },
+        "test_passed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Test Passed"
+        },
+        "wiring_steps": {
+          "items": {
+            "$ref": "#/$defs/WiringStep"
+          },
+          "title": "Wiring Steps",
+          "type": "array"
+        }
+      },
+      "required": [
+        "build_id",
+        "goal",
+        "status",
+        "provenance",
+        "components",
+        "hardware_facts",
+        "wiring_steps"
+      ],
+      "title": "Build",
+      "type": "object"
+    },
+    "BuildStatus": {
+      "enum": [
+        "wiring",
+        "awaiting_approval",
+        "approved",
+        "deploying",
+        "awaiting_test",
+        "done",
+        "failed",
+        "rejected"
+      ],
+      "title": "BuildStatus",
+      "type": "string"
+    },
+    "ClaimRequest": {
+      "properties": {
+        "agent_id": {
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "mock": {
+          "default": false,
+          "title": "Mock",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "agent_id"
+      ],
+      "title": "ClaimRequest",
+      "type": "object"
+    },
+    "CodeIssue": {
+      "properties": {
+        "check": {
+          "title": "Check",
+          "type": "string"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "rule": {
+          "title": "Rule",
+          "type": "string"
+        }
+      },
+      "required": [
+        "check",
+        "rule",
+        "message"
+      ],
+      "title": "CodeIssue",
+      "type": "object"
+    },
+    "CompileReport": {
+      "properties": {
+        "command": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Command",
+          "type": "array"
+        },
+        "detail": {
+          "default": "",
+          "title": "Detail",
+          "type": "string"
+        },
+        "fqbn": {
+          "title": "Fqbn",
+          "type": "string"
+        },
+        "log": {
+          "default": "",
+          "title": "Log",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/CompileStatus"
+        }
+      },
+      "required": [
+        "status",
+        "fqbn"
+      ],
+      "title": "CompileReport",
+      "type": "object"
+    },
+    "CompileStatus": {
+      "enum": [
+        "ok",
+        "failed",
+        "not_run"
+      ],
+      "title": "CompileStatus",
+      "type": "string"
+    },
+    "ConfirmStepRequest": {
+      "properties": {
+        "confirmed": {
+          "default": true,
+          "title": "Confirmed",
+          "type": "boolean"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        },
+        "step_index": {
+          "title": "Step Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "step_index"
+      ],
+      "title": "ConfirmStepRequest",
+      "type": "object"
+    },
+    "ConfirmationKind": {
+      "enum": [
+        "presence",
+        "variant"
+      ],
+      "title": "ConfirmationKind",
+      "type": "string"
+    },
+    "Connection": {
+      "properties": {
+        "from_pin": {
+          "$ref": "#/$defs/PinRef"
+        },
+        "to_pin": {
+          "$ref": "#/$defs/PinRef"
+        }
+      },
+      "required": [
+        "from_pin",
+        "to_pin"
+      ],
+      "title": "Connection",
+      "type": "object"
+    },
+    "CreateBuildRequest": {
+      "properties": {
+        "goal": {
+          "title": "Goal",
+          "type": "string"
+        }
+      },
+      "required": [
+        "goal"
+      ],
+      "title": "CreateBuildRequest",
+      "type": "object"
+    },
+    "CreateGuideSessionRequest": {
+      "properties": {
+        "confirmed_inventory": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/InventoryItem"
+          },
+          "title": "Confirmed Inventory",
+          "type": "array"
+        },
+        "instruction": {
+          "minLength": 1,
+          "title": "Instruction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "instruction"
+      ],
+      "title": "CreateGuideSessionRequest",
+      "type": "object"
+    },
+    "DeployEvent": {
+      "description": "One status line from the deploy agent while it works on a job.",
+      "properties": {
+        "message": {
+          "default": "",
+          "title": "Message",
+          "type": "string"
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "ts": {
+          "default": 0.0,
+          "title": "Ts",
+          "type": "number"
+        }
+      },
+      "required": [
+        "stage",
+        "status"
+      ],
+      "title": "DeployEvent",
+      "type": "object"
+    },
+    "DeployJob": {
+      "properties": {
+        "approval_token": {
+          "default": "",
+          "title": "Approval Token",
+          "type": "string"
+        },
+        "build_id": {
+          "title": "Build Id",
+          "type": "string"
+        },
+        "expected_serial_events": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Expected Serial Events",
+          "type": "array"
+        },
+        "fqbn": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fqbn"
+        },
+        "job_id": {
+          "title": "Job Id",
+          "type": "string"
+        },
+        "sketch": {
+          "$ref": "#/$defs/Sketch"
+        }
+      },
+      "required": [
+        "job_id",
+        "build_id",
+        "sketch"
+      ],
+      "title": "DeployJob",
+      "type": "object"
+    },
+    "DeployResult": {
+      "properties": {
+        "compile_ok": {
+          "title": "Compile Ok",
+          "type": "boolean"
+        },
+        "diagnostics": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          },
+          "title": "Diagnostics",
+          "type": "array"
+        },
+        "failed_stage": {
+          "default": "",
+          "title": "Failed Stage",
+          "type": "string"
+        },
+        "log": {
+          "default": "",
+          "title": "Log",
+          "type": "string"
+        },
+        "mock": {
+          "default": false,
+          "title": "Mock",
+          "type": "boolean"
+        },
+        "observed_events": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Observed Events",
+          "type": "array"
+        },
+        "port": {
+          "default": "",
+          "title": "Port",
+          "type": "string"
+        },
+        "runtime_log": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Runtime Log",
+          "type": "array"
+        },
+        "upload_ok": {
+          "title": "Upload Ok",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "compile_ok",
+        "upload_ok"
+      ],
+      "title": "DeployResult",
+      "type": "object"
+    },
+    "DetectedComponent": {
+      "properties": {
+        "component_id": {
+          "title": "Component Id",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "evidence": {
+          "default": "",
+          "title": "Evidence",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component_id",
+        "label",
+        "confidence"
+      ],
+      "title": "DetectedComponent",
+      "type": "object"
+    },
+    "Diagnostic": {
+      "properties": {
+        "column": {
+          "title": "Column",
+          "type": "integer"
+        },
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "line": {
+          "title": "Line",
+          "type": "integer"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "severity": {
+          "title": "Severity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "line",
+        "column",
+        "severity",
+        "message"
+      ],
+      "title": "Diagnostic",
+      "type": "object"
+    },
+    "FactConfidence": {
+      "enum": [
+        "official_doc",
+        "vendor_doc",
+        "secondary",
+        "unverified"
+      ],
+      "title": "FactConfidence",
+      "type": "string"
+    },
+    "GenerateRequest": {
+      "properties": {
+        "debounce_ms": {
+          "anyOf": [
+            {
+              "maximum": 2000,
+              "minimum": 20,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Debounce Ms"
+        },
+        "sensor_active_level": {
+          "anyOf": [
+            {
+              "pattern": "^(HIGH|LOW)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sensor Active Level"
+        }
+      },
+      "title": "GenerateRequest",
+      "type": "object"
+    },
+    "GenerationAttempt": {
+      "properties": {
+        "attempt": {
+          "title": "Attempt",
+          "type": "integer"
+        },
+        "compile": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CompileReport"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "issues": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CodeIssue"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "project_dir": {
+          "default": "",
+          "title": "Project Dir",
+          "type": "string"
+        }
+      },
+      "required": [
+        "attempt",
+        "kind"
+      ],
+      "title": "GenerationAttempt",
+      "type": "object"
+    },
+    "GenerationResult": {
+      "properties": {
+        "assumptions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumptions",
+          "type": "array"
+        },
+        "attempts": {
+          "items": {
+            "$ref": "#/$defs/GenerationAttempt"
+          },
+          "title": "Attempts",
+          "type": "array"
+        },
+        "build_id": {
+          "title": "Build Id",
+          "type": "string"
+        },
+        "compile": {
+          "$ref": "#/$defs/CompileReport"
+        },
+        "expected_serial_events": {
+          "items": {
+            "$ref": "#/$defs/SerialEvent"
+          },
+          "title": "Expected Serial Events",
+          "type": "array"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "flashed": {
+          "const": false,
+          "default": false,
+          "title": "Flashed",
+          "type": "boolean"
+        },
+        "hardware_verified": {
+          "const": false,
+          "default": false,
+          "title": "Hardware Verified",
+          "type": "boolean"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        },
+        "project_dir": {
+          "title": "Project Dir",
+          "type": "string"
+        },
+        "repairs_used": {
+          "title": "Repairs Used",
+          "type": "integer"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "sketch": {
+          "$ref": "#/$defs/Sketch"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id",
+        "build_id",
+        "source",
+        "sketch",
+        "explanation",
+        "assumptions",
+        "expected_serial_events",
+        "parameters",
+        "attempts",
+        "repairs_used",
+        "compile",
+        "project_dir"
+      ],
+      "title": "GenerationResult",
+      "type": "object"
+    },
+    "GuideState": {
+      "enum": [
+        "awaiting_analysis",
+        "needs_confirmation",
+        "wiring",
+        "wiring_complete",
+        "code_generated",
+        "unsupported",
+        "blocked"
+      ],
+      "title": "GuideState",
+      "type": "string"
+    },
+    "GuideStatus": {
+      "properties": {
+        "analysis_source": {
+          "default": "",
+          "title": "Analysis Source",
+          "type": "string"
+        },
+        "build_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Build Id"
+        },
+        "confirmed_inventory": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/InventoryItem"
+          },
+          "title": "Confirmed Inventory",
+          "type": "array"
+        },
+        "confirmed_steps": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Confirmed Steps",
+          "type": "array"
+        },
+        "current_step": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Current Step"
+        },
+        "detected_components": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DetectedComponent"
+          },
+          "title": "Detected Components",
+          "type": "array"
+        },
+        "display_text": {
+          "title": "Display Text",
+          "type": "string"
+        },
+        "hardware_facts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/HardwareFact"
+          },
+          "title": "Hardware Facts",
+          "type": "array"
+        },
+        "instruction": {
+          "title": "Instruction",
+          "type": "string"
+        },
+        "pending_confirmations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PendingConfirmation"
+          },
+          "title": "Pending Confirmations",
+          "type": "array"
+        },
+        "project": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProjectSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WiringReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "safety_problems": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Safety Problems",
+          "type": "array"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "spoken_text": {
+          "default": "",
+          "title": "Spoken Text",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/GuideState"
+        },
+        "wiring_steps": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WiringStep"
+          },
+          "title": "Wiring Steps",
+          "type": "array"
+        }
+      },
+      "required": [
+        "session_id",
+        "state",
+        "instruction",
+        "display_text"
+      ],
+      "title": "GuideStatus",
+      "type": "object"
+    },
+    "HardwareFact": {
+      "properties": {
+        "component": {
+          "title": "Component",
+          "type": "string"
+        },
+        "confidence": {
+          "$ref": "#/$defs/FactConfidence"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "default": "",
+          "title": "Source",
+          "type": "string"
+        },
+        "statement": {
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "component",
+        "statement",
+        "confidence"
+      ],
+      "title": "HardwareFact",
+      "type": "object"
+    },
+    "InventoryItem": {
+      "description": "Hardware the user has confirmed, with the checks they did on the part itself.",
+      "properties": {
+        "component_id": {
+          "title": "Component Id",
+          "type": "string"
+        },
+        "confirmations": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Confirmations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "component_id"
+      ],
+      "title": "InventoryItem",
+      "type": "object"
+    },
+    "PendingConfirmation": {
+      "properties": {
+        "component_id": {
+          "title": "Component Id",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ConfirmationKind"
+        },
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "component_id",
+        "kind",
+        "question",
+        "reason"
+      ],
+      "title": "PendingConfirmation",
+      "type": "object"
+    },
+    "PinRef": {
+      "properties": {
+        "component": {
+          "title": "Component",
+          "type": "string"
+        },
+        "pin": {
+          "title": "Pin",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component",
+        "pin"
+      ],
+      "title": "PinRef",
+      "type": "object"
+    },
+    "ProjectSpec": {
+      "properties": {
+        "behavior": {
+          "$ref": "#/$defs/Behavior"
+        },
+        "board": {
+          "title": "Board",
+          "type": "string"
+        },
+        "components": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Components",
+          "type": "array"
+        },
+        "input_component": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Input Component"
+        },
+        "output": {
+          "default": "builtin_led",
+          "title": "Output",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "supported": {
+          "default": true,
+          "title": "Supported",
+          "type": "boolean"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "unsupported_reason": {
+          "default": "",
+          "title": "Unsupported Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "summary",
+        "behavior",
+        "board"
+      ],
+      "title": "ProjectSpec",
+      "type": "object"
+    },
+    "Provenance": {
+      "enum": [
+        "mock",
+        "llm",
+        "rules"
+      ],
+      "title": "Provenance",
+      "type": "string"
+    },
+    "SerialEvent": {
+      "properties": {
+        "event": {
+          "title": "Event",
+          "type": "string"
+        },
+        "when": {
+          "title": "When",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "when"
+      ],
+      "title": "SerialEvent",
+      "type": "object"
+    },
+    "Sketch": {
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "filename": {
+          "title": "Filename",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "filename",
+        "code",
+        "sha256",
+        "provenance"
+      ],
+      "title": "Sketch",
+      "type": "object"
+    },
+    "TestResultRequest": {
+      "properties": {
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "passed"
+      ],
+      "title": "TestResultRequest",
+      "type": "object"
+    },
+    "WiringReview": {
+      "properties": {
+        "disclaimer": {
+          "title": "Disclaimer",
+          "type": "string"
+        },
+        "electrically_verified": {
+          "const": false,
+          "default": false,
+          "title": "Electrically Verified",
+          "type": "boolean"
+        },
+        "observations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Observations",
+          "type": "array"
+        },
+        "possible_issues": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Possible Issues",
+          "type": "array"
+        }
+      },
+      "required": [
+        "observations",
+        "possible_issues",
+        "disclaimer"
+      ],
+      "title": "WiringReview",
+      "type": "object"
+    },
+    "WiringStep": {
+      "properties": {
+        "connection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Connection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "display_text": {
+          "title": "Display Text",
+          "type": "string"
+        },
+        "fact_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Fact Ids",
+          "type": "array"
+        },
+        "index": {
+          "title": "Index",
+          "type": "integer"
+        },
+        "spoken_text": {
+          "default": "",
+          "title": "Spoken Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "index",
+        "display_text"
+      ],
+      "title": "WiringStep",
+      "type": "object"
+    }
+  },
+  "title": "LearnLens build API"
+}

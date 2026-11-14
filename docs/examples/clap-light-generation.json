@@ -1,0 +1,88 @@
+{
+  "session_id": "034f8cfabfdb",
+  "build_id": "d30300b9409a",
+  "source": "template",
+  "sketch": {
+    "filename": "learnlens_sketch.ino",
+    "code": "// LearnLens: Clap-activated light\n// Board: Arduino UNO Q (FQBN arduino:zephyr:unoq). Not a classic Arduino UNO.\n// Wiring: sensor DO -> D2, + -> +3V3, G -> GND.\n#include <Arduino_RouterBridge.h>\n\nconst int SENSOR_PIN = 2;  // header D2, input only\nconst int LED_PIN = LED_BUILTIN;\nconst int LED_ON_LEVEL = LOW;  // this board's LED lights at LOW\nconst int LED_OFF_LEVEL = HIGH;\nconst int SENSOR_ACTIVE_LEVEL = HIGH;  // level on SENSOR_PIN while the sensor reports sound\nconst unsigned long DEBOUNCE_MS = 300;  // after an event, ignore new events for this long\n\nbool ledOn = false;\nbool wasActive = false;\nunsigned long lastEventMs = 0;\n\nvoid setup() {\n  pinMode(SENSOR_PIN, INPUT);\n  pinMode(LED_PIN, OUTPUT);\n  digitalWrite(LED_PIN, LED_OFF_LEVEL);\n  Monitor.begin();\n  Monitor.println(\"READY\");\n}\n\nvoid loop() {\n  bool active = digitalRead(SENSOR_PIN) == SENSOR_ACTIVE_LEVEL;\n  unsigned long now = millis();\n  // Edge detection: act only when the pin has just become active, and not too soon after the last event.\n  if (active && !wasActive && now - lastEventMs >= DEBOUNCE_MS) {\n    lastEventMs = now;\n    ledOn = !ledOn;\n    Monitor.println(\"SOUND_DETECTED\");\n    digitalWrite(LED_PIN, ledOn ? LED_ON_LEVEL : LED_OFF_LEVEL);\n    Monitor.println(ledOn ? \"LED_ON\" : \"LED_OFF\");\n  }\n  wasActive = active;\n}\n",
+    "sha256": "bf22cdeca759f0ea7ffce702f42ef919ae7c48deee2e18a5ef21b254a392ee28",
+    "provenance": "rules"
+  },
+  "explanation": "The sketch reads the sensor's digital output on D2 every pass through loop(). Each new sound event flips the LED. It reacts only to the moment the signal becomes active and then ignores further events for 300 ms, so one clap counts once. Status lines are printed through Monitor.",
+  "assumptions": [
+    "The sensor's DO pin is HIGH while it reports sound. If the LED reacts to silence instead, regenerate with the other sensor_active_level.",
+    "The sensor's trim potentiometer is set so that DO is inactive in a quiet room.",
+    "LED_BUILTIN is the board's red LED3 and lights at LOW.",
+    "Log lines are visible only where Monitor output is shown (App Lab or IDE console)."
+  ],
+  "expected_serial_events": [
+    {
+      "event": "READY",
+      "when": "once after power-up, when setup() has finished"
+    },
+    {
+      "event": "SOUND_DETECTED",
+      "when": "each time a sound event is accepted"
+    },
+    {
+      "event": "LED_ON",
+      "when": "right after the LED was switched on"
+    },
+    {
+      "event": "LED_OFF",
+      "when": "right after the LED was switched off"
+    }
+  ],
+  "parameters": {
+    "SENSOR_ACTIVE_LEVEL": "HIGH",
+    "DEBOUNCE_MS": 300,
+    "sensor_pin": "D2",
+    "led": "LED_BUILTIN",
+    "led_on_level": "LOW",
+    "fqbn": "arduino:zephyr:unoq"
+  },
+  "attempts": [
+    {
+      "attempt": 0,
+      "kind": "template",
+      "issues": [],
+      "compile": {
+        "status": "ok",
+        "fqbn": "arduino:zephyr:unoq",
+        "command": [
+          "arduino-cli",
+          "compile",
+          "--fqbn",
+          "arduino:zephyr:unoq",
+          "--warnings",
+          "default",
+          "--no-color",
+          "backend/generated/<session_id>/attempt-0/learnlens_sketch"
+        ],
+        "log": "Sketch uses 87032 bytes (11%) of program storage space. Maximum is 786432 bytes.\nGlobal variables use 36988 bytes (14%) of dynamic memory, leaving 225156 bytes for local variables. Maximum is 262144 bytes.",
+        "detail": ""
+      },
+      "project_dir": "backend/generated/<session_id>/attempt-0/learnlens_sketch"
+    }
+  ],
+  "repairs_used": 0,
+  "compile": {
+    "status": "ok",
+    "fqbn": "arduino:zephyr:unoq",
+    "command": [
+      "arduino-cli",
+      "compile",
+      "--fqbn",
+      "arduino:zephyr:unoq",
+      "--warnings",
+      "default",
+      "--no-color",
+      "backend/generated/<session_id>/attempt-0/learnlens_sketch"
+    ],
+    "log": "Sketch uses 87032 bytes (11%) of program storage space. Maximum is 786432 bytes.\nGlobal variables use 36988 bytes (14%) of dynamic memory, leaving 225156 bytes for local variables. Maximum is 262144 bytes.",
+    "detail": ""
+  },
+  "project_dir": "backend/generated/<session_id>/attempt-0/learnlens_sketch",
+  "flashed": false,
+  "hardware_verified": false
+}

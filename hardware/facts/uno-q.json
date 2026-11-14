@@ -1,0 +1,269 @@
+{
+  "component": "uno-q",
+  "name": "Arduino UNO Q",
+  "role": "board",
+  "identification": "UNO-shaped board with two rows of black female pin headers along the long edges, a USB-C connector, an 8x13 LED matrix in the middle of the top side, and 'UNO Q' printed on it. The classic Arduino UNO R3/R4 looks similar but has a USB-B or different USB-C layout and no LED matrix: that is NOT this board.",
+  "sources": {
+    "datasheet": "https://docs.arduino.cc/resources/datasheets/ABX00162-datasheet.pdf",
+    "core": "https://github.com/arduino/ArduinoCore-zephyr/blob/main/variants/arduino_uno_q_stm32u585xx/arduino_uno_q_stm32u585xx.overlay"
+  },
+  "pins": {
+    "GND": {
+      "kind": "ground",
+      "fact": "unoq-power-pins"
+    },
+    "3V3": {
+      "kind": "power_out",
+      "label": "+3V3",
+      "nominal_v": 3.3,
+      "max_v": 3.5,
+      "fact": "unoq-3v3-rail"
+    },
+    "5V": {
+      "kind": "power_out",
+      "label": "+5V",
+      "nominal_v": 5.0,
+      "max_v": 5.5,
+      "fact": "unoq-power-pins"
+    },
+    "D0": {
+      "kind": "gpio",
+      "mcu_pin": "PB7",
+      "max_input_v": 5.0,
+      "reserved": "UART RX",
+      "fact": "unoq-jdigital-ft"
+    },
+    "D1": {
+      "kind": "gpio",
+      "mcu_pin": "PB6",
+      "max_input_v": 5.0,
+      "reserved": "UART TX",
+      "fact": "unoq-jdigital-ft"
+    },
+    "D2": {
+      "kind": "gpio",
+      "mcu_pin": "PB3",
+      "max_input_v": 5.0,
+      "fact": "unoq-jdigital-ft"
+    },
+    "D3": {
+      "kind": "gpio",
+      "mcu_pin": "PB0",
+      "max_input_v": 3.6,
+      "fact": "unoq-d3-tt"
+    },
+    "D4": {
+      "kind": "gpio",
+      "mcu_pin": "PA12",
+      "max_input_v": 5.0,
+      "fact": "unoq-jdigital-ft"
+    },
+    "D5": {
+      "kind": "gpio",
+      "mcu_pin": "PA11",
+      "max_input_v": 5.0,
+      "fact": "unoq-jdigital-ft"
+    },
+    "D6": {
+      "kind": "gpio",
+      "mcu_pin": "PB1",
+      "max_input_v": 5.0,
+      "fact": "unoq-jdigital-ft"
+    },
+    "D7": {
+      "kind": "gpio",
+      "mcu_pin": "PB2",
+      "max_input_v": 5.0,
+      "fact": "unoq-jdigital-ft"
+    },
+    "D8": {
+      "kind": "gpio",
+      "mcu_pin": "PB4",
+      "max_input_v": 5.0,
+      "fact": "unoq-jdigital-ft"
+    },
+    "D9": {
+      "kind": "gpio",
+      "mcu_pin": "PB8",
+      "max_input_v": 5.0,
+      "fact": "unoq-jdigital-ft"
+    },
+    "D10": {
+      "kind": "gpio",
+      "mcu_pin": "PB9",
+      "max_input_v": 5.0,
+      "fact": "unoq-jdigital-ft"
+    },
+    "D11": {
+      "kind": "gpio",
+      "mcu_pin": "PB15",
+      "max_input_v": 5.0,
+      "fact": "unoq-jdigital-ft"
+    },
+    "D12": {
+      "kind": "gpio",
+      "mcu_pin": "PB14",
+      "max_input_v": 5.0,
+      "fact": "unoq-jdigital-ft"
+    },
+    "D13": {
+      "kind": "gpio",
+      "mcu_pin": "PB13",
+      "max_input_v": 5.0,
+      "fact": "unoq-jdigital-ft"
+    },
+    "A0": {
+      "kind": "gpio",
+      "mcu_pin": "PA4",
+      "analog": true,
+      "max_input_v": 3.6,
+      "fact": "unoq-analog-limit"
+    },
+    "A1": {
+      "kind": "gpio",
+      "mcu_pin": "PA5",
+      "analog": true,
+      "max_input_v": 3.6,
+      "fact": "unoq-analog-limit"
+    },
+    "A2": {
+      "kind": "gpio",
+      "mcu_pin": "PA6",
+      "analog": true,
+      "max_input_v": 3.6,
+      "fact": "unoq-analog-limit"
+    },
+    "A3": {
+      "kind": "gpio",
+      "mcu_pin": "PA7",
+      "analog": true,
+      "max_input_v": 3.6,
+      "fact": "unoq-analog-limit"
+    },
+    "A4": {
+      "kind": "gpio",
+      "mcu_pin": "PC1",
+      "analog": true,
+      "max_input_v": 3.6,
+      "fact": "unoq-analog-limit"
+    },
+    "A5": {
+      "kind": "gpio",
+      "mcu_pin": "PC0",
+      "analog": true,
+      "max_input_v": 3.6,
+      "fact": "unoq-analog-limit"
+    }
+  },
+  "digital_input_preference": [
+    "D2",
+    "D4",
+    "D7",
+    "D8"
+  ],
+  "builtin_led": {
+    "symbol": "LED_BUILTIN",
+    "signal": "LED3_R",
+    "mcu_pin": "PH10",
+    "on_level": "LOW",
+    "facts": [
+      "unoq-led-builtin-mapping",
+      "unoq-led-active-low"
+    ]
+  },
+  "fqbn": {
+    "value": "arduino:zephyr:unoq",
+    "confidence": "official_doc",
+    "core": "arduino:zephyr 1.1.0"
+  },
+  "facts": [
+    {
+      "id": "unoq-mcu",
+      "statement": "The microcontroller is an STM32U585. It handles the 3.3 V headers JDIGITAL and JANALOG.",
+      "source": "Arduino UNO Q datasheet (SKU ABX00162-ABX00173), section 'Microcontroller'",
+      "confidence": "official_doc"
+    },
+    {
+      "id": "unoq-jdigital-ft",
+      "statement": "All JDIGITAL lines (D0-D13) are 3.3 V logic. Most use an FT-type I/O structure and are 5 V-tolerant as inputs.",
+      "source": "Arduino UNO Q datasheet, section 9.6 'JDIGITAL - Pin Map'",
+      "confidence": "official_doc"
+    },
+    {
+      "id": "unoq-d3-tt",
+      "statement": "D3 (PB0) is only 3.6 V-tolerant. Never apply 5 V to it in any mode.",
+      "source": "Arduino UNO Q datasheet, section 9.6 'JDIGITAL - Pin Map'",
+      "confidence": "official_doc"
+    },
+    {
+      "id": "unoq-analog-limit",
+      "statement": "A0-A5 are not 5 V-tolerant in analog mode. Valid range is 0 V to VREF+ (about 3.3 V); the absolute maximum is VDD + 0.3 V, about 3.6 V.",
+      "source": "Arduino UNO Q datasheet, sections 9 'Peripherals' and 9.7 'JANALOG - Pin Map'",
+      "confidence": "official_doc"
+    },
+    {
+      "id": "unoq-3v3-rail",
+      "statement": "The +3V3 pin on the JANALOG header outputs the 3.3 V system rail (3.1 V min, 3.3 V typical, 3.5 V max).",
+      "source": "Arduino UNO Q datasheet, sections 3.2 'Recommended Operating Conditions' and 9.7",
+      "confidence": "official_doc"
+    },
+    {
+      "id": "unoq-power-pins",
+      "statement": "The JANALOG header carries +3V3, +5V (5V_SYS, 4.5-5.5 V from USB-C) and two GND pins.",
+      "source": "Arduino UNO Q datasheet, sections 3.1 'Input Power' and 9.7",
+      "confidence": "official_doc"
+    },
+    {
+      "id": "unoq-led-active-low",
+      "statement": "The MCU-controlled RGB LEDs (LED3 on PH10-PH12, LED4 on PH13-PH15) are active-low: they turn on when driven to logic 0.",
+      "source": "Arduino UNO Q datasheet, section 'LEDs'",
+      "confidence": "official_doc"
+    },
+    {
+      "id": "unoq-led-builtin-mapping",
+      "statement": "In the official Arduino core, the first built-in LED (LED_BUILTIN) is PH10, which is LED3 red. A forum thread reports it not blinking under IDE 2.3.7, so flash a blink sketch once before the demo.",
+      "source": "ArduinoCore-zephyr, variants/arduino_uno_q_stm32u585xx overlay, 'builtin-led-gpios'",
+      "confidence": "official_doc"
+    },
+    {
+      "id": "unoq-fqbn",
+      "statement": "With the official core arduino:zephyr 1.1.0 installed, `arduino-cli board listall` lists 'Arduino UNO Q' as arduino:zephyr:unoq. A sketch for it compiles with the arm-zephyr-eabi toolchain, not avr-gcc.",
+      "source": "arduino:zephyr 1.1.0 boards.txt, checked with arduino-cli 1.2.0 on 2026-11-14",
+      "confidence": "official_doc"
+    },
+    {
+      "id": "unoq-monitor",
+      "statement": "Text output from a sketch reaches the computer through the Monitor object of the official Arduino_RouterBridge library (Monitor.begin(), Monitor.println()). It is routed through the board's Linux side.",
+      "source": "arduino-libraries/Arduino_RouterBridge 0.4.4, src/monitor.h",
+      "confidence": "official_doc"
+    },
+    {
+      "id": "unoq-serial-uart",
+      "statement": "Serial is the MCU's hardware UART on header pins D0/D1. It does not show up in the App Lab or IDE console.",
+      "source": "https://forum.arduino.cc/t/arduino-uno-q-via-ide-no-serial-monitor-output/1411255 and Arduino docs-content PR 2784",
+      "confidence": "secondary"
+    },
+    {
+      "id": "unoq-upload",
+      "statement": "Sketches are uploaded with the core's 'remoteocd' tool through the board's Linux side, not through a serial bootloader as on the classic UNO.",
+      "source": "arduino:zephyr 1.1.0 boards.txt (unoq.upload.tool)",
+      "confidence": "official_doc"
+    }
+  ],
+  "logging": {
+    "object": "Monitor",
+    "include": "Arduino_RouterBridge.h",
+    "setup": [
+      "Monitor.begin();"
+    ],
+    "library": "Arduino_RouterBridge 0.4.4",
+    "facts": [
+      "unoq-monitor",
+      "unoq-serial-uart"
+    ]
+  },
+  "upload": {
+    "tool": "remoteocd",
+    "fact": "unoq-upload"
+  }
+}

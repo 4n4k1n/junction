@@ -1,103 +1,83 @@
 # LearnLens
 
-Socratic AI tutor for Meta Ray-Ban Display. **See → Teach → Verify.**
-Hackathon goal: a beginner builds a working LED circuit with LearnLens as the only help.
+An AI hardware-building assistant for Meta Ray-Ban Display glasses. You say what you want to build,
+the glasses show wiring steps for the parts on your desk, Claude writes the Arduino sketch, and after
+your approval a local agent uploads it to the board.
+
+Demo: *"I want to build a clap-activated light"* with an Arduino UNO Q and a KY-037 sound sensor.
 
 ```
-Glasses (camera · display · audio)
-   │
-iOS companion app  ── ios/            hardware + rendering only
-   │  multipart HTTP
-FastAPI backend    ── backend/app/
-   ├─ tutor.py     Claude (vision + structured JSON) → TutorDecision, falls back to MockTutor
-   ├─ engine.py    deterministic state machine: hints, check questions, advancing
-   ├─ store.py     SQLite: session state + event log
-   └─ lessons/     JSON lesson definitions (led-basics.json)
+Glasses ── iOS app ──HTTP──▶ Backend (FastAPI) ◀──polls── Deploy agent (Mac) ──USB──▶ Arduino UNO Q ── KY-037
+                              Claude: sees parts, writes code       compiles, uploads after approval
+                              Rules + hardware database: wiring, safety checks
 ```
 
-**Core rule:** the LLM only *proposes* a `TutorDecision`. `engine.py` decides whether the learner
-advances. Low-confidence photos never count as verified, and a step that tests understanding can't be
-skipped with a manual confirm.
+## Start
 
-## Run the backend
+One-time setup:
 
 ```bash
-cd backend
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+cd ~/Desktop/learnlens
+python3 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt
+CLI="/Applications/Arduino IDE.app/Contents/Resources/app/lib/backend/resources/arduino-cli"
+"$CLI" core update-index && "$CLI" core install arduino:zephyr && "$CLI" lib install Arduino_RouterBridge
 ```
 
-Open http://localhost:8000 for the **test console**: a 600×600 glasses-display preview plus
-photo upload, text input, hint and confirm buttons. You don't need the glasses for it.
-
-| Env var | Default | Purpose |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | – | Claude credentials (or `ant auth login`), or the hackathon proxy key |
-| `ANTHROPIC_BASE_URL` | Anthropic API | hackathon LiteLLM proxy: `https://ai.42hn.dev` (then set `LEARNLENS_MODEL=opus-5.5`) |
-| `LEARNLENS_TUTOR` | `auto` | `auto` = Claude with mock fallback, `claude` = Claude only, `mock` = offline |
-| `LEARNLENS_MODEL` | `claude-opus-5-5` | model ID |
-| `LEARNLENS_EFFORT` | `low` | effort level; low keeps time-to-hint short |
-| `LEARNLENS_MOCK_VISION` | `uncertain` | `verified` makes mock photos pass (rehearsals) |
-| `LEARNLENS_DB` | `backend/learnlens.db` | SQLite path |
-
-Tests (offline, mock tutor, full 5-step lesson walkthrough):
+Every time (backend + deploy agent, Ctrl-C stops both):
 
 ```bash
-cd backend && .venv/bin/python -m pytest -q
+cd ~/Desktop/learnlens
+export ANTHROPIC_API_KEY=...      # only for a real-AI run
+./scripts/start.sh                # real AI, real board
+./scripts/start.sh --demo         # saved AI answers + prevalidated sketch, real board
+./scripts/start.sh --demo --mock  # fully offline rehearsal: nothing real happens
 ```
 
-## API
+The script prints the URL to enter in the app (`http://<mac-ip>:8000`).
 
-| Endpoint | Purpose |
+Then either run the iPhone app (`ios/README.md`), or drive the same flow from a second terminal:
+
+```bash
+python3 scripts/demo_run.py                        # asks at each step; you type "approve" before the upload
+python3 scripts/demo_run.py --photo demo/desk.jpg  # send a real photo
+```
+
+## Modes, and how to tell them apart
+
+| Mode | AI | Board | How it is labelled |
+|---|---|---|---|
+| `./scripts/start.sh` | Claude | real upload | nothing extra |
+| `--demo` | saved answers, prevalidated sketch | real upload | "DEMO MODE" on every glasses card and in the app; `analysis_source: demo`, `source: demo` |
+| `--mock` | as chosen | no upload | "SIMULATED upload" in the app, on the glasses and in the log; `deploy.mock: true` |
+
+`GET /health` reports `demo_mode`, `agent_connected` and `agent_mock`.
+
+## Tests
+
+```bash
+cd ~/Desktop/learnlens/backend
+.venv/bin/python -m pytest -q                      # backend (AI mocked)
+.venv/bin/python -m pytest -q ../agent/tests       # deploy agent (tools and board mocked)
+bash ../ios/typecheck/typecheck.sh                 # iOS sources typecheck (no Xcode needed)
+bash ../ios/typecheck/contract_check.sh            # backend responses decode with the app's models
+python3 ../agent/smoke_test.py                     # real toolchain + connected board; --flash uploads
+```
+
+## Where things are
+
+| Path | What |
 |---|---|
-| `POST /sessions` `{lesson_id}` | new session → intro of step 1 |
-| `GET /sessions/{id}` | state, current step, check question |
-| `POST /sessions/{id}/interact` | multipart: `interaction_type` (photo/question/answer/hint), `user_message`, `image?` |
-| `POST /sessions/{id}/confirm` | manual confirmation ("LED lights up") |
-| `GET /sessions/{id}/events` | structured log incl. LLM decision + latency |
-| `GET /lessons/{id}` | lesson content |
-| `GET /health` | `{tutor: claude|mock}` |
+| `backend/app/build/` | sessions, analysis, wiring rules, code generation and checks, approval |
+| `agent/` | deploy agent: compile, approval check, upload, board logs (`agent/README.md`) |
+| `ios/` | SwiftUI app and Xcode project (`ios/README.md`) |
+| `hardware/facts/` | hardware database with sources |
+| `scripts/` | `start.sh`, `demo_run.py` |
+| `DEMO_SCRIPT.md`, `DEMO_CHECKLIST.md` | the 3-minute demo |
+| `docs/` | API contract, compile contract, architecture, plan, backend guide, earlier tutor concept |
 
-Response (`TutorResponse`):
+## Status
 
-```json
-{
-  "session_id": "a1b2c3", "action": "give_hint",
-  "display_text": "Where should the resistor go?",
-  "spoken_text": "Think about how current flows.",
-  "step": {"step_id": "build", "step_index": 2, "total_steps": 5, "title": "Build the circuit", "hint_level": 2, "max_hints": 3},
-  "verification_status": "uncertain", "next_step_allowed": false, "advanced": false,
-  "lesson_complete": false, "visual_observation": "LED and resistor visible", "confidence": 0.62,
-  "source": "llm", "latency_ms": 2400
-}
-```
-
-`action` ∈ `give_hint | ask_question | request_image | confirm_progress | explain`.
-`source` ∈ `llm | fallback | mock | engine`. Show `fallback` on the demo dashboard.
-
-## Lesson flow (led-basics)
-
-| Step | Verification | Done when |
-|---|---|---|
-| identify | vision_and_question | photo verified (confidence ≥ 0.7) **and** "Which LED leg connects to plus?" answered |
-| understand | question | resistor purpose explained (current + limit) |
-| build | visual_and_manual | (photo verified + "Does it light?") **or** `/confirm` |
-| debug | question | explains the reversed LED |
-| explain | question | explains current path + resistor + direction |
-
-Add a lesson by dropping another JSON file into `backend/lessons/`.
-
-## Team split (one folder each, to avoid merge conflicts)
-
-| Person | Owns | First milestone |
-|---|---|---|
-| 1 Wearables & iOS | `ios/` | glasses photo → `/interact` → text on glasses (by hour 4) |
-| 2 Backend & Vision | `backend/app/tutor.py`, `main.py` | real photos of your breadboard get correct `visual_observation` |
-| 3 Learning Engine | `backend/app/engine.py`, `backend/lessons/` | lesson playable end-to-end in the console |
-| 4 UX & Demo | `backend/app/static/`, `docs/` | display layouts, mirrored demo screen, pitch |
-
-## Known open points
-- Live path verified through the proxy (`opus-5.5`, effort low): text turns 2.4–3.3 s, photo 4.1 s (synthetic image).
-  Still to do: real breadboard photos from the glasses camera, especially wiring/polarity judgements.
-- Latency target is under 5 s after capture. Measure `latency_ms` and lower image size or effort if it's slower.
-- Voice input/output lives in the iOS app (on-device STT/TTS). The backend only sees text.
+Verified: backend flow with mocked AI, static checks, real compile for the UNO Q, board discovery on
+USB, approval gating, offline rehearsal end to end. Not yet verified: upload and log read-back on the
+board (run `agent/smoke_test.py --flash`), any live Claude call, and the iOS app in Xcode or on
+glasses. Details: `DEMO_CHECKLIST.md`.

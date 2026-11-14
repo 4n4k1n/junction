@@ -1,0 +1,300 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10100000000000000000001 /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = A10A00000000000000000001 /* MWDATCore */; };
+		A10100000000000000000002 /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = A10A00000000000000000002 /* MWDATCamera */; };
+		A10100000000000000000003 /* MWDATDisplay in Frameworks */ = {isa = PBXBuildFile; productRef = A10A00000000000000000003 /* MWDATDisplay */; };
+		A10100000000000000000004 /* MWDATMockDevice in Frameworks */ = {isa = PBXBuildFile; productRef = A10A00000000000000000004 /* MWDATMockDevice */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A10200000000000000000001 /* LearnLens.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LearnLens.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10200000000000000000002 /* LearnLens-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "LearnLens-Info.plist"; sourceTree = "<group>"; };
+		A10200000000000000000003 /* LearnLens.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LearnLens.entitlements; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		A10300000000000000000001 /* LearnLens */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = LearnLens;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A10400000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10100000000000000000001 /* MWDATCore in Frameworks */,
+				A10100000000000000000002 /* MWDATCamera in Frameworks */,
+				A10100000000000000000003 /* MWDATDisplay in Frameworks */,
+				A10100000000000000000004 /* MWDATMockDevice in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A10500000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A10300000000000000000001 /* LearnLens */,
+				A10200000000000000000002 /* LearnLens-Info.plist */,
+				A10200000000000000000003 /* LearnLens.entitlements */,
+				A10500000000000000000002 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A10500000000000000000002 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A10200000000000000000001 /* LearnLens.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A10600000000000000000001 /* LearnLens */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10800000000000000000002 /* Build configuration list for PBXNativeTarget "LearnLens" */;
+			buildPhases = (
+				A10400000000000000000002 /* Sources */,
+				A10400000000000000000001 /* Frameworks */,
+				A10400000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A10300000000000000000001 /* LearnLens */,
+			);
+			name = LearnLens;
+			packageProductDependencies = (
+				A10A00000000000000000001 /* MWDATCore */,
+				A10A00000000000000000002 /* MWDATCamera */,
+				A10A00000000000000000003 /* MWDATDisplay */,
+				A10A00000000000000000004 /* MWDATMockDevice */,
+			);
+			productName = LearnLens;
+			productReference = A10200000000000000000001 /* LearnLens.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A10700000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2640;
+				LastUpgradeCheck = 2640;
+				TargetAttributes = {
+					A10600000000000000000001 = {
+						CreatedOnToolsVersion = 26.4;
+					};
+				};
+			};
+			buildConfigurationList = A10800000000000000000001 /* Build configuration list for PBXProject "LearnLens" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A10500000000000000000001;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A10900000000000000000001 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = A10500000000000000000002 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A10600000000000000000001 /* LearnLens */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A10400000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A10400000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A10B00000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A10B00000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A10B00000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = LearnLens.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "LearnLens-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = de.42heilbronn.learnlens;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A10B00000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = LearnLens.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "LearnLens-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = de.42heilbronn.learnlens;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A10800000000000000000001 /* Build configuration list for PBXProject "LearnLens" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10B00000000000000000001 /* Debug */,
+				A10B00000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10800000000000000000002 /* Build configuration list for PBXNativeTarget "LearnLens" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10B00000000000000000003 /* Debug */,
+				A10B00000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A10900000000000000000001 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/facebook/meta-wearables-dat-ios";
+			requirement = {
+				kind = exactVersion;
+				version = 1.0.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A10A00000000000000000001 /* MWDATCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10900000000000000000001 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATCore;
+		};
+		A10A00000000000000000002 /* MWDATCamera */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10900000000000000000001 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATCamera;
+		};
+		A10A00000000000000000003 /* MWDATDisplay */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10900000000000000000001 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATDisplay;
+		};
+		A10A00000000000000000004 /* MWDATMockDevice */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10900000000000000000001 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATMockDevice;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = A10700000000000000000001 /* Project object */;
+}
