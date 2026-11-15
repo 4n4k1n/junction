@@ -63,7 +63,7 @@ When wiring starts, the sketch is generated in the background and `background_no
 sentence for the user ("I am writing the code in the background while you wire."). It is empty again
 once the wiring is complete, and always empty with `LEARNLENS_PREGENERATE=0`.
 
-`project.game` keeps a prevalidated sketch behind the build, used without the AI service, in demo mode
+`project.game` keeps a prevalidated sketch behind the build, used without the AI service
 and when no AI attempt passes the checks. It survives exactly two kinds of `extend`: switching to the
 other game, and adding the KY-032 to restart the game. Any other change clears it; without the AI
 service such a change is refused with `extension_problem`.
@@ -90,7 +90,6 @@ is not in the build yet (currently the KY-032 infrared obstacle sensor) or only 
 - **Request that cannot be built** (an unknown part, a part that is already wired, no free pin, or a
   behaviour change without the AI service): nothing changes, `extension_problem` says why, and
   `suggestions` lists up to three complete requests that would work. Each can be sent to `extend` as is.
-  In demo mode every request is read as adding the KY-032.
 
 ### When the wiring plan is released
 

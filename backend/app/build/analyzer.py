@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field, ValidationError
 
-from . import demo, facts, games
+from . import facts, games, variants
 from .llm import MODEL, ask_json, make_client  # noqa: F401  (MODEL re-exported for scripts)
 from .models import Behavior, DetectedComponent, ProjectSpec, WiringStep
 from .planner import BOARD
@@ -185,9 +185,7 @@ def keyword_extension(instruction: str, spec: ProjectSpec, seen: Optional[str] =
                                  behavior=games.behavior(other, reset=games.RESET_SENSOR in spec.components))
     wants_ir = (re.search(r"\b(ir|infrared|infrarot|obstacle|hindernis|hand|proximity|distance|ky-?032)\b", text)
                 or (seen == "ky-032" and re.search(r"\b(add|adding|attach|connect|hinzuf\w*|anschlie\w*|dazu)\b", text)))
-    # In demo mode every follow-up adds the infrared sensor, whatever words are used: it is the one
-    # extension that works without AI.
-    if (wants_ir or demo.enabled()) and "ky-032" in addable_sensors(spec):
+    if wants_ir and "ky-032" in addable_sensors(spec):
         # A purpose is some instruction beyond naming the part ("... so it only shows when my hand is near").
         states_purpose = re.search(r"\b(so|when|only|if|while|should|to show|to turn|until|damit|wenn|nur|soll|sobald|"
                                    r"freeze|hold|wave|toggle|switch)\b", text)
@@ -200,9 +198,9 @@ def keyword_extension(instruction: str, spec: ProjectSpec, seen: Optional[str] =
         if not states_purpose:
             # Without AI, suggest only what a prevalidated sketch really does.
             return ExtensionProposal(kind="add_part", component_id="ky-032", needs_purpose=True,
-                                     ideas=[v["idea"] for v in demo.EXTENSION_VARIANTS.values()])
+                                     ideas=[v["idea"] for v in variants.EXTENSION_VARIANTS.values()])
         return ExtensionProposal(kind="add_part", component_id="ky-032",
-                                 behavior=demo.EXTENSION_VARIANTS[demo.variant_for(text)]["behavior"])
+                                 behavior=variants.EXTENSION_VARIANTS[variants.variant_for(text)]["behavior"])
     adding = re.search(r"\b(add|adding|attach|connect|hinzuf\w*|anschlie\w*|dazu)\b", text)
     part = _mentioned(text) or (seen if adding else None)
     if adding and part is None:
@@ -498,8 +496,7 @@ class Analyzer:
     """Facade. Returns (result, source) with source in llm | mock | fallback."""
 
     def __init__(self, mode: Optional[str] = None, claude: Optional[ClaudeAnalyzer] = None) -> None:
-        default = "demo" if demo.enabled() else os.getenv("LEARNLENS_ANALYZER") or os.getenv("LEARNLENS_TUTOR", "auto")
-        self.mode = mode or default  # auto | claude | mock | demo
+        self.mode = mode or os.getenv("LEARNLENS_ANALYZER") or os.getenv("LEARNLENS_TUTOR", "auto")  # auto | claude | mock
         self.mock = MockAnalyzer()
         self.claude = claude
         if self.claude is None and self.mode in ("auto", "claude"):
@@ -515,16 +512,7 @@ class Analyzer:
         game = games.game_for(instruction)
         if game and image is None:
             # A game named in plain words, and no photo to look at: nothing for a model to decide.
-            return Analysis(components=[], project=game_proposal(game)), "demo" if self.mode == "demo" else "rules"
-        if self.mode == "demo":
-            # Saved detection; the project follows the instruction by keyword, so it stays deterministic.
-            saved = Analysis.model_validate(demo.SAVED_ANALYSIS)
-            proposal = keyword_project(instruction)
-            if proposal.game or proposal.behavior in offered():
-                saved.project = proposal
-            elif games.offered():
-                saved.project = proposal  # says which projects work without the AI service
-            return saved, "demo"
+            return Analysis(components=[], project=game_proposal(game)), "rules"
         if self.claude is None:
             analysis = self.mock.analyze(instruction, image, media_type)
             if game:
@@ -546,8 +534,13 @@ class Analyzer:
                ) -> Tuple[ExtensionProposal, str]:
         """What a follow-up request on a finished build means. Falls back to keywords without AI.
         `seen` is the part a photo of the new part showed, if one was taken."""
-        if self.claude is None or self.mode == "demo":
-            return keyword_extension(instruction, spec, seen), "demo" if self.mode == "demo" else "mock"
+        if self.claude is None:
+            return keyword_extension(instruction, spec, seen), "mock"
+        other = games.game_for(instruction, spec.game)
+        if spec.game and other and other != spec.game:
+            # "Snake instead of Pong": named in plain words, so there is nothing for a model to
+            # decide, and the change does not depend on the AI service answering in time.
+            return keyword_extension(instruction, spec, seen), "rules"
         try:
             return self.claude.extend(instruction, spec, seen), "llm"
         except Exception as e:
@@ -556,9 +549,6 @@ class Analyzer:
 
     def identify(self, image: bytes, media_type: str, spec: ProjectSpec) -> Tuple[List[DetectedComponent], str]:
         """What a photo of a part to be added shows. A suggestion: the user still confirms the part."""
-        if self.mode == "demo":
-            return [DetectedComponent.model_validate(d) for cid, d in demo.SAVED_PART_DETECTION.items()
-                    if cid not in spec.components], "demo"
         if self.claude is None:
             return [], "mock"
         try:
@@ -570,7 +560,7 @@ class Analyzer:
 
     def answer(self, question: str, context: str) -> Optional[str]:
         """Claude's answer, or None when there is no AI (the caller then answers from the facts)."""
-        if self.claude is None or self.mode == "demo":
+        if self.claude is None:
             return None
         try:
             return self.claude.answer(question, context)

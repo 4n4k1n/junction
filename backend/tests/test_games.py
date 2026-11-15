@@ -172,16 +172,6 @@ def test_the_user_is_told_once_that_the_code_is_written_while_they_wire(monkeypa
     assert post(f"/sessions/{sid}/generate")["source"] == "template"   # ready: straight to the approval
 
 
-def test_demo_mode_builds_the_games_and_says_so(monkeypatch):
-    monkeypatch.setenv("LEARNLENS_DEMO_MODE", "1")
-    session_router.analyzer, session_router.generator = Analyzer(), codegen.CodeGenerator()
-    sid, g = built("Snake")
-    assert g["source"] == "demo" and "GAME_OVER" in g["sketch"]["code"]
-    assert client.get(f"/sessions/{sid}/status").json()["analysis_source"] == "demo"
-    _, s = start("a clap light")
-    assert s["state"] == "unsupported" and "Pong or Snake" in s["project"]["unsupported_reason"]
-
-
 @pytest.mark.parametrize("game,with_reset", [("pong", False), ("pong", True), ("snake", False), ("snake", True)])
 def test_every_prevalidated_game_sketch_passes_the_static_checks(game, with_reset, tmp_path, monkeypatch):
     spec, steps = spec_for(game, with_reset)
@@ -312,3 +302,20 @@ def test_without_ai_a_free_wish_is_refused_with_what_works(monkeypatch):
     monkeypatch.setenv("LEARNLENS_FREE_PROJECTS", "0")                 # switched off: even a proposal is not used
     example.use_fake_ai(proposal(["ky-018"]))
     assert start("a light meter")[1]["state"] == "unsupported"
+
+
+def test_switching_games_does_not_wait_for_the_ai_service():
+    sid, _ = built()
+    fake = example.use_fake_ai()                                       # an AI is configured but would not answer
+    s = extend(sid, "I want to change the pong game to a snake game")
+    assert fake.requests == [] and s["state"] == "wiring_complete" and s["project"]["game"] == "snake"
+
+
+def test_health_says_why_the_ai_service_failed():
+    from app.build import llm
+    sid, _ = built()
+    example.use_fake_ai(RuntimeError("Budget has been exceeded!"))
+    s = extend(sid, "add the infrared sensor so the game restarts when I hold my hand over it")
+    assert s["state"] == "needs_confirmation"                          # the keyword fallback still handles it
+    assert "Budget has been exceeded" in client.get("/health").json()["ai_error"]
+    llm.last_error = ""

@@ -14,7 +14,8 @@ Backend how-to: `docs/backend-dev-guide.md`. iOS: `ios/README.md`.
 
 ## Commands
 
-Start everything: `./scripts/start.sh` (`--demo` = saved AI answers, `--mock` = simulated upload).
+Start everything: `./scripts/start.sh` (`--mock` = simulated upload). Without `ANTHROPIC_API_KEY` only
+the projects with a prevalidated sketch can be built.
 Drive the flow from a terminal: `python3 scripts/demo_run.py`. Demo material: `DEMO_SCRIPT.md`,
 `DEMO_CHECKLIST.md`.
 

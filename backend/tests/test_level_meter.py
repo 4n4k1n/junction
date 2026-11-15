@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.build import codecheck, codegen, compiler, demo, facts, planner, session_router
+from app.build import codecheck, codegen, compiler, facts, planner, session_router
 from app.build.analyzer import Analyzer, analysis_schema, keyword_project
 from app.build.models import Behavior, CompileStatus
 from app.main import app
@@ -71,14 +71,6 @@ def test_the_clap_light_is_unchanged_and_keywords_pick_the_project():
     assert keyword_project("toggle the light when I clap").behavior == Behavior.toggle_on_event
     assert keyword_project("blink a servo").behavior == Behavior.unsupported
     assert "level_meter" in analysis_schema()["properties"]["project"]["properties"]["behavior"]["enum"]
-
-
-def test_demo_mode_follows_the_instruction(monkeypatch):
-    monkeypatch.setenv("LEARNLENS_DEMO_MODE", "1")
-    analysis, source = Analyzer().analyze(GOAL)
-    assert source == "demo" and analysis.project.behavior == Behavior.level_meter
-    assert Analyzer().analyze("clap light")[0].project.behavior == Behavior.toggle_on_event
-    assert demo.enabled()
 
 
 def test_prompt_for_the_level_meter_comes_from_the_hardware_database():
@@ -146,7 +138,3 @@ def test_only_the_level_meter_is_offered_by_default(monkeypatch):
     sid = client.post("/sessions", json={"instruction": "clap light", "confirmed_inventory": INVENTORY}).json()["session_id"]
     s = client.post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": "[]"}).json()
     assert s["state"] == "unsupported" and "sound level meter" in s["spoken_text"]
-
-    monkeypatch.setenv("LEARNLENS_DEMO_MODE", "1")
-    for goal in ("clap light", "anything at all", GOAL):                 # demo mode always lands on the offered project
-        assert Analyzer().analyze(goal)[0].project.behavior == Behavior.level_meter, goal

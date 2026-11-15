@@ -31,7 +31,7 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import TypeAdapter, ValidationError
 
-from . import codegen, demo, facts, games, planner
+from . import codegen, facts, games, planner, variants
 from .analyzer import Analyzer, addable_sensors, to_spec
 from .models import (
     AskRequest, StepAnswer, Behavior, BuildStatus, DetectedComponent, ConfirmationKind, ConfirmStepRequest, CreateGuideSessionRequest, ExtendRequest, GenerateRequest,
@@ -202,8 +202,6 @@ async def analyze(session_id: str, image: Optional[UploadFile] = File(None),
     s = _load(session_id, GuideState.awaiting_analysis, GuideState.needs_confirmation,
               GuideState.wiring, GuideState.wiring_complete, GuideState.code_generated)
     data, media_type = await _read_image(image)
-    if data is None and demo.enabled():
-        data, media_type = demo.saved_photo()  # demo mode can start from the saved desk photo
 
     if purpose == "part" and s.state == GuideState.code_generated:
         # A photo of a part to add to the finished build. It says which part "this sensor" is; the
@@ -240,10 +238,6 @@ async def analyze(session_id: str, image: Optional[UploadFile] = File(None),
         s.detected_components = analysis.components
         if not (s.project and s.project.requests):
             s.project = to_spec(analysis.project)  # a build being developed further keeps its project
-        elif s.analysis_source == "demo":
-            # Demo mode: the saved answer for a photo of the added part.
-            s.detected_components = [DetectedComponent.model_validate(demo.SAVED_PART_DETECTION[c])
-                                     for c in s.project.components if c in demo.SAVED_PART_DETECTION]
     _advance(s)
     return s
 
@@ -349,7 +343,7 @@ def extend(session_id: str, req: ExtendRequest):
             if games.RESET_SENSOR in addable_sensors(s.project):
                 ideas.append("Add the infrared sensor to restart the game")
         elif not ideas and s.project.input_component == "ky-037" and "ky-032" in addable_sensors(s.project):
-            ideas = [v["idea"] for v in demo.EXTENSION_VARIANTS.values()]  # these always work
+            ideas = [v["idea"] for v in variants.EXTENSION_VARIANTS.values()]  # these always work
         s.extension_problem, s.suggestions, s.clarification = reason, ideas[:3], ""
         return s
 

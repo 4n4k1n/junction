@@ -20,7 +20,7 @@ from typing import Callable, List, Optional, Tuple
 
 from pydantic import ValidationError
 
-from . import codecheck, demo, facts, games
+from . import codecheck, facts, games, variants
 from .compiler import ArduinoCliCompiler
 from .llm import ask_json, make_client
 from .models import (
@@ -479,12 +479,12 @@ def display_summary(sketch: GeneratedSketch, limit: int = 180) -> str:
 
 def gated_level_meter_template(ctx: CodegenContext) -> GeneratedSketch:
     """Prevalidated sketches for the level meter plus one digital sensor, in the variants listed in
-    demo.EXTENSION_VARIANTS. Any other change needs the AI service."""
+    variants.EXTENSION_VARIANTS. Any other change needs the AI service."""
     kinds = [i.kind for i in ctx.inputs]
     if kinds != ["analog", "digital"]:
         raise RuntimeError("This change needs the AI service: there is no prevalidated sketch for it.")
     gate = ctx.inputs[1]
-    variant = demo.variant_for(ctx.custom_behavior)
+    variant = variants.variant_for(ctx.custom_behavior)
     base = level_meter_template(ctx)
     code = base.source_code
 
@@ -527,7 +527,7 @@ def gated_level_meter_template(ctx: CodegenContext) -> GeneratedSketch:
         new = "While it detects nothing, the bar is forced to zero and the matrix stays dark."
     return GeneratedSketch(
         source_code=code,
-        display_summary=demo.EXTENSION_VARIANTS[variant]["summary"],
+        display_summary=variants.EXTENSION_VARIANTS[variant]["summary"],
         explanation=base.explanation + f" New: the sketch also reads the {gate.name} on {gate.header}. {new}",
         assumptions=base.assumptions + [
             f"The {gate.name} reads {gate.active_level} on {gate.header} while it detects something.",
@@ -560,8 +560,7 @@ def save_project(session_id: str, attempt: int, sketch: GeneratedSketch, ctx: Co
 
 class CodeGenerator:
     def __init__(self, mode: Optional[str] = None, client=None, compiler=None) -> None:
-        default = "demo" if demo.enabled() else os.getenv("LEARNLENS_CODEGEN") or os.getenv("LEARNLENS_TUTOR", "auto")
-        self.mode = mode or default  # auto | claude | mock | demo
+        self.mode = mode or os.getenv("LEARNLENS_CODEGEN") or os.getenv("LEARNLENS_TUTOR", "auto")  # auto | claude | mock
         self.compiler = compiler or ArduinoCliCompiler()
         self.client = client
         if self.client is None and self.mode in ("auto", "claude"):
@@ -603,7 +602,7 @@ class CodeGenerator:
 
     def generate(self, session_id: str, ctx: CodegenContext, on_stage: Optional[Callable[[str], None]] = None
                  ) -> Tuple[GeneratedSketch, str, List[GenerationAttempt]]:
-        """Returns (sketch, source, attempts) with source in llm | template | demo. Raises if even the template fails."""
+        """Returns (sketch, source, attempts) with source in llm | template. Raises if even the template fails."""
         attempts: List[GenerationAttempt] = []
         stage = on_stage or (lambda text: None)
         if self.client is not None:
@@ -629,7 +628,7 @@ class CodeGenerator:
         attempts.append(attempt)
         if attempt.issues:
             raise RuntimeError("the template sketch failed its own checks: " + codecheck.summarize(attempt.issues))
-        return sketch, "demo" if self.mode == "demo" else "template", attempts
+        return sketch, "template", attempts
 
 
 def final_compile(attempts: List[GenerationAttempt], fqbn: str) -> CompileReport:

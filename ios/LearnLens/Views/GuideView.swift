@@ -76,10 +76,10 @@ struct GuideView: View {
   /// Says, before anything else, when this is not a real run.
   @ViewBuilder
   private var modeBanner: some View {
-    if let info = model.backendInfo, info.demoMode || info.agentMock || !info.agentConnected {
+    if let info = model.backendInfo, !info.aiAvailable || info.agentMock || !info.agentConnected {
       Section {
-        if info.demoMode {
-          Label("DEMO MODE: saved AI answers and prevalidated code. No model is called.", systemImage: "play.rectangle")
+        if !info.aiAvailable {
+          Label("No AI service: only Pong, Snake and the sound level meter can be built, from prevalidated code.", systemImage: "wifi.slash")
             .foregroundStyle(.orange)
         }
         if info.agentConnected && info.agentMock {

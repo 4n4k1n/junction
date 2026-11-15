@@ -15,7 +15,7 @@ Timings are targets. If a step stalls for 10 seconds, use its fallback and keep 
 | 0:25 | "It tells me what I need. No photo, no guessing." | Selects **Yes** | "You need: Arduino UNO Q, KY-023 joystick. Do you have them?" | – |
 | 0:35 | "One thing only I can check: the labels on the part." | Reads the joystick's labels, selects **Yes** | "Read the 5 pin labels on the joystick. Are they GND, +5V, VRx, VRy and SW?" | – |
 | 0:45 | "The wiring comes from a hardware database, not from the AI. This joystick says 5 volts on its pin, but this board's analog inputs take 3.6 at most. So it runs on 3.3, as the maker documents." | 4 steps: unplug USB and GND→GND, +5V→+3V3, VRx→A0, VRy→A1 and plug USB in. **Next** each time | "Step n of 4"; on step 1 also "writing the code meanwhile" | Operator reads the steps from the phone |
-| 1:30 | "While I was wiring, Claude wrote the game for exactly these pins. It was checked against the approved pins and compiled before I see it." | Usually no wait | "Ready to flash" with how the game works | Restart in `--demo` (prevalidated sketch) |
+| 1:30 | "While I was wiring, Claude wrote the game for exactly these pins. It was checked against the approved pins and compiled before I see it." | Usually no wait | "Ready to flash" with how the game works | Wait: after a failed AI attempt the prepared sketch is used |
 | 1:50 | "Nothing touches my board until I say so." | Selects **Start flash** | "Deploying" | **Retry flash**; second failure → recorded video |
 | 2:10 | "Uploaded. Let's play." | Moves the joystick | Paddle on the left of the LED matrix, ball bouncing | If up and down are reversed, turn the joystick around |
 | 2:25 | "It works." | Selects **Yes** | "It works. What next?" | – |
@@ -44,18 +44,18 @@ You need a breadboard or a Y-cable, because both parts share the board's single 
 
 ## What runs in which mode
 
-- **Real mode** (`./scripts/start.sh`): any wish the known parts can do works, for example "a Breakout
-  game" or "a light meter". Claude writes each sketch (about a minute; Act 1 hides most of
+- **With the AI service** (`ANTHROPIC_API_KEY` set): any wish the known parts can do works, for example
+  "a Breakout game" or "a light meter". Claude writes each sketch (about a minute; Act 1 hides most of
   it behind the wiring). If no attempt passes the checks, the prevalidated sketch for that game is used
   and the result says `source: template`.
-- **Demo mode** (`--demo`): Pong, Snake and both with the hand restart come from prevalidated sketches.
-  The sound level meter works too. Any other wish is answered with what can be built. Any other
-  change to a game (pause, speed, …) needs the AI service and says so.
+- **Without it** (no key, no network, used-up budget): Pong, Snake and both with the hand restart come
+  from prevalidated sketches, and so does the sound level meter. Any other wish is answered with
+  what can be built. Any other change to a game (pause, speed, …) says that it needs the AI service.
 
 ## Rules for the live run
 
-- **Say which mode you are in.** If the app shows "DEMO MODE" or "SIMULATED upload", say so out loud:
-  "the AI answers are saved for reliability; the board and the upload are real."
+- **Say what is real.** If the app shows "No AI service" or "SIMULATED upload", say so out loud:
+  "this code is a prepared sketch, not written live" or "the upload is simulated".
 - Never claim a photo verified the wiring. The line is: "I confirm each step myself."
 
 ## If things go wrong
@@ -63,7 +63,7 @@ You need a breadboard or a Y-cable, because both parts share the board's single 
 | Problem | Do this |
 |---|---|
 | Glasses not connected | Turn on **Simulated glasses** in the app and mirror the phone. Say it. |
-| No network to Claude | Operator restarts with `./scripts/start.sh --demo`. Banner shows DEMO MODE. |
+| No network to Claude | Keep going: Pong, Snake and the restart use the prepared sketches (`source: template`). Say so. |
 | "No deploy agent connected" in the app | Operator checks the terminal running `start.sh` |
 | Upload fails twice | Presenter: "Uploads over USB can be moody." Play the recorded video. |
 | Paddle or snake does not move | Check VRx → A0, VRy → A1 and +5V pin → +3V3; unplug and replug USB without touching the joystick |

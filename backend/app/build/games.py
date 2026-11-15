@@ -2,8 +2,8 @@
 played with the KY-023 joystick.
 
 The text here says what a game should do; pins and voltages still come from the planner and the
-hardware database. Each game also has a prevalidated sketch, used without the AI service, in
-demo mode, and when no AI attempt passes the checks.
+hardware database. Each game also has a prevalidated sketch, used without the AI service and when
+no AI attempt passes the checks.
 """
 from __future__ import annotations
 

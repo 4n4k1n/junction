@@ -21,11 +21,30 @@ INSTRUCTION = "Build a clap-activated light"
 FAKE_JPEG = b"\xff\xd8\xff\xe0" + b"0" * 100
 
 sys.path.insert(0, str(ROOT / "backend"))
-from app.build.demo import SAVED_ANALYSIS  # noqa: E402
 
 # This recording exercises the clap light, which is no longer offered to users by default.
 os.environ.setdefault("LEARNLENS_OFFERED_PROJECTS", "level_meter,toggle_on_event,on_while_active")
-CANNED_ANALYSIS = dict(SAVED_ANALYSIS, project={
+# An answer in the shape the vision model returns: sure about the board, unsure about the sensor.
+CANNED_ANALYSIS = dict(components=[
+    {
+        "component_id": "uno-q",
+        "label": "Arduino board with an LED matrix",
+        "confidence": 0.94,
+        "evidence": "'UNO Q' is printed next to the LED matrix; USB-C connector visible."
+    },
+    {
+        "component_id": "ky-037",
+        "label": "red sensor board with a microphone capsule",
+        "confidence": 0.62,
+        "evidence": "Microphone capsule, blue trim pot and 4 pins visible. Pin labels are not readable, and the capsule size could also match a KY-038."
+    },
+    {
+        "component_id": "unknown",
+        "label": "bundle of jumper wires",
+        "confidence": 0.9,
+        "evidence": "Loose wires."
+    }
+], project={
     "title": "Clap-activated light", "summary": "A clap toggles the board's built-in LED.",
     "behavior": "toggle_on_event", "input_component": "ky-037", "unsupported_reason": ""})
 

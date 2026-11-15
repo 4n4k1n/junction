@@ -88,9 +88,9 @@ confirms the build without a button press.
 Flashing always needs an explicit approval. It can be given on the glasses ("Start flash" button on
 the approval card) or on the phone, where the generated code is shown in full.
 
-The app reads `GET /health` and shows a banner when the backend runs in demo mode (saved AI answers),
-when the deploy agent simulates uploads (`--mock`), or when no agent is connected. Demo mode and
-simulated uploads are also written on the glasses cards.
+The app reads `GET /health` and shows a banner when the backend has no AI service (only the projects
+with a prevalidated sketch can be built), when the deploy agent simulates uploads (`--mock`), or when
+no agent is connected. Simulated uploads are also written on the glasses cards.
 
 ## Hardware verification checklist (all unverified)
 

@@ -164,7 +164,6 @@ final class SessionViewModel {
     return guide.pendingConfirmations.contains { $0.kind == "presence" }
   }
   var partsListText: String { "You need: " + (guide?.partsNeeded ?? []).joined(separator: ", ") + "." }
-  var isDemoMode: Bool { backendInfo?.demoMode == true }
   /// True when the upload was simulated by an agent in --mock mode: no board was flashed.
   var isSimulatedDeploy: Bool { build?.deploy?.mock == true }
   var canCaptureFromGlasses: Bool { glasses.isDisplayReady && !glasses.isSimulated }
@@ -866,28 +865,26 @@ final class SessionViewModel {
   }
 
   private func makeCard() -> FlexBoxCard {
-    // Demo mode is visible on the glasses too, on every card.
-    let demo = isDemoMode ? "DEMO MODE · " : ""
     switch flow {
     case .disconnected, .connected:
       // The whole start can be driven from the glasses: speak the goal, then photo and go.
       if isListening {
         return GlassesCards.card(
-          caption: demo + "Listening…",
+          caption: "Listening…",
           text: "Say what you want to build.",
           primary: action("Done") { await $0.finishVoiceInput() }
         )
       }
       if goal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         return GlassesCards.card(
-          caption: demo + "LearnLens",
+          caption: "LearnLens",
           text: "What do you want to build today?",
           primary: action("Speak") { await $0.startVoiceInput() }
         )
       }
       // No photo is needed to start; it stays possible as an extra check of the parts.
       return GlassesCards.card(
-        caption: demo + "You want to build",
+        caption: "You want to build",
         text: goal,
         primary: action("Start") { await $0.start(withPhoneJPEG: nil) },
         secondary: action("Speak again") { await $0.startVoiceInput() },
@@ -896,11 +893,11 @@ final class SessionViewModel {
     case .capturing:
       return GlassesCards.card(caption: "Capturing", text: "Look at your parts and hold still.")
     case .analyzing:
-      return GlassesCards.card(caption: demo + "One moment", text: "Checking which parts you need…")
+      return GlassesCards.card(caption: "One moment", text: "Checking which parts you need…")
     case .confirmingParts:
       if showsPartsList {
         return GlassesCards.card(
-          caption: demo + "Parts for this build",
+          caption: "Parts for this build",
           text: partsListText + " Do you have them?",
           primary: action("Yes") { await $0.answerPartsList(true) },
           secondary: action("No") { await $0.answerPartsList(false) }
@@ -929,7 +926,7 @@ final class SessionViewModel {
       let position = "Step \(stepIndex + 1) of \(guide.wiringSteps.count)"
       // On the first step of a plan: the code is being written meanwhile.
       let writing = noticeStep == stepIndex && !guide.backgroundNotice.isEmpty ? " · writing the code meanwhile" : ""
-      let caption = isAskingByVoice ? "Listening… ask your question" : isAnswering ? "Thinking…" : demo + position + writing
+      let caption = isAskingByVoice ? "Listening… ask your question" : isAnswering ? "Thinking…" : position + writing
       return GlassesCards.card(
         caption: caption,
         text: step.displayText,
@@ -940,7 +937,7 @@ final class SessionViewModel {
           : action("Ask") { await $0.startVoiceInput() }
       )
     case .generating:
-      return GlassesCards.card(caption: demo + "Generating", text: (generationStage ?? "Starting") + "…")
+      return GlassesCards.card(caption: "Generating", text: (generationStage ?? "Starting") + "…")
     case .awaitingApproval:
       // Flashing still needs an explicit yes, but it can be given on the glasses. The code itself
       // stays readable on the phone for anyone who wants to check it first.
@@ -948,7 +945,7 @@ final class SessionViewModel {
       let compiled = generation?.compile.status == "ok" ? "Code is ready and compiled." : "Code is ready (not compiled)."
       let summary = generation?.displaySummary ?? ""
       return GlassesCards.card(
-        caption: demo + (deployError == nil ? "Ready to flash" : "Upload failed"),
+        caption: (deployError == nil ? "Ready to flash" : "Upload failed"),
         text: deployError == nil ? (summary.isEmpty ? compiled + " Flash it to the board?" : summary)
           : "The upload did not succeed. Try again?",
         primary: action(deployError == nil ? "Start flash" : "Retry flash") { await $0.approve() },
@@ -959,7 +956,7 @@ final class SessionViewModel {
     case .testing:
       let seen = build?.deploy?.observedEvents ?? []
       return GlassesCards.card(
-        caption: isSimulatedDeploy ? "Test it · SIMULATED upload" : demo + "Test it",
+        caption: isSimulatedDeploy ? "Test it · SIMULATED upload" : "Test it",
         text: seen.isEmpty ? "Try it out. Does it work?" : "Board reports: " + seen.joined(separator: ", "),
         primary: action("Yes") { await $0.reportTest(passed: true) },
         secondary: action("No") { await $0.reportTest(passed: false) }
@@ -974,7 +971,7 @@ final class SessionViewModel {
       }
       if !extensionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         return GlassesCards.card(
-          caption: autoGoSeconds > 0 ? "Continuing in \(autoGoSeconds) s" : demo + "Next",
+          caption: autoGoSeconds > 0 ? "Continuing in \(autoGoSeconds) s" : "Next",
           text: extensionText,
           primary: action(autoGoSeconds > 0 ? "Go now" : "Go") { await $0.submitExtension() },
           secondary: action("Speak again") { await $0.startVoiceInput() }
@@ -1026,7 +1023,7 @@ final class SessionViewModel {
       }
       if awaitingPartPhoto {
         return GlassesCards.card(
-          caption: demo + "Continue building",
+          caption: "Continue building",
           text: "Adding a part? Look at it and take a photo. Otherwise skip.",
           primary: action("Take photo") { await $0.takePartPhoto() },
           secondary: action("Skip") { await $0.skipPartPhoto() },
@@ -1035,14 +1032,14 @@ final class SessionViewModel {
       }
       if isExtending {
         return GlassesCards.card(
-          caption: demo + "Continue building",
+          caption: "Continue building",
           text: "What do you want to add or change?",
           primary: action("Speak") { await $0.startVoiceInput() },
           secondary: action("Cancel") { await $0.cancelExtension() }
         )
       }
       return GlassesCards.card(
-        caption: isSimulatedDeploy ? "Success · SIMULATED upload" : demo + "Success",
+        caption: isSimulatedDeploy ? "Success · SIMULATED upload" : "Success",
         text: isSimulatedDeploy ? "Flow complete. No board was flashed."
           : (boardProof.map { "The board reported \($0). " } ?? "It works. ") + "What next?",
         primary: action("Change this build") { await $0.beginChange() },

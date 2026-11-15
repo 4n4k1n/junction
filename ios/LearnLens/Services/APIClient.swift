@@ -10,12 +10,14 @@ enum APIError: LocalizedError {
   case badURL(String)
   case server(status: Int, message: String)
   case unreachable(String)
+  case slow
 
   var errorDescription: String? {
     switch self {
     case .badURL(let url): "Backend URL is not valid: \(url)"
     case .server(let status, let message): "Backend error \(status): \(message)"
     case .unreachable(let reason): "Backend not reachable: \(reason)"
+    case .slow: "The backend took too long to answer. The AI service may be slow. Try again."
     }
   }
 }
@@ -120,7 +122,7 @@ struct APIClient: Sendable {
     }
     var req = URLRequest(url: url)
     req.httpMethod = method
-    req.timeoutInterval = 60
+    req.timeoutInterval = 90  // reading a request or a photo can take two tries of the AI service
     return req
   }
 
@@ -142,6 +144,9 @@ struct APIClient: Sendable {
     let response: URLResponse
     do {
       (data, response) = try await URLSession.shared.data(for: req)
+    } catch let error as URLError where error.code == .timedOut {
+      // The backend was reached but did not answer in time, usually because the AI service is slow.
+      throw APIError.slow
     } catch {
       throw APIError.unreachable(error.localizedDescription)
     }

@@ -245,7 +245,7 @@ def variant_ctx(idea):
     ("toggle", "if (gateActive && !gateWasActive) meterOn = !meterOn;"),
 ])
 def test_every_offered_idea_has_its_own_prevalidated_sketch(variant, marker, tmp_path, monkeypatch):
-    from app.build import demo
+    from app.build import variants as demo
 
     idea = demo.EXTENSION_VARIANTS[variant]["idea"]
     assert len(idea) <= 60 and demo.variant_for("I want to add the infrared sensor. " + idea) == variant
@@ -260,26 +260,19 @@ def test_every_offered_idea_has_its_own_prevalidated_sketch(variant, marker, tmp
         assert report.status == CompileStatus.ok, report.log[-1500:]
 
 
-def test_demo_mode_runs_the_whole_second_sensor_flow_without_ai(monkeypatch):
-    monkeypatch.setenv("LEARNLENS_DEMO_MODE", "1")
-    monkeypatch.setattr(session_router, "analyzer", Analyzer())
-    monkeypatch.setattr(session_router, "generator", codegen.CodeGenerator())
-    sid, _ = finished_level_meter()
+def test_the_second_sensor_flow_runs_without_ai():
+    sid, _ = finished_level_meter()                                      # mock analyzer and generator: no model at all
 
-    s = extend(sid, "I would like to connect one more sensor")          # no sensor name needed in demo mode
+    s = extend(sid, "I would like to add the infrared sensor")           # named, but no purpose: ask, with ideas
     assert s["clarification"].startswith("What should the KY-032") and len(s["suggestions"]) == 3
-    s = extend(sid, "I would like to connect one more sensor. " + s["suggestions"][2])
+    s = extend(sid, "I would like to add the infrared sensor. " + s["suggestions"][2])
     assert s["state"] == "needs_confirmation" and s["project"]["components"][-1] == "ky-032"
-
-    photo = {"image": ("part.jpg", __import__("io").BytesIO(example.FAKE_JPEG), "image/jpeg")}
-    s = client.post(f"/sessions/{sid}/analyze", files=photo).json()     # the saved answer "sees" the new part
-    assert s["analysis_source"] == "demo" and [d["component_id"] for d in s["detected_components"]] == ["ky-032"]
-    assert [p["id"] for p in s["pending_confirmations"]] == ["ky032-pin-labels"]
+    assert [p["id"] for p in s["pending_confirmations"]] == ["ky-032-present", "ky032-pin-labels"]
 
     confirmed = '[{"component_id": "ky-032", "confirmations": ["ky032-pin-labels"]}]'
     s = client.post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": confirmed}).json()
     for i in range(s["current_step"], len(s["wiring_steps"])):
         client.post(f"/sessions/{sid}/confirm-step", json={"step_index": i})
     g = client.post(f"/sessions/{sid}/generate").json()
-    assert g["source"] == "demo" and "meterOn = !meterOn" in g["sketch"]["code"]
+    assert g["source"] == "template" and "meterOn = !meterOn" in g["sketch"]["code"]
     assert g["display_summary"].startswith("Wave a hand past the infrared sensor")
