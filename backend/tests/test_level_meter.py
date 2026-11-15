@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.build import codecheck, codegen, compiler, demo, facts, planner, session_router
+from app.build import codecheck, codegen, compiler, facts, planner, session_router
 from app.build.analyzer import Analyzer, analysis_schema, keyword_project
 from app.build.models import Behavior, CompileStatus
 from app.main import app
@@ -48,14 +48,15 @@ def test_level_meter_flow_wires_the_analog_output_and_draws_on_the_matrix():
     assert s["project"]["behavior"] == "level_meter" and s["project"]["output"] == "led_matrix"
     links = [(c["from_pin"]["pin"], c["to_pin"]["pin"]) for c in (st["connection"] for st in s["wiring_steps"]) if c]
     assert links == [("G", "GND"), ("+", "3V3"), ("AO", "A0")]                 # analog out, never on 5 V
-    assert "unoq-analog-limit" in s["wiring_steps"][3]["fact_ids"]
+    assert "unoq-analog-limit" in s["wiring_steps"][2]["fact_ids"]
 
     g = client.post(f"/sessions/{sid}/generate", json={"sample_window_ms": 40}).json()
     code = g["sketch"]["code"]
     assert "#include <Arduino_LED_Matrix.h>" in code and "analogRead(MIC_PIN)" in code and "const int MIC_PIN = A0;" in code
     assert "const unsigned long SAMPLE_WINDOW_MS = 40;" in code and "uint8_t frame[104];" in code
     assert g["parameters"] == {"SAMPLE_WINDOW_MS": 40, "sensor_pin": "A0", "output": "led_matrix", "fqbn": "arduino:zephyr:unoq"}
-    assert [e["event"] for e in g["expected_serial_events"]] == ["READY"]
+    assert [e["event"] for e in g["expected_serial_events"]] == ["READY", "LOUD", "QUIET"]
+    assert code.count('Monitor.println("LOUD")') == 1 and "wasLoud" in code
     assert g["flashed"] is False and g["hardware_verified"] is False
     assert client.get(f"/builds/{g['build_id']}").json()["status"] == "awaiting_approval"
 
@@ -72,17 +73,9 @@ def test_the_clap_light_is_unchanged_and_keywords_pick_the_project():
     assert "level_meter" in analysis_schema()["properties"]["project"]["properties"]["behavior"]["enum"]
 
 
-def test_demo_mode_follows_the_instruction(monkeypatch):
-    monkeypatch.setenv("LEARNLENS_DEMO_MODE", "1")
-    analysis, source = Analyzer().analyze(GOAL)
-    assert source == "demo" and analysis.project.behavior == Behavior.level_meter
-    assert Analyzer().analyze("clap light")[0].project.behavior == Behavior.toggle_on_event
-    assert demo.enabled()
-
-
 def test_prompt_for_the_level_meter_comes_from_the_hardware_database():
     fake = example.use_fake_codegen({"source_code": CODE, "explanation": "x", "assumptions": [],
-                                     "expected_serial_events": [{"event": "READY", "when": "start"}]})
+                                     "expected_serial_events": [{"event": e, "when": "x"} for e in ("READY", "LOUD", "QUIET")]})
     sid, _ = wired()
     g = client.post(f"/sessions/{sid}/generate").json()
     assert g["source"] == "llm" and g["repairs_used"] == 0
@@ -119,7 +112,7 @@ def test_static_checks_for_the_level_meter(old, new, rule):
 def test_analog_output_is_only_safe_on_the_3v3_rail():
     steps = planner.plan_wiring(planner.level_meter_spec())
     assert facts.check_safety(steps) == []
-    steps[2].connection.to_pin.pin = "5V"
+    steps[1].connection.to_pin.pin = "5V"
     assert any("AO can reach 5.5 V but uno-q A0 tolerates 3.6 V" in p for p in facts.check_safety(steps))
 
 
@@ -145,7 +138,3 @@ def test_only_the_level_meter_is_offered_by_default(monkeypatch):
     sid = client.post("/sessions", json={"instruction": "clap light", "confirmed_inventory": INVENTORY}).json()["session_id"]
     s = client.post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": "[]"}).json()
     assert s["state"] == "unsupported" and "sound level meter" in s["spoken_text"]
-
-    monkeypatch.setenv("LEARNLENS_DEMO_MODE", "1")
-    for goal in ("clap light", "anything at all", GOAL):                 # demo mode always lands on the offered project
-        assert Analyzer().analyze(goal)[0].project.behavior == Behavior.level_meter, goal

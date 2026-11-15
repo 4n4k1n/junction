@@ -76,10 +76,10 @@ struct GuideView: View {
   /// Says, before anything else, when this is not a real run.
   @ViewBuilder
   private var modeBanner: some View {
-    if let info = model.backendInfo, info.demoMode || info.agentMock || !info.agentConnected {
+    if let info = model.backendInfo, !info.aiAvailable || info.agentMock || !info.agentConnected {
       Section {
-        if info.demoMode {
-          Label("DEMO MODE: saved AI answers and prevalidated code. No model is called.", systemImage: "play.rectangle")
+        if !info.aiAvailable {
+          Label("No AI service: only Pong, Snake and the sound level meter can be built, from prevalidated code.", systemImage: "wifi.slash")
             .foregroundStyle(.orange)
         }
         if info.agentConnected && info.agentMock {
@@ -167,10 +167,14 @@ struct GuideView: View {
     case .success:
       Section("Success") {
         Text(model.isSimulatedDeploy ? "Flow complete with a SIMULATED upload. No board was flashed." : "The build works.")
+        if let proof = model.boardProof {
+          Label("Confirmed by the board: it reported \(proof).", systemImage: "checkmark.seal").foregroundStyle(.green)
+        }
         if !model.isExtending {
-          // Keep developing the same build: add a known part, or change what it does.
-          Button("Continue building") { Task { await model.beginExtension() } }
-          Button("New build") { Task { await model.reset() } }
+          // Same parts with new behaviour, a new project, or one more known part.
+          Button("Change this build") { Task { await model.beginChange() } }
+          Button("Build something new") { Task { await model.reset() } }
+          Button("Add a part") { Task { await model.beginExtension() } }
         } else if model.awaitingPartPhoto {
           // Asked right away, before the request: a photo of the part that should be added.
           Text("Adding a part? Take a photo of it. Otherwise skip.").font(.title3)
@@ -181,6 +185,13 @@ struct GuideView: View {
           Button("Skip the photo") { Task { await model.skipPartPhoto() } }
           Button("Cancel", role: .destructive) { Task { await model.cancelExtension() } }
         } else {
+          if let problem = model.extensionProblem {
+            // The last request cannot be built: why, and requests that would work instead.
+            Text(problem).foregroundStyle(.red)
+            ForEach(Array(model.extensionIdeas.enumerated()), id: \.offset) { index, idea in
+              Button(idea) { Task { await model.chooseIdea(index) } }
+            }
+          }
           if let question = model.extensionQuestion {
             Text(question).font(.title3)  // the backend needs to know what the new part should do
             // Iterates over the values, not the indices: the list is emptied when an idea is chosen, and
@@ -200,6 +211,9 @@ struct GuideView: View {
     case .error(let message):
       Section("Error") {
         Text(message).foregroundStyle(.red)
+        if model.canRetry {
+          Button("Retry this step") { Task { await model.retryLast() } }  // keeps what was confirmed
+        }
         Button("Start over") { Task { await model.reset() } }
       }
     }
@@ -215,8 +229,8 @@ struct GuideView: View {
   }
 
   private var goalSection: some View {
-    Section("What do you want to build?") {
-      TextField("Build a sound level meter", text: $model.goal, axis: .vertical)
+    Section("What do you want to build today?") {
+      TextField("A Pong game", text: $model.goal, axis: .vertical)
         .onSubmit { Task { await model.pushCard() } }  // show the typed goal on the glasses too
 
       Label(
@@ -241,12 +255,17 @@ struct GuideView: View {
         Text(message).font(.footnote).foregroundStyle(.secondary)
       }
 
-      Button("Capture with glasses and start") { Task { await model.captureAndStart() } }
-        .disabled(!model.canCaptureFromGlasses)
-      Button("Take a photo with the iPhone and start") { showPhoneCamera = true }
-        .disabled(!PhoneCameraPicker.isAvailable)
-      PhotosPicker("Pick a saved photo and start", selection: $pickedPhoto, matching: .images)
-      Button("Start without a photo") { Task { await model.start(withPhoneJPEG: nil) } }
+      // No photo is needed: the parts are listed and confirmed by hand.
+      Button("Start") { Task { await model.start(withPhoneJPEG: nil) } }
+        .disabled(model.goal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+      // Optional: a photo of the desk, so the parts can be checked against it.
+      DisclosureGroup("Start with a photo of your parts") {
+        Button("Capture with glasses and start") { Task { await model.captureAndStart() } }
+          .disabled(!model.canCaptureFromGlasses)
+        Button("Take a photo with the iPhone and start") { showPhoneCamera = true }
+          .disabled(!PhoneCameraPicker.isAvailable)
+        PhotosPicker("Pick a saved photo and start", selection: $pickedPhoto, matching: .images)
+      }
     }
   }
 
@@ -261,10 +280,15 @@ struct GuideView: View {
           }
         }
         if guide.detectedComponents.isEmpty {
-          Text("No parts were detected from a photo (\(guide.analysisSource)).").font(.footnote)
+          Text("No photo was looked at (\(guide.analysisSource)).").font(.footnote)
         }
       }
-      if let pending = model.pendingConfirmation {
+      if model.showsPartsList {
+        Text(model.partsListText).font(.title3)
+        Text("Do you have them on the desk? Each part's pin labels are checked next.").font(.footnote).foregroundStyle(.secondary)
+        Button("Yes, I have them") { Task { await model.answerPartsList(true) } }
+        Button("No", role: .destructive) { Task { await model.answerPartsList(false) } }
+      } else if let pending = model.pendingConfirmation {
         Text(pending.question).font(.title3)
         Text(pending.reason).font(.footnote).foregroundStyle(.secondary)
         Button("Yes") { Task { await model.answerConfirmation(true) } }
@@ -280,6 +304,9 @@ struct GuideView: View {
           .font(.footnote)
           .foregroundStyle(.secondary)
         Text(step.displayText).font(.title3)
+        if model.noticeStep == model.stepIndex, !guide.backgroundNotice.isEmpty {
+          Label(guide.backgroundNotice, systemImage: "hammer").font(.footnote).foregroundStyle(.secondary)
+        }
         if let connection = step.connection {
           Text(
             "\(connection.fromPin.component) \(connection.fromPin.pin) → \(connection.toPin.component) \(connection.toPin.pin)"
@@ -381,7 +408,7 @@ struct GuideView: View {
           Label("The board reported the clap.", systemImage: "checkmark.circle").foregroundStyle(.green)
         }
       }
-      Text("Try the behavior now. Does it work?")
+      Text("Try the behavior now. If the board reports that it reacts, this confirms itself. Otherwise: does it work?")
       Button("Yes, it works") { Task { await model.reportTest(passed: true) } }
       Button("No") { Task { await model.reportTest(passed: false) } }
     }
@@ -389,7 +416,12 @@ struct GuideView: View {
 
   // MARK: - Backend
 
+  @ViewBuilder
   private var backendSection: some View {
+    Section("Options") {
+      Toggle("Read steps aloud", isOn: $model.readAloud)
+      Toggle("Voice commands while wiring: \"next\", \"back\" (experimental)", isOn: $model.handsFree)
+    }
     Section("Backend") {
       TextField("http://<mac-ip>:8000", text: $model.backendURL)
         .autocorrectionDisabled()

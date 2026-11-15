@@ -26,8 +26,8 @@ Every endpoint returns the full `GuideStatus`, except `generate`, which returns 
 (see `docs/compile-contract.md`). `generate` writes the sketch with Claude, checks and compiles it, and
 never uploads. It can take a minute.
 
-- `analyze` needs an image, a `confirmed_inventory`, or both. Send `confirmed_inventory=[]` to say
-  "no photo, ask me about every part".
+- `analyze` needs nothing: without an image every part is confirmed by the user. An image is an
+  optional check of the parts on the desk; `confirmed_inventory` adds parts the user has confirmed.
 - `InventoryItem` is `{"component_id": "ky-037", "confirmations": ["ky037-pin-labels"]}`. Listing a
   component confirms it is present. `confirmations` are the ids of the `variant` questions the user
   answered yes to.
@@ -36,14 +36,48 @@ never uploads. It can take a minute.
 - Errors: 404 unknown session, 409 wrong state or step, 413 image over 5 MB, 415 not JPEG/PNG/WebP/GIF,
   422 unknown component or confirmation id.
 
+### Goal first: the parts list
+
+A session starts from the spoken goal alone. The first `analyze` (no image needed) decides the project:
+
+- **The sound level meter** (`level_meter`): as before, with the KY-037 as its one sensor.
+- **A game** (`pong`, `snake`; `LEARNLENS_OFFERED_PROJECTS`): named in plain words it is recognised
+  without a model call (`analysis_source: rules`), otherwise Claude may name it. `project.game` is set,
+  `project.behavior` is `custom`, and `project.components` comes from rules (board and KY-023 joystick),
+  never from the model. `parts_needed` carries the part names for the parts-list card.
+- **Any other wish** (needs the AI service; `LEARNLENS_FREE_PROJECTS`, default on): Claude proposes
+  `parts` (one to three ids, restricted by the schema to parts with wiring rules) and `what` the build
+  should do. The backend checks every id against the hardware database again and plans the wiring by
+  rules. `project.behavior` is `custom`, `project.custom_behavior` is the description, `project.game`
+  is empty: there is no prevalidated sketch, so the code is written by Claude and must pass the static
+  checks and the compile like any other.
+- **Not buildable:** `state` is `unsupported` and `project.unsupported_reason` says why: a part that
+  cannot be built with (the reason from the hardware database), more than three parts, more signals
+  than the board has free inputs, an output the board does not have, or no AI service.
+
+The state is then `needs_confirmation`. Without a photo there is one `presence` question per part; a
+client may answer them all at once by sending every `component_id` in `confirmed_inventory` after the
+user said "I have them". The `variant` questions (pin labels) are still asked one by one.
+
+When wiring starts, the sketch is generated in the background and `background_notice` carries the
+sentence for the user ("I am writing the code in the background while you wire."). It is empty again
+once the wiring is complete, and always empty with `LEARNLENS_PREGENERATE=0`.
+
+`project.game` keeps a prevalidated sketch behind the build, used without the AI service
+and when no AI attempt passes the checks. It survives exactly two kinds of `extend`: switching to the
+other game, and adding the KY-032 to restart the game. Any other change clears it; without the AI
+service such a change is refused with `extension_problem`.
+
 ### Developing a finished build further
 
 `extend` takes a request in the user's words. The backend decides whether it needs a known part that
 is not in the build yet (currently the KY-032 infrared obstacle sensor) or only a change of behaviour.
 
-- **New part:** the project gains the component, the confirmed wiring stays, and new steps are appended.
-  The client may send a photo of the new part to `analyze` (it updates `detected_components` only; the
-  project stays as it is). The session asks the new part's confirmation questions, then walks through the new steps only
+- **Photo of the new part (optional, before `extend`):** `analyze` with the form field `purpose=part`
+  and an image, in state `code_generated`. It updates `detected_components` and nothing else. The best
+  match is passed to the next `extend` as the part that "this sensor" means; it is a suggestion, and
+  the part's pin labels are still confirmed by the user.
+- **New part:** the project gains the component, the confirmed wiring stays, and new steps are appended. The session asks the new part's confirmation questions, then walks through the new steps only
   (`current_step` starts at the first unconfirmed one). The whole wiring is safety-checked again.
 - **Part without a purpose:** if the request names a part but not what it should do ("add the infrared
   sensor"), nothing changes, `clarification` carries a question for the user, and `suggestions` up to
@@ -53,9 +87,9 @@ is not in the build yet (currently the KY-032 infrared obstacle sensor) or only 
 - In both cases `project.behavior` becomes `custom`, `project.custom_behavior` describes what the build
   should now do, `build_id` is cleared, and the client calls `generate` again. The new sketch is a new
   build that needs its own approval. The finished build is not modified.
-- 422 with a reason when the request cannot be built: an unknown part, or (without the AI service)
-  anything except adding the KY-032 to the level meter, for which three prevalidated sketches exist.
-  In demo mode every request is read as adding the KY-032.
+- **Request that cannot be built** (an unknown part, a part that is already wired, no free pin, or a
+  behaviour change without the AI service): nothing changes, `extension_problem` says why, and
+  `suggestions` lists up to three complete requests that would work. Each can be sent to `extend` as is.
 
 ### When the wiring plan is released
 
@@ -146,6 +180,10 @@ In `wiring`, each step looks like:
 | `POST /builds/{id}/approve` | `{"sketch_sha256": str}` | `awaiting_approval`, or `failed` after a failed deploy (retry) | `approved` |
 | `POST /builds/{id}/reject` | – | `awaiting_approval` | `rejected` |
 | `POST /builds/{id}/test-result` | `{"passed": bool, "note": str}` | `awaiting_test` | `done` / `failed` |
+
+A build that waits for approval is offered once to the agent as a compile-only job (`prepare_only`, no
+approval token). The agent reports to `POST /builds/{id}/precompiled`, which sets `precompiled`. After
+the approval the same agent skips the compile.
 
 While `approved` or `deploying`, the app polls `GET /builds/{id}` (1 s). `deploy_events` grows as the
 agent works (`{stage, status, message, ts}`), and `deploy` holds the final result.

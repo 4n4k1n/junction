@@ -2,10 +2,10 @@
 
 Hackathon project (48 h). Two flows share one FastAPI backend:
 
-- **Build assistant** (current focus): photo + goal → user confirms the parts → wiring steps on Meta
+- **Build assistant** (current focus): spoken goal → parts list, user confirms the parts → wiring steps on Meta
   Ray-Ban Display, each confirmed → user approves a generated Arduino sketch → Mac agent
   compiles/uploads → user reports the test result.
-  Demo: "Build a clap-activated light" with an Arduino UNO Q and a KY-037.
+  Demo: "A Pong game" with an Arduino UNO Q and a KY-023 joystick, then Snake, then a KY-032 to restart.
 - **Tutor** (earlier work, keep it passing): Socratic lessons under `/tutor/sessions`,
   `backend/app/{engine,tutor,store}.py`.
 
@@ -14,7 +14,8 @@ Backend how-to: `docs/backend-dev-guide.md`. iOS: `ios/README.md`.
 
 ## Commands
 
-Start everything: `./scripts/start.sh` (`--demo` = saved AI answers, `--mock` = simulated upload).
+Start everything: `./scripts/start.sh` (`--mock` = simulated upload). Without `ANTHROPIC_API_KEY` only
+the projects with a prevalidated sketch can be built.
 Drive the flow from a terminal: `python3 scripts/demo_run.py`. Demo material: `DEMO_SCRIPT.md`,
 `DEMO_CHECKLIST.md`.
 

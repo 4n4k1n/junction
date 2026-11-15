@@ -279,7 +279,10 @@
     "fact": "unoq-upload"
   },
   "analog_input_preference": [
-    "A0"
+    "A0",
+    "A1",
+    "A2",
+    "A3"
   ],
   "led_matrix": {
     "include": "Arduino_LED_Matrix.h",

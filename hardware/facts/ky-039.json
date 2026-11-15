@@ -1,0 +1,66 @@
+{
+  "component": "ky-039",
+  "name": "KY-039 heartbeat sensor",
+  "role": "sensor",
+  "senses": "the pulse in a fingertip",
+  "projects": [],
+  "add_on": {
+    "signals": [
+      "S"
+    ]
+  },
+  "identification": "Small round black PCB the size of a coin on three loose wires (white, grey, black) that end in pin plugs. No header pins on the board.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-039"
+  },
+  "pins": {
+    "-": {
+      "kind": "ground",
+      "show": "minus wire",
+      "say": "wire that comes from the pad marked with a minus",
+      "fact": "ky039-pins"
+    },
+    "+": {
+      "kind": "supply",
+      "min_v": 3.3,
+      "max_v": 5.0,
+      "show": "plus wire",
+      "say": "wire that comes from the pad marked with a plus",
+      "fact": "ky039-supply"
+    },
+    "S": {
+      "kind": "analog_out",
+      "high_level": "supply",
+      "show": "S wire",
+      "say": "wire that comes from the pad marked S",
+      "fact": "ky039-signal"
+    }
+  },
+  "confirmations": [
+    {
+      "id": "ky039-pin-labels",
+      "question": "The heartbeat sensor has three wires. Can you follow each wire to its pad on the round board, marked -, + and S?",
+      "reason": "The wire colours differ between batches, so only the markings on the board say which wire is which."
+    }
+  ],
+  "facts": [
+    {
+      "id": "ky039-pins",
+      "statement": "The round board has three pads marked -, + and S, each with a wire. The vendor gives the colours as black for signal, blue or white for supply and grey for ground; go by the markings on the board.",
+      "source": "Joy-IT SensorKit, KY-039, pin drawing and cable table (vendor documentation for the Joy-IT module; clones may differ)",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky039-supply",
+      "statement": "The vendor wires the sensor to 3.3 V on Raspberry Pi and Pico. No supply rating is published.",
+      "source": "Joy-IT SensorKit, KY-039, wiring tables",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky039-signal",
+      "statement": "An infrared LED shines through the fingertip onto a phototransistor. The signal voltage is low in bright light and near the supply voltage in the dark, and it ripples slightly with each heartbeat. Powered from 3.3 V it cannot rise above 3.3 V.",
+      "source": "Joy-IT SensorKit, KY-039, description",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

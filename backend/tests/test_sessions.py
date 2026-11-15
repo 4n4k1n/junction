@@ -76,7 +76,8 @@ def test_claude_request_carries_image_and_closed_component_enum():
     assert example.INSTRUCTION in text["text"]
     schema = req["output_config"]["format"]["schema"]
     ids = schema["properties"]["components"]["items"]["properties"]["component_id"]["enum"]
-    assert ids == ["ky-032", "ky-037", "uno-q", "unknown"] and schema["additionalProperties"] is False
+    assert ids == sorted(facts.catalog()) + ["unknown"] and {"ky-004", "ky-032", "ky-037", "uno-q"} <= set(ids)
+    assert schema["additionalProperties"] is False
     system = " ".join(b["text"] for b in req["system"])
     assert "3.3" not in system and "D2" not in system  # the model is never handed specs to repeat
     assert req["model"] and req["fallbacks"] == "default"
@@ -164,7 +165,8 @@ def test_inventory_confirmed_up_front_needs_no_photo():
     sid = new_session(inventory=[{"component_id": "uno-q"}] + PIN_LABELS)
     assert client.post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": "[]"}).json()["state"] == "wiring"
     sid = new_session()
-    analyze(sid, image=False, expect=422)                             # nothing sent at all
+    s = analyze(sid, image=False)                                     # nothing sent at all: every part is asked for
+    assert s["pending_confirmations"][0]["question"].startswith("For this you need the Arduino UNO Q")
     s = client.post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": "[]"}).json()
     assert s["state"] == "needs_confirmation" and len(s["pending_confirmations"]) == 3
 
@@ -185,7 +187,7 @@ def test_unsafe_plan_blocks_the_session(monkeypatch):
 
     def five_volt_plan(spec):
         steps = safe_plan(spec)
-        steps[2].connection.to_pin.pin = "5V"
+        steps[1].connection.to_pin.pin = "5V"
         return steps
 
     monkeypatch.setattr(planner, "plan_wiring", five_volt_plan)
@@ -264,7 +266,7 @@ def test_questions_during_the_build_are_answered_from_plan_and_facts():
     a = r.json()
     assert a["source"] == "llm" and a["step_index"] == 1 and "+3V3" in a["answer"] and "  " not in a["answer"]
     sent = fake.requests[1]["messages"][0]["content"][0]["text"]
-    for needed in ("[done] Unplug the USB cable", "[CURRENT STEP]", "VERIFIED FACTS", "[official_doc]",
+    for needed in ("[done] Unplug the board's USB cable first", "[CURRENT STEP]", "VERIFIED FACTS", "[official_doc]",
                    "THE USER ASKS: Can I use the 5V pin instead?"):
         assert needed in sent, needed
     assert "keep to the\nplan" in fake.requests[1]["system"][0]["text"]

@@ -76,16 +76,17 @@ def test_adding_a_part_keeps_the_old_wiring_and_asks_only_for_the_new_steps():
     assert s["state"] == "needs_confirmation" and s["build_id"] is None
     assert s["project"]["behavior"] == "custom" and s["project"]["components"] == ["uno-q", "ky-037", "ky-032"]
     assert [p["id"] for p in s["pending_confirmations"]] == ["ky-032-present", "ky032-pin-labels"]
-    assert len(s["wiring_steps"]) == 10 and s["confirmed_steps"] == [0, 1, 2, 3, 4]
+    assert len(s["wiring_steps"]) == 6 and s["confirmed_steps"] == [0, 1, 2]
 
     confirmed = '[{"component_id": "ky-032", "confirmations": ["ky032-pin-labels"]}]'
     s = client.post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": confirmed}).json()
-    assert s["state"] == "wiring" and s["current_step"] == 5                     # the first new step
-    new = [(c["from_pin"]["pin"], c["to_pin"]["pin"]) for c in (st["connection"] for st in s["wiring_steps"][5:]) if c]
+    assert s["state"] == "wiring" and s["current_step"] == 3                     # the first new step
+    new = [(c["from_pin"]["pin"], c["to_pin"]["pin"]) for c in (st["connection"] for st in s["wiring_steps"][3:]) if c]
     assert new == [("GND", "GND"), ("+", "3V3"), ("OUT", "D2")]                  # 3.3 V again, a free digital pin
-    assert "only one 3.3 volt pin" in s["wiring_steps"][7]["spoken_text"]
+    assert "only one 3.3 volt pin" in s["wiring_steps"][4]["spoken_text"]
+    assert s["wiring_steps"][3]["display_text"].startswith("Unplug USB.") and s["wiring_steps"][5]["display_text"].endswith("Plug USB in")
     assert client.post(f"/sessions/{sid}/confirm-step", json={"step_index": 0}).status_code == 409
-    for i in range(5, 10):
+    for i in range(3, 6):
         s = client.post(f"/sessions/{sid}/confirm-step", json={"step_index": i}).json()
     assert s["state"] == "wiring_complete"
 
@@ -103,9 +104,12 @@ def test_adding_a_part_keeps_the_old_wiring_and_asks_only_for_the_new_steps():
 
 def test_changing_behaviour_needs_the_ai_and_then_skips_wiring():
     sid, first = finished_level_meter()
-    r = extend(sid, "Make the bar blink when it is very loud", expect=422)
-    assert "needs the AI service" in r["detail"]
-    assert client.get(f"/sessions/{sid}/status").json()["state"] == "code_generated"      # nothing changed
+    r = extend(sid, "Make the bar blink when it is very loud")
+    assert "needs the AI service" in r["extension_problem"]                               # said why ...
+    assert r["suggestions"][0] == "Show the sound level only while a hand is near"        # ... and what would work
+    assert r["state"] == "code_generated" and r["project"]["behavior"] == "level_meter"   # nothing changed
+    assert extend(sid, r["suggestions"][0])["state"] == "needs_confirmation"              # a suggestion is a full request
+    sid, first = finished_level_meter()
 
     blinking = first["sketch"]["code"].replace("  matrix.draw(frame);", "  if (shown < COLUMNS || millis() % 200 < 100) matrix.draw(frame);")
     fake_ai = example.use_fake_ai({"kind": "change_behavior", "component_id": "none", "reason": "",
@@ -114,7 +118,7 @@ def test_changing_behaviour_needs_the_ai_and_then_skips_wiring():
                                          "display_summary": "The bar blinks when it gets very loud.", "assumptions": [],
                                          "expected_serial_events": [{"event": "READY", "when": "start"}]})
     s = extend(sid, "Make the bar blink when it is very loud")
-    assert s["state"] == "wiring_complete" and len(s["wiring_steps"]) == 5 and s["pending_confirmations"] == []
+    assert s["state"] == "wiring_complete" and len(s["wiring_steps"]) == 3 and s["pending_confirmations"] == []
     assert "KNOWN PARTS THAT COULD BE ADDED" in fake_ai.requests[0]["messages"][0]["content"][0]["text"]
 
     g = client.post(f"/sessions/{sid}/generate").json()
@@ -127,10 +131,17 @@ def test_changing_behaviour_needs_the_ai_and_then_skips_wiring():
 
 def test_requests_that_cannot_be_built_change_nothing():
     sid, g = generated_level_meter()
-    example.use_fake_ai({"kind": "unsupported", "component_id": "none", "behavior": "", "reason": "A servo is not a known part."},
-                        {"kind": "add_part", "component_id": "ky-037", "behavior": "x", "reason": ""})
-    assert "servo" in extend(sid, "add a servo", expect=422)["detail"].lower()
-    extend(sid, "add another microphone", expect=422)                    # a part that is already in the build
+    fake = example.use_fake_ai(
+        {"kind": "unsupported", "component_id": "none", "behavior": "", "reason": "A servo is not a known part.",
+         "needs_purpose": False, "ideas": ["Add the IR sensor: wave to pause the meter", "Blink the bar when it is loud"]},
+        {"kind": "add_part", "component_id": "ky-037", "behavior": "x", "reason": ""})
+    r = extend(sid, "add a servo")
+    assert r["extension_problem"] == "A servo is not a known part."      # the reason, in the model's words
+    assert r["suggestions"] == ["Add the IR sensor: wave to pause the meter", "Blink the bar when it is loud"]
+    assert r["clarification"] == "" and r["state"] == "code_generated"
+    assert "three requests that WOULD work instead" in fake.requests[0]["system"][0]["text"]
+    r = extend(sid, "add another microphone")                            # a part that is already in the build
+    assert "already part of this build" in r["extension_problem"] and len(r["suggestions"]) == 3   # fallback ideas
     assert client.get(f"/sessions/{sid}/status").json()["project"]["behavior"] == "level_meter"
 
     fresh = client.post("/sessions", json={"instruction": "Build a sound level meter"}).json()["session_id"]
@@ -164,7 +175,7 @@ def test_both_sensors_on_the_3v3_rail_are_safe_and_5v_is_not():
     steps = planner.plan_wiring(planner.level_meter_spec())
     steps += planner.plan_extension(steps, "ky-032")
     assert facts.check_safety(steps) == []
-    steps[7].connection.to_pin.pin = "5V"
+    steps[4].connection.to_pin.pin = "5V"
     assert any("OUT can reach 5.5 V but uno-q D2 tolerates 5.0 V" in p for p in facts.check_safety(steps))
 
 
@@ -198,13 +209,13 @@ def test_a_part_without_a_purpose_gets_a_question_back_and_changes_nothing():
     s = extend(sid, "I want to add the infrared sensor")
     assert s["clarification"] == "What should the KY-032 infrared obstacle sensor do in your build?"
     assert s["state"] == "code_generated" and s["build_id"] == first["build_id"]
-    assert s["project"]["behavior"] == "level_meter" and len(s["wiring_steps"]) == 5
+    assert s["project"]["behavior"] == "level_meter" and len(s["wiring_steps"]) == 3
     assert s["suggestions"] == ["Show the sound level only while a hand is near", "Hold a hand near to freeze the level",
                                 "Wave a hand to switch the meter on and off"]     # offline: only what is prevalidated
 
     s = extend(sid, "I want to add the infrared sensor. " + s["suggestions"][0])     # picking a suggestion is an answer
     assert s["clarification"] == "" and s["suggestions"] == [] and s["state"] == "needs_confirmation"
-    assert len(s["wiring_steps"]) == 10
+    assert len(s["wiring_steps"]) == 6
 
     # With AI the model decides, and is told not to invent a purpose.
     sid, _ = finished_level_meter()
@@ -234,7 +245,7 @@ def variant_ctx(idea):
     ("toggle", "if (gateActive && !gateWasActive) meterOn = !meterOn;"),
 ])
 def test_every_offered_idea_has_its_own_prevalidated_sketch(variant, marker, tmp_path, monkeypatch):
-    from app.build import demo
+    from app.build import variants as demo
 
     idea = demo.EXTENSION_VARIANTS[variant]["idea"]
     assert len(idea) <= 60 and demo.variant_for("I want to add the infrared sensor. " + idea) == variant
@@ -249,26 +260,19 @@ def test_every_offered_idea_has_its_own_prevalidated_sketch(variant, marker, tmp
         assert report.status == CompileStatus.ok, report.log[-1500:]
 
 
-def test_demo_mode_runs_the_whole_second_sensor_flow_without_ai(monkeypatch):
-    monkeypatch.setenv("LEARNLENS_DEMO_MODE", "1")
-    monkeypatch.setattr(session_router, "analyzer", Analyzer())
-    monkeypatch.setattr(session_router, "generator", codegen.CodeGenerator())
-    sid, _ = finished_level_meter()
+def test_the_second_sensor_flow_runs_without_ai():
+    sid, _ = finished_level_meter()                                      # mock analyzer and generator: no model at all
 
-    s = extend(sid, "I would like to connect one more sensor")          # no sensor name needed in demo mode
+    s = extend(sid, "I would like to add the infrared sensor")           # named, but no purpose: ask, with ideas
     assert s["clarification"].startswith("What should the KY-032") and len(s["suggestions"]) == 3
-    s = extend(sid, "I would like to connect one more sensor. " + s["suggestions"][2])
+    s = extend(sid, "I would like to add the infrared sensor. " + s["suggestions"][2])
     assert s["state"] == "needs_confirmation" and s["project"]["components"][-1] == "ky-032"
-
-    photo = {"image": ("part.jpg", __import__("io").BytesIO(example.FAKE_JPEG), "image/jpeg")}
-    s = client.post(f"/sessions/{sid}/analyze", files=photo).json()     # the saved answer "sees" the new part
-    assert s["analysis_source"] == "demo" and [d["component_id"] for d in s["detected_components"]] == ["ky-032"]
-    assert [p["id"] for p in s["pending_confirmations"]] == ["ky032-pin-labels"]
+    assert [p["id"] for p in s["pending_confirmations"]] == ["ky-032-present", "ky032-pin-labels"]
 
     confirmed = '[{"component_id": "ky-032", "confirmations": ["ky032-pin-labels"]}]'
     s = client.post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": confirmed}).json()
     for i in range(s["current_step"], len(s["wiring_steps"])):
         client.post(f"/sessions/{sid}/confirm-step", json={"step_index": i})
     g = client.post(f"/sessions/{sid}/generate").json()
-    assert g["source"] == "demo" and "meterOn = !meterOn" in g["sketch"]["code"]
+    assert g["source"] == "template" and "meterOn = !meterOn" in g["sketch"]["code"]
     assert g["display_summary"].startswith("Wave a hand past the infrared sensor")

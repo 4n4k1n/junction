@@ -1,0 +1,23 @@
+{
+  "component": "ky-053",
+  "name": "KY-053 analog-digital converter (ADS1115)",
+  "role": "module",
+  "senses": "",
+  "projects": [],
+  "add_on": null,
+  "not_buildable": "It is not a sensor and talks over a data bus (I2C). It needs an extra Arduino library, and LearnLens only compiles sketches with its two approved libraries.",
+  "identification": "Narrow black PCB printed ADS1115 with a small chip and a single row of 10 pins (VDD, GND, SCL, SDA, ADDR, ALRT, A0 to A3).",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-053"
+  },
+  "pins": {},
+  "confirmations": [],
+  "facts": [
+    {
+      "id": "ky053-about",
+      "statement": "A 16-bit analog-digital converter with 4 inputs on the I2C bus; operating voltage 2 V to 5.5 V. The vendor's example uses the Adafruit ADS1X15 library.",
+      "source": "Joy-IT SensorKit, KY-053, technical data and code example",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

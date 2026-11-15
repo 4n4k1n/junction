@@ -76,12 +76,21 @@ you want to add (**Take photo**, or **Skip** for a behaviour change). Then you s
 the build should behave differently, and **Go**. A new part continues with its questions and wiring
 steps; a behaviour change goes directly to new code.
 
+Options on the phone: **Read steps aloud** (on by default) and **Voice commands while wiring**
+("next", "back"; experimental, only after glasses speech has worked once in the session).
+
+A follow-up request that cannot be built is answered on the glasses with the reason ("That doesn't
+work: …") and **Ideas** that would work instead; picking one continues with it.
+
+A failed step shows **Retry** next to **Start over**. During the test, a `LOUD` line from the board
+confirms the build without a button press.
+
 Flashing always needs an explicit approval. It can be given on the glasses ("Start flash" button on
 the approval card) or on the phone, where the generated code is shown in full.
 
-The app reads `GET /health` and shows a banner when the backend runs in demo mode (saved AI answers),
-when the deploy agent simulates uploads (`--mock`), or when no agent is connected. Demo mode and
-simulated uploads are also written on the glasses cards.
+The app reads `GET /health` and shows a banner when the backend has no AI service (only the projects
+with a prevalidated sketch can be built), when the deploy agent simulates uploads (`--mock`), or when
+no agent is connected. Simulated uploads are also written on the glasses cards.
 
 ## Hardware verification checklist (all unverified)
 

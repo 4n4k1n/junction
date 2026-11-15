@@ -1,11 +1,11 @@
-"""Demo mode, health reporting and runtime-log events: the integration glue for the live demo."""
+"""Running without AI, health reporting and runtime-log events."""
 import sys
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.build import codecheck, codegen, demo, session_router
+from app.build import codecheck, codegen, session_router
 from app.build.analyzer import Analyzer
 from app.main import app
 
@@ -20,56 +20,41 @@ def agent_post(path, payload):
     return r.status_code, (r.json() if r.content else None)
 
 
-@pytest.fixture
-def demo_mode(monkeypatch, tmp_path):
-    monkeypatch.setenv("LEARNLENS_DEMO_MODE", "1")
-    monkeypatch.setattr(demo, "SAVED_PHOTO", tmp_path / "desk.jpg")
-    monkeypatch.setattr(session_router, "analyzer", Analyzer())
-    monkeypatch.setattr(session_router, "generator", codegen.CodeGenerator())
+@pytest.fixture(autouse=True)
+def offline():
+    session_router.analyzer = Analyzer(mode="mock")
+    session_router.generator = codegen.CodeGenerator(mode="mock")
 
 
-def run_demo_flow():
+def generated():
+    """A clap light written from the template, without AI: waiting for approval."""
     sid = client.post("/sessions", json={"instruction": "I want to build a clap-activated light."}).json()["session_id"]
-    s = client.post(f"/sessions/{sid}/analyze").json()                  # no photo needed in demo mode
-    assert s["state"] == "needs_confirmation" and s["analysis_source"] == "demo"
-    assert [p["id"] for p in s["pending_confirmations"]] == ["ky-037-present", "ky037-pin-labels"]
-    inventory = '[{"component_id": "ky-037", "confirmations": ["ky037-pin-labels"]}]'
+    s = client.post(f"/sessions/{sid}/analyze").json()                  # no photo needed: the parts are asked for
+    assert s["state"] == "needs_confirmation" and s["analysis_source"] == "mock"
+    inventory = '[{"component_id": "uno-q"}, {"component_id": "ky-037", "confirmations": ["ky037-pin-labels"]}]'
     s = client.post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": inventory}).json()
     for i in range(len(s["wiring_steps"])):
         client.post(f"/sessions/{sid}/confirm-step", json={"step_index": i})
     return client.post(f"/sessions/{sid}/generate").json()
 
 
-def test_demo_mode_is_deterministic_labelled_and_uses_the_real_gates(demo_mode):
+def test_without_ai_the_template_is_used_labelled_and_still_needs_approval():
     health = client.get("/health").json()
-    assert health["demo_mode"] is True and health["analyzer"] == "demo" and health["codegen"] == "demo"
+    assert "demo_mode" not in health and health["analyzer"] == "mock" and health["codegen"] == "mock"
+    assert health["ai_available"] is False                              # the app says so: prevalidated projects only
 
-    first, second = run_demo_flow(), run_demo_flow()
-    assert first["source"] == "demo" and first["sketch"]["provenance"] == "rules"
+    first, second = generated(), generated()
+    assert first["source"] == "template" and first["sketch"]["provenance"] == "rules"
     assert first["sketch"]["code"] == second["sketch"]["code"]          # same every time
     assert first["hardware_verified"] is False and first["flashed"] is False
     ctx = codegen.build_context(session_router.planner.clap_light_spec(),
                                 session_router.planner.plan_wiring(session_router.planner.clap_light_spec()))
     assert codecheck.check_sketch(first["sketch"]["code"], ctx) == []   # prevalidated, and checked again
 
-    # Demo mode does not weaken approval: nothing is deployable until the user approves.
     while learnlens_agent.run_once(agent_post, learnlens_agent.mock_agent()):
         pass                                                              # drain jobs left by other tests
     for g in (first, second):
         assert client.get(f"/builds/{g['build_id']}").json()["status"] == "awaiting_approval"
-
-
-def test_saved_photo_is_used_when_the_request_has_none(demo_mode):
-    assert demo.saved_photo() == (None, "")
-    demo.SAVED_PHOTO.write_bytes(b"\xff\xd8\xff\xe0saved")
-    assert demo.saved_photo() == (b"\xff\xd8\xff\xe0saved", "image/jpeg")
-
-
-def test_outside_demo_mode_nothing_is_labelled_demo():
-    health = client.get("/health").json()
-    assert health["demo_mode"] is False and health["analyzer"] == "mock"
-    sid = client.post("/sessions", json={"instruction": "clap light"}).json()["session_id"]
-    assert client.post(f"/sessions/{sid}/analyze").status_code == 422   # a photo or an inventory is required
 
 
 def test_health_reports_whether_an_agent_is_polling_and_if_it_is_a_mock():
@@ -78,8 +63,8 @@ def test_health_reports_whether_an_agent_is_polling_and_if_it_is_a_mock():
     assert health["agent_connected"] is True and health["agent_mock"] is True
 
 
-def test_runtime_lines_from_the_board_reach_the_build_while_the_user_tests(demo_mode):
-    g = run_demo_flow()
+def test_runtime_lines_from_the_board_reach_the_build_while_the_user_tests():
+    g = generated()
     bid = g["build_id"]
     client.post(f"/builds/{bid}/approve", json={"sketch_sha256": g["sketch"]["sha256"]})
     build = None

@@ -1,0 +1,23 @@
+{
+  "component": "ky-012",
+  "name": "KY-012 active piezo buzzer",
+  "role": "actuator",
+  "senses": "",
+  "projects": [],
+  "add_on": null,
+  "not_buildable": "It sounds as soon as an output pin drives it. It is an output part, and LearnLens sketches may only switch the board's own LEDs so far.",
+  "identification": "Small black PCB with 3 angled header pins at one end and a wide black cylinder with a hole in the top. The KY-006 passive buzzer looks the same.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-012"
+  },
+  "pins": {},
+  "confirmations": [],
+  "facts": [
+    {
+      "id": "ky012-about",
+      "statement": "The active buzzer sounds at 2.5 kHz while voltage is applied to its signal pin; operating voltage 3.3 V to 5 V, up to 30 mA.",
+      "source": "Joy-IT SensorKit, KY-012, technical data",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

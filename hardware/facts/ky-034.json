@@ -1,0 +1,23 @@
+{
+  "component": "ky-034",
+  "name": "KY-034 seven-colour flash LED",
+  "role": "actuator",
+  "senses": "",
+  "projects": [],
+  "add_on": null,
+  "not_buildable": "It lights when an output pin powers it. It is an output part, and LearnLens sketches may only switch the board's own LEDs so far.",
+  "identification": "Small black PCB with 3 angled header pins at one end and a clear 5 mm LED bent flat so that it points away from the board. The KY-005 infrared LED looks the same.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-034"
+  },
+  "pins": {},
+  "confirmations": [],
+  "facts": [
+    {
+      "id": "ky034-about",
+      "statement": "The LED cycles through its colours by itself while it is powered; voltage range 3.3 V to 5 V.",
+      "source": "Joy-IT SensorKit, KY-034, description and technical data",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

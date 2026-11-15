@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Tuple
 
 from .models import CodegenContext, CodeIssue
 
-MAX_SOURCE_CHARS = 6000
+MAX_SOURCE_CHARS = 8000
 MAX_DELAY_MS = 50
 
 # (rule, pattern, message). Matched against the code with comments and string literals blanked.

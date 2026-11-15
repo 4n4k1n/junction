@@ -54,13 +54,26 @@ def run_once(post: Post, agent: DeployAgent, agent_id: str = "mac-agent") -> Opt
     if status == 204 or job is None:
         return None
     job_id, build_id = job["job_id"], job["build_id"]
+    if job.get("prepare_only"):
+        # The sketch waits for approval: compile it now so the upload can start at once. Never flash here.
+        try:
+            compiled = agent.compile({"build_id": build_id, "sketch": job["sketch"], "fqbn": job.get("fqbn")})
+            ok, log = compiled["status"] == "ok", compiled["log"]
+        except Rejected as e:
+            ok, log = False, str(e)
+        post(f"/builds/{build_id}/precompiled", {"compile_ok": ok, "upload_ok": False, "mock": agent.mock, "log": log[-2000:]})
+        return None
     # Stream each stage to the backend while the job runs.
     agent.on_event = lambda bid, event: post(f"/agent/jobs/{job_id}/events", event) if bid == build_id else None
 
     result = {"compile_ok": False, "upload_ok": False, "mock": agent.mock}
     try:
-        compiled = agent.compile({"build_id": build_id, "sketch": job["sketch"], "fqbn": job.get("fqbn")})
-        result.update(compile_ok=compiled["status"] == "ok", diagnostics=compiled["diagnostics"], log=compiled["log"])
+        if agent.has_compiled(build_id, job["sketch"]):
+            agent._event(build_id, "compile", "ok", "already compiled while waiting for approval")
+            result.update(compile_ok=True, diagnostics=[], log="")
+        else:
+            compiled = agent.compile({"build_id": build_id, "sketch": job["sketch"], "fqbn": job.get("fqbn")})
+            result.update(compile_ok=compiled["status"] == "ok", diagnostics=compiled["diagnostics"], log=compiled["log"])
         if result["compile_ok"]:
             flashed = agent.flash(build_id, job.get("approval_token") or "", job.get("expected_serial_events") or [])
             result.update(upload_ok=flashed["upload_ok"], log=flashed["log"], port=flashed["port"],

@@ -2,18 +2,17 @@
 # Starts the LearnLens backend and the Mac deploy agent together. Ctrl-C stops both.
 #
 #   ./scripts/start.sh            real run: Claude (needs ANTHROPIC_API_KEY) and the real board
-#   ./scripts/start.sh --demo     saved AI answers + prevalidated sketch; still flashes the real board
 #   ./scripts/start.sh --mock     deploy agent simulates the upload (no board needed)
-#   ./scripts/start.sh --demo --mock   everything offline, nothing real: for rehearsing the flow
+#
+# Without ANTHROPIC_API_KEY only the projects with a prevalidated sketch can be built.
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${LEARNLENS_PORT:-8000}"
-DEMO=0; MOCK=0
+MOCK=0
 for arg in "$@"; do
   case "$arg" in
-    --demo) DEMO=1 ;;
     --mock) MOCK=1 ;;
-    *) echo "unknown option: $arg (use --demo and/or --mock)"; exit 2 ;;
+    *) echo "unknown option: $arg (use --mock)"; exit 2 ;;
   esac
 done
 
@@ -24,14 +23,10 @@ if [ ! -x "$PY" ]; then
 fi
 
 echo "LearnLens"
-if [ "$DEMO" = 1 ]; then
-  export LEARNLENS_DEMO_MODE=1
-  export LEARNLENS_TUTOR=mock   # no model client at all in demo mode
-  echo "  AI:     DEMO MODE (saved answers, prevalidated sketch, no model calls)"
-elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
   echo "  AI:     Claude (ANTHROPIC_API_KEY is set)"
 else
-  echo "  AI:     OFFLINE: no ANTHROPIC_API_KEY, so no vision and the template sketch. Use --demo for the saved answers."
+  echo "  AI:     NONE: no ANTHROPIC_API_KEY. Only Pong, Snake and the sound level meter can be built, from prevalidated sketches."
 fi
 if [ "$MOCK" = 1 ]; then
   echo "  Board:  SIMULATED upload (--mock): no board will be flashed"

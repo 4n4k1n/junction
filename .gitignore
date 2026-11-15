@@ -7,3 +7,5 @@ __pycache__/
 ios/**/xcuserdata/
 ios/**/DerivedData/
 backend/generated/
+backend/learnlens_state.json
+backend/learnlens_state.tmp

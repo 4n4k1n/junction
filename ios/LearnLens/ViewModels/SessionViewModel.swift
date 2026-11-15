@@ -57,6 +57,8 @@ final class SessionViewModel {
   var extensionText = ""
   /// The backend asked what a new part should do. The answer is sent together with the first request.
   private(set) var extensionQuestion: String?
+  /// Why the last follow-up request cannot be built. Shown with ideas that would work.
+  private(set) var extensionProblem: String?
   /// Example answers to that question, for a user who has no idea yet.
   private(set) var extensionIdeas: [String] = []
   private var showingIdeas = false
@@ -66,11 +68,17 @@ final class SessionViewModel {
   /// The answer to the last question, shown until the user goes back to the step.
   private(set) var stepAnswer: StepAnswer?
   private(set) var isAnswering = false
-  /// The user chose "Continue building" on a finished build.
+  /// The user chose "Change this build" or "Add a part" on a finished build.
   private(set) var isExtending = false
+  /// The parts list of a new project was shown and the user said they have the parts.
+  private(set) var partsAcknowledged = false
+  /// The step on which "the code is being written in the background" is shown. Said once per plan.
+  private(set) var noticeStep: Int?
+  @ObservationIgnored private var noticeGivenFor = ""
   /// The user is asked for a photo of the part they want to add, before saying what they want.
   private(set) var awaitingPartPhoto = false
-  @ObservationIgnored private var partPhoto: Data?
+  /// The photo of a part to add is looked at by the backend while the user says what they want.
+  @ObservationIgnored private var partPhotoTask: Task<Void, Never>?
   var backendURL: String {
     didSet { UserDefaults.standard.set(backendURL, forKey: Self.backendURLKey) }
   }
@@ -83,7 +91,36 @@ final class SessionViewModel {
   /// Why the last upload failed. Shown next to the approve button, which doubles as "retry".
   private(set) var deployError: String?
   /// True until the user has read the "how it works" card that precedes the upload approval.
-  private var showingHowItWorks = false
+  /// A failed step can be retried where it failed instead of starting the whole build over.
+  private(set) var canRetry = false
+  @ObservationIgnored private var retryAction: (@MainActor () async -> Void)?
+  @ObservationIgnored private var retryFlow: SessionPhase?
+  /// A log line from the board that proves the build reacts; set when the test confirmed itself.
+  private(set) var boardProof: String?
+  /// After a spoken follow-up request, the app continues by itself unless the user speaks again.
+  private(set) var autoGoSeconds = 0
+  @ObservationIgnored private var autoGoTask: Task<Void, Never>?
+  /// True only while a question about the step is being recorded (the Ask button).
+  private(set) var isAskingByVoice = false
+  /// Read instructions aloud.
+  var readAloud: Bool {
+    didSet {
+      UserDefaults.standard.set(readAloud, forKey: "readAloud")
+      if !readAloud { speaker.stop() }
+    }
+  }
+  /// Say "next" or "back" during wiring instead of pressing a button (needs glasses speech).
+  var handsFree: Bool {
+    didSet {
+      UserDefaults.standard.set(handsFree, forKey: "handsFree")
+      if handsFree { startCommandLoop() } else if glassesSpeech.isListening && !isAskingByVoice { glassesSpeech.cancel() }
+    }
+  }
+  @ObservationIgnored private let speaker = SpeechOutputService()
+  @ObservationIgnored private var commandLoop: Task<Void, Never>?
+  /// Glasses speech has worked once in this run. Hands-free listening only starts after that, so it
+  /// can never be the thing that sends the user to the Meta AI app for a permission.
+  @ObservationIgnored private var glassesSpeechWorks = false
   private(set) var build: Build?
 
   /// What the flow is doing. `.connected` here means "idle"; `phase` folds in the glasses link.
@@ -97,6 +134,8 @@ final class SessionViewModel {
     self.glasses = GlassesManager(wearables: wearables)
     self.camera = CameraService(wearables: wearables)
     self.glassesSpeech = GlassesSpeechService(wearables: wearables)
+    self.readAloud = UserDefaults.standard.object(forKey: "readAloud") as? Bool ?? true
+    self.handsFree = UserDefaults.standard.bool(forKey: "handsFree")
     self.backendURL = UserDefaults.standard.string(forKey: Self.backendURLKey) ?? Self.defaultBackendURL
   }
 
@@ -119,7 +158,12 @@ final class SessionViewModel {
   }
   var isLastStep: Bool { !isLookingBack && stepIndex >= (guide?.wiringSteps.count ?? 0) - 1 }
   var pendingConfirmation: PendingConfirmation? { guide?.pendingConfirmations.first }
-  var isDemoMode: Bool { backendInfo?.demoMode == true }
+  /// A new project starts with its parts list: one "I have them" instead of a question per part.
+  var showsPartsList: Bool {
+    guard flow == .confirmingParts, !partsAcknowledged, let guide, !guide.partsNeeded.isEmpty else { return false }
+    return guide.pendingConfirmations.contains { $0.kind == "presence" }
+  }
+  var partsListText: String { "You need: " + (guide?.partsNeeded ?? []).joined(separator: ", ") + "." }
   /// True when the upload was simulated by an agent in --mock mode: no board was flashed.
   var isSimulatedDeploy: Bool { build?.deploy?.mock == true }
   var canCaptureFromGlasses: Bool { glasses.isDisplayReady && !glasses.isSimulated }
@@ -146,13 +190,21 @@ final class SessionViewModel {
 
   /// Started from the glasses card. Uses the glasses microphone when possible, else the iPhone's.
   func startVoiceInput() async {
+    if glassesSpeech.isListening && !isAskingByVoice && flow == .guiding {
+      glassesSpeech.cancel()  // hands-free listening gives way to an explicit question
+    }
     guard isIdle || flow == .success || flow == .guiding, !isListening else { return }
+    cancelAutoGo()
+    speaker.stop()  // do not record our own voice
+    if flow == .success { extensionProblem = nil }  // a new attempt replaces the last rejection
+    isAskingByVoice = flow == .guiding
     if let session = glasses.session, !glasses.isSimulated {
       let started = await glassesSpeech.start(on: session) { [weak self] text in
         self?.heard(text)
         Task { await self?.pushCard() }
       }
       if started {
+        glassesSpeechWorks = true
         await pushCard()
         return
       }
@@ -173,6 +225,7 @@ final class SessionViewModel {
   private func stopListening() {
     phoneSpeechTimeout?.cancel()
     phoneSpeechTimeout = nil
+    isAskingByVoice = false
     glassesSpeech.cancel()
     if speech.isRecording { speech.stop() }
   }
@@ -191,8 +244,10 @@ final class SessionViewModel {
 
   /// Spoken text is the goal before a build, and the follow-up request after a finished one.
   func heard(_ text: String) {
+    isAskingByVoice = false
     if flow == .success {
       extensionText = text
+      startAutoGo()  // continue by itself; "Speak again" stops it
     } else if flow == .guiding {
       Task { await ask(text) }  // during wiring, speech is a question about the step
     } else {
@@ -218,8 +273,10 @@ final class SessionViewModel {
     stepAnswer = nil
     await pushCard()
     do {
-      stepAnswer = try await api.ask(guide.sessionId, question: question)
+      let answer = try await api.ask(guide.sessionId, question: question)
+      stepAnswer = answer
       questionText = ""
+      say(answer.answer)
     } catch {
       glasses.errorMessage = error.localizedDescription
     }
@@ -238,13 +295,28 @@ final class SessionViewModel {
   /// Sends the follow-up request. A new part leads to its confirmation and wiring steps; a behaviour
   /// change goes straight to new code. Either way the new sketch needs a new approval.
   func submitExtension() async {
+    cancelAutoGo()
     let answer = extensionText.trimmingCharacters(in: .whitespacesAndNewlines)
     guard flow == .success, let guide, !answer.isEmpty else { return }
     // An answer to "what should it do?" is sent together with the request it belongs to.
     let request = extensionQuestion == nil ? answer : extensionBase + ". " + answer
+    await partPhotoTask?.value  // the backend should know which part the photo showed
+    partPhotoTask = nil
     do {
       let status = try await api.extend(guide.sessionId, instruction: request)
       extensionText = ""
+      if !status.extensionProblem.isEmpty {
+        // Cannot be built: say why, and offer requests that would work. Nothing was changed.
+        extensionProblem = status.extensionProblem
+        extensionIdeas = status.suggestions
+        extensionQuestion = nil
+        extensionBase = ""
+        showingIdeas = false
+        say(status.extensionProblem + (status.suggestions.isEmpty ? "" : " Here are some ideas that would work."))
+        await pushCard()
+        return
+      }
+      extensionProblem = nil
       if !status.clarification.isEmpty {
         // The part is clear but not its job: ask, and keep the finished build as it is.
         extensionQuestion = status.clarification
@@ -261,20 +333,12 @@ final class SessionViewModel {
       build = nil
       generation = nil
       isExtending = false
-      // A new part and a photo of it was taken at the start: let the backend look at it now.
-      if status.state == .needsConfirmation, let photo = partPhoto {
-        partPhoto = nil
-        self.guide = status
-        await setFlow(.analyzing)
-        let seen = try? await api.analyze(status.sessionId, photoJPEG: photo, confirmedInventory: nil)
-        await apply(seen ?? status)  // without the photo the part is confirmed by questions alone
-        return
-      }
-      partPhoto = nil
+      partsAcknowledged = true  // an added part is asked for by itself, without a parts list
       await apply(status)
     } catch {
-      // Not fatal: the finished build stays as it is.
+      // Not fatal: the finished build stays as it is. Say what went wrong on the glasses too.
       glasses.errorMessage = error.localizedDescription
+      extensionProblem = "That did not go through: " + error.localizedDescription
       extensionText = ""
       extensionQuestion = nil
       extensionIdeas = []
@@ -321,7 +385,7 @@ final class SessionViewModel {
       return try await camera.capturePhoto(on: session)
     } catch {
       if fatal {
-        await fail(error.localizedDescription)
+        await fail(error.localizedDescription, resume: .connected) { [weak self] in await self?.captureAndStart() }
       } else {
         glasses.errorMessage = error.localizedDescription
       }
@@ -337,7 +401,7 @@ final class SessionViewModel {
         session.sessionId, photoJPEG: photo, confirmedInventory: photo == nil ? [] : nil)
       await apply(status)
     } catch {
-      await fail(error.localizedDescription)
+      await fail(error.localizedDescription) { [weak self] in await self?.analyze(photo: photo) }
     }
   }
 
@@ -345,6 +409,20 @@ final class SessionViewModel {
   private func apply(_ status: GuideStatus) async {
     if status.currentStep != guide?.currentStep { stepsBack = 0 }  // a new open step: show it
     guide = status
+    if status.state == .wiring || status.state == .needsConfirmation {
+      var spoken = status.spokenText  // the step or the question, read aloud
+      let plan = "\(status.sessionId)-\(status.wiringSteps.count)"
+      if status.state == .wiring, !status.backgroundNotice.isEmpty, noticeGivenFor != plan {
+        // Once per wiring plan: the code is being written while the user wires.
+        noticeGivenFor = plan
+        noticeStep = status.currentStep
+        spoken = status.backgroundNotice + " " + spoken
+      }
+      let listsParts = status.state == .needsConfirmation && !partsAcknowledged && !status.partsNeeded.isEmpty
+        && status.pendingConfirmations.contains { $0.kind == "presence" }
+      say(listsParts ? "You need: " + status.partsNeeded.joined(separator: ", ") + ". Do you have them?" : spoken)
+      if handsFree { startCommandLoop() }
+    }
     switch status.state {
     case .awaitingAnalysis:
       await setFlow(.connected)
@@ -380,11 +458,13 @@ final class SessionViewModel {
     extensionIdeas = []
     showingIdeas = false
     extensionQuestion = nil
+    extensionProblem = nil
     extensionBase = ""
     extensionText = ""
     isExtending = false
     awaitingPartPhoto = false
-    partPhoto = nil
+    partPhotoTask = nil
+    cancelAutoGo()
     if isListening { stopListening() }
     await pushCard()
   }
@@ -397,7 +477,17 @@ final class SessionViewModel {
     guard flow == .success, !isExtending else { return }
     isExtending = true
     awaitingPartPhoto = true
-    partPhoto = nil
+    partPhotoTask = nil
+    await pushCard()
+  }
+
+  /// "Change this build": same parts, new behaviour. No photo; the user says what should change.
+  func beginChange() async {
+    guard flow == .success, !isExtending else { return }
+    isExtending = true
+    awaitingPartPhoto = false
+    partPhotoTask = nil
+    await startVoiceInput()
     await pushCard()
   }
 
@@ -418,9 +508,14 @@ final class SessionViewModel {
 
   /// Keeps a photo of the new part (from the glasses or the iPhone camera) for the request that follows.
   func keepPartPhoto(_ jpeg: Data) async {
-    guard awaitingPartPhoto else { return }
-    partPhoto = jpeg
+    guard awaitingPartPhoto, let guide else { return }
     awaitingPartPhoto = false
+    // Sent right away: it tells the backend which part "this sensor" is. If it fails, the part is
+    // named in words and confirmed by questions alone.
+    let api = self.api
+    partPhotoTask = Task {
+      _ = try? await api.analyze(guide.sessionId, photoJPEG: jpeg, confirmedInventory: nil, purpose: "part")
+    }
     await startVoiceInput()  // next: say what to add or change
     await pushCard()
   }
@@ -435,6 +530,30 @@ final class SessionViewModel {
 
   // MARK: - Confirming parts
 
+  /// The answer to the parts list. "Yes" confirms that every listed part is on the desk; the checks
+  /// on each physical part (pin labels) are still asked one by one afterwards.
+  func answerPartsList(_ yes: Bool) async {
+    guard showsPartsList, let guide else { return }
+    guard yes else {
+      await fail("This build needs exactly those parts. Start over when you have them.")
+      return
+    }
+    var ids: [String] = []
+    for pending in guide.pendingConfirmations where pending.kind == "presence" && !ids.contains(pending.componentId) {
+      ids.append(pending.componentId)
+    }
+    partsAcknowledged = true
+    do {
+      let items = ids.map { InventoryItem(componentId: $0, confirmations: []) }
+      await apply(try await api.analyze(guide.sessionId, photoJPEG: nil, confirmedInventory: items))
+    } catch {
+      partsAcknowledged = false
+      await fail(error.localizedDescription, resume: .confirmingParts) { [weak self] in
+        await self?.answerPartsList(true)
+      }
+    }
+  }
+
   /// The user answers the question on screen after checking the physical part.
   func answerConfirmation(_ yes: Bool) async {
     guard flow == .confirmingParts, let guide, let pending = pendingConfirmation else { return }
@@ -448,7 +567,9 @@ final class SessionViewModel {
     do {
       await apply(try await api.analyze(guide.sessionId, photoJPEG: nil, confirmedInventory: [item]))
     } catch {
-      await fail(error.localizedDescription)
+      await fail(error.localizedDescription, resume: .confirmingParts) { [weak self] in
+        await self?.answerConfirmation(true)
+      }
     }
   }
 
@@ -467,7 +588,7 @@ final class SessionViewModel {
     do {
       await apply(try await api.confirmStep(guide.sessionId, index: index, confirmed: true))
     } catch {
-      await fail(error.localizedDescription)
+      await fail(error.localizedDescription, resume: .guiding) { [weak self] in await self?.next() }
     }
   }
 
@@ -507,11 +628,13 @@ final class SessionViewModel {
     do {
       let result = try await api.generate(guide.sessionId, sensorActiveLevel: sensorActiveLevel)
       generation = result
-      showingHowItWorks = true
       build = try await api.getBuild(result.buildId)
       await setFlow(.awaitingApproval)
+      say(result.displaySummary + " Start the flash when you are ready.")
     } catch {
-      await fail(error.localizedDescription)
+      await fail(error.localizedDescription) { [weak self] in
+        await self?.generateSketch(sensorActiveLevel: sensorActiveLevel)
+      }
     }
   }
 
@@ -527,20 +650,13 @@ final class SessionViewModel {
   func approve() async {
     guard flow == .awaitingApproval, let build, let sketch = build.sketch else { return }
     deployError = nil
-    showingHowItWorks = false
     do {
       self.build = try await api.approve(build.buildId, sketchSHA256: sketch.sha256)
       await setFlow(.deploying)
       pollDeploy(build.buildId)
     } catch {
-      await fail(error.localizedDescription)
+      await fail(error.localizedDescription, resume: .awaitingApproval) { [weak self] in await self?.approve() }
     }
-  }
-
-  /// Leaves the "how it works" card and shows the upload approval.
-  func continueToApproval() async {
-    showingHowItWorks = false
-    await pushCard()
   }
 
   func reject() async {
@@ -586,6 +702,15 @@ final class SessionViewModel {
         guard let latest = try? await self.api.getBuild(id) else { continue }
         let changed = latest.deploy?.runtimeLog.count != self.build?.deploy?.runtimeLog.count
         self.build = latest
+        // A line from the board that only appears when the build reacts (anything but READY) is proof.
+        if let proof = latest.deploy?.observedEvents.first(where: {
+          // READY and NEW_GAME are printed at power-up, without the user doing anything.
+          $0 != "READY" && $0 != "NEW_GAME" && latest.expectedSerialEvents.contains($0)
+        }) {
+          self.boardProof = proof
+          await self.reportTest(passed: true)
+          return
+        }
         if changed { await self.pushCard() }
       }
     }
@@ -599,11 +724,14 @@ final class SessionViewModel {
       self.build = try await api.reportTest(build.buildId, passed: passed, note: "")
       if passed {
         await setFlow(.success)
+        say(boardProof == nil ? "It works." : "The board confirms it. It works.")
       } else {
         await fail("The behavior test failed. Check the wiring and the sensor's trim pot, then start over.")
       }
     } catch {
-      await fail(error.localizedDescription)
+      await fail(error.localizedDescription, resume: .testing) { [weak self] in
+        await self?.reportTest(passed: passed)
+      }
     }
   }
 
@@ -616,7 +744,7 @@ final class SessionViewModel {
     extensionText = ""
     isExtending = false
     awaitingPartPhoto = false
-    partPhoto = nil
+    partPhotoTask = nil
     stepAnswer = nil
     stepsBack = 0
     questionText = ""
@@ -624,6 +752,15 @@ final class SessionViewModel {
     extensionIdeas = []
     showingIdeas = false
     extensionBase = ""
+    extensionProblem = nil
+    retryAction = nil
+    canRetry = false
+    boardProof = nil
+    partsAcknowledged = false
+    noticeStep = nil
+    goal = ""  // "Build something new" starts with the question again
+    cancelAutoGo()
+    speaker.stop()
     guide = nil
     await setFlow(.connected)
   }
@@ -638,8 +775,79 @@ final class SessionViewModel {
     await pushCard()
   }
 
-  private func fail(_ message: String) async {
+  /// Shows an error. With `retry`, the user can repeat just the failed step: the flow goes back to
+  /// `resume` (default: where it was) and the step runs again.
+  private func fail(_ message: String, resume: SessionPhase? = nil,
+                    retry: (@MainActor () async -> Void)? = nil) async {
+    retryAction = retry
+    retryFlow = resume ?? flow
+    canRetry = retry != nil
     await setFlow(.error(message))
+  }
+
+  /// Repeats the step that failed, keeping everything that was already confirmed.
+  func retryLast() async {
+    guard case .error = flow, let action = retryAction, let resume = retryFlow else { return }
+    retryAction = nil
+    canRetry = false
+    flow = resume
+    await action()
+  }
+
+  private func say(_ text: String) {
+    if readAloud { speaker.speak(text) }
+  }
+
+  // MARK: - Continuing by itself after a spoken follow-up request
+
+  private func startAutoGo() {
+    cancelAutoGo()
+    autoGoSeconds = 3
+    autoGoTask = Task { [weak self] in
+      while let self, !Task.isCancelled, self.autoGoSeconds > 0 {
+        try? await Task.sleep(for: .seconds(1))
+        guard !Task.isCancelled else { return }
+        self.autoGoSeconds -= 1
+        await self.pushCard()
+      }
+      guard let self, !Task.isCancelled, self.flow == .success else { return }
+      await self.submitExtension()
+    }
+  }
+
+  private func cancelAutoGo() {
+    autoGoTask?.cancel()
+    autoGoTask = nil
+    autoGoSeconds = 0
+  }
+
+  // MARK: - Hands-free: "next" and "back" by voice during wiring
+
+  /// While wiring with hands-free on, keeps listening through the glasses for "next" or "back".
+  private func startCommandLoop() {
+    guard commandLoop == nil else { return }
+    commandLoop = Task { [weak self] in
+      while let self, !Task.isCancelled, self.handsFree {
+        try? await Task.sleep(for: .milliseconds(700))
+        guard self.glassesSpeechWorks, self.flow == .guiding, !self.isListening, !self.isAnswering, self.stepAnswer == nil,
+          !self.speaker.isSpeaking, let session = self.glasses.session, !self.glasses.isSimulated
+        else { continue }
+        _ = await self.glassesSpeech.start(on: session) { [weak self] text in
+          Task { await self?.handleCommand(text) }
+        }
+      }
+      self?.commandLoop = nil
+    }
+  }
+
+  private func handleCommand(_ text: String) async {
+    let words = Set(text.lowercased().split { !$0.isLetter }.map(String.init))
+    if !words.isDisjoint(with: ["next", "continue", "done", "weiter", "fertig"]) {
+      await next()
+    } else if !words.isDisjoint(with: ["back", "previous", "zurück"]) {
+      await back()
+    }
+    // Anything else is ignored: questions go through the Ask button.
   }
 
   /// Redraws the glasses for the current state. Button taps on the glasses come back here.
@@ -657,36 +865,44 @@ final class SessionViewModel {
   }
 
   private func makeCard() -> FlexBoxCard {
-    // Demo mode is visible on the glasses too, on every card.
-    let demo = isDemoMode ? "DEMO MODE · " : ""
     switch flow {
     case .disconnected, .connected:
       // The whole start can be driven from the glasses: speak the goal, then photo and go.
       if isListening {
         return GlassesCards.card(
-          caption: demo + "Listening…",
+          caption: "Listening…",
           text: "Say what you want to build.",
           primary: action("Done") { await $0.finishVoiceInput() }
         )
       }
       if goal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         return GlassesCards.card(
-          caption: demo + "LearnLens",
-          text: "What do you want to build?",
+          caption: "LearnLens",
+          text: "What do you want to build today?",
           primary: action("Speak") { await $0.startVoiceInput() }
         )
       }
+      // No photo is needed to start; it stays possible as an extra check of the parts.
       return GlassesCards.card(
-        caption: demo + "Your goal: " + goal,
-        text: "Look at your components and take a photo of them.",
-        primary: action("Take photo") { await $0.captureOrStart() },
-        secondary: action("Speak again") { await $0.startVoiceInput() }
+        caption: "You want to build",
+        text: goal,
+        primary: action("Start") { await $0.start(withPhoneJPEG: nil) },
+        secondary: action("Speak again") { await $0.startVoiceInput() },
+        tertiary: canCaptureFromGlasses ? action("Check with photo") { await $0.captureAndStart() } : nil
       )
     case .capturing:
       return GlassesCards.card(caption: "Capturing", text: "Look at your parts and hold still.")
     case .analyzing:
-      return GlassesCards.card(caption: demo + "Analyzing", text: "Working out the wiring…")
+      return GlassesCards.card(caption: "One moment", text: "Checking which parts you need…")
     case .confirmingParts:
+      if showsPartsList {
+        return GlassesCards.card(
+          caption: "Parts for this build",
+          text: partsListText + " Do you have them?",
+          primary: action("Yes") { await $0.answerPartsList(true) },
+          secondary: action("No") { await $0.answerPartsList(false) }
+        )
+      }
       return GlassesCards.card(
         caption: "Check your part",
         text: pendingConfirmation?.question ?? "Confirm your parts on the phone.",
@@ -708,32 +924,30 @@ final class SessionViewModel {
       // The step stays on screen while a question is heard and answered; only the caption changes.
       // Next is the default; Back looks at earlier steps; Ask takes a question about this step.
       let position = "Step \(stepIndex + 1) of \(guide.wiringSteps.count)"
-      let caption = isListening ? "Listening… ask your question" : isAnswering ? "Thinking…" : demo + position
+      // On the first step of a plan: the code is being written meanwhile.
+      let writing = noticeStep == stepIndex && !guide.backgroundNotice.isEmpty ? " · writing the code meanwhile" : ""
+      let caption = isAskingByVoice ? "Listening… ask your question" : isAnswering ? "Thinking…" : position + writing
       return GlassesCards.card(
         caption: caption,
         text: step.displayText,
         primary: action(isLastStep ? "Wiring done" : "Next") { await $0.next() },
         secondary: canGoBack ? action("Back") { await $0.back() } : nil,
-        tertiary: isListening
+        tertiary: isAskingByVoice
           ? action("Done") { await $0.finishVoiceInput() }
           : action("Ask") { await $0.startVoiceInput() }
       )
     case .generating:
-      return GlassesCards.card(caption: demo + "Generating", text: (generationStage ?? "Starting") + "…")
+      return GlassesCards.card(caption: "Generating", text: (generationStage ?? "Starting") + "…")
     case .awaitingApproval:
       // Flashing still needs an explicit yes, but it can be given on the glasses. The code itself
       // stays readable on the phone for anyone who wants to check it first.
-      if showingHowItWorks, deployError == nil, let summary = generation?.displaySummary, !summary.isEmpty {
-        return GlassesCards.card(
-          caption: demo + "How it works",
-          text: summary,
-          primary: action("Continue") { await $0.continueToApproval() }
-        )
-      }
+      // One card: how the build works, and the explicit yes to flash it.
       let compiled = generation?.compile.status == "ok" ? "Code is ready and compiled." : "Code is ready (not compiled)."
+      let summary = generation?.displaySummary ?? ""
       return GlassesCards.card(
-        caption: demo + (deployError == nil ? "Approve upload" : "Upload failed"),
-        text: deployError == nil ? compiled + " Flash it to the board?" : "The upload did not succeed. Try again?",
+        caption: (deployError == nil ? "Ready to flash" : "Upload failed"),
+        text: deployError == nil ? (summary.isEmpty ? compiled + " Flash it to the board?" : summary)
+          : "The upload did not succeed. Try again?",
         primary: action(deployError == nil ? "Start flash" : "Retry flash") { await $0.approve() },
         secondary: action("Cancel") { await $0.reject() }
       )
@@ -742,8 +956,8 @@ final class SessionViewModel {
     case .testing:
       let seen = build?.deploy?.observedEvents ?? []
       return GlassesCards.card(
-        caption: isSimulatedDeploy ? "Test it · SIMULATED upload" : demo + "Test it",
-        text: seen.isEmpty ? "Make some noise. Does it react?" : "Board reports: " + seen.joined(separator: ", "),
+        caption: isSimulatedDeploy ? "Test it · SIMULATED upload" : "Test it",
+        text: seen.isEmpty ? "Try it out. Does it work?" : "Board reports: " + seen.joined(separator: ", "),
         primary: action("Yes") { await $0.reportTest(passed: true) },
         secondary: action("No") { await $0.reportTest(passed: false) }
       )
@@ -757,10 +971,33 @@ final class SessionViewModel {
       }
       if !extensionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         return GlassesCards.card(
-          caption: demo + "Next",
+          caption: autoGoSeconds > 0 ? "Continuing in \(autoGoSeconds) s" : "Next",
           text: extensionText,
-          primary: action("Go") { await $0.submitExtension() },
+          primary: action(autoGoSeconds > 0 ? "Go now" : "Go") { await $0.submitExtension() },
           secondary: action("Speak again") { await $0.startVoiceInput() }
+        )
+      }
+      if let extensionProblem, !showingIdeas {
+        // The request cannot be built: the reason, and a way to requests that would work.
+        return GlassesCards.card(
+          caption: "That doesn't work",
+          text: extensionProblem,
+          primary: extensionIdeas.isEmpty
+            ? action("Speak again") { await $0.startVoiceInput() }
+            : action("Ideas") { await $0.showIdeas(true) },
+          secondary: extensionIdeas.isEmpty ? nil : action("Speak again") { await $0.startVoiceInput() },
+          tertiary: action("Cancel") { await $0.cancelExtension() }
+        )
+      }
+      if extensionQuestion != nil || extensionProblem != nil, showingIdeas {
+        return GlassesCards.choices(
+          caption: extensionProblem == nil ? "Ideas" : "These would work",
+          text: "Pick one, or go back and say your own.",
+          options: extensionIdeas.indices.map { index in
+            action(extensionIdeas[index]) { await $0.chooseIdea(index) }
+          },
+          primary: action("Back") { await $0.showIdeas(false) },
+          secondary: action("Cancel") { await $0.cancelExtension() }
         )
       }
       if let extensionQuestion {
@@ -786,7 +1023,7 @@ final class SessionViewModel {
       }
       if awaitingPartPhoto {
         return GlassesCards.card(
-          caption: demo + "Continue building",
+          caption: "Continue building",
           text: "Adding a part? Look at it and take a photo. Otherwise skip.",
           primary: action("Take photo") { await $0.takePartPhoto() },
           secondary: action("Skip") { await $0.skipPartPhoto() },
@@ -795,19 +1032,29 @@ final class SessionViewModel {
       }
       if isExtending {
         return GlassesCards.card(
-          caption: demo + "Continue building",
+          caption: "Continue building",
           text: "What do you want to add or change?",
           primary: action("Speak") { await $0.startVoiceInput() },
           secondary: action("Cancel") { await $0.cancelExtension() }
         )
       }
       return GlassesCards.card(
-        caption: isSimulatedDeploy ? "Success · SIMULATED upload" : demo + "Success",
-        text: isSimulatedDeploy ? "Flow complete. No board was flashed." : "It works. Add a part or change what it does?",
-        primary: action("Continue building") { await $0.beginExtension() },
-        secondary: action("New build") { await $0.reset() }
+        caption: isSimulatedDeploy ? "Success · SIMULATED upload" : "Success",
+        text: isSimulatedDeploy ? "Flow complete. No board was flashed."
+          : (boardProof.map { "The board reported \($0). " } ?? "It works. ") + "What next?",
+        primary: action("Change this build") { await $0.beginChange() },
+        secondary: action("Build something new") { await $0.reset() },
+        tertiary: action("Add a part") { await $0.beginExtension() }
       )
     case .error(let message):
+      if canRetry {
+        return GlassesCards.card(
+          caption: "Error",
+          text: message,
+          primary: action("Retry") { await $0.retryLast() },
+          secondary: action("Start over") { await $0.reset() }
+        )
+      }
       return GlassesCards.card(
         caption: "Error",
         text: message,

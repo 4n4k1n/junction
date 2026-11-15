@@ -1,0 +1,23 @@
+{
+  "component": "ky-001",
+  "name": "KY-001 temperature sensor (DS18B20)",
+  "role": "sensor",
+  "senses": "temperature",
+  "projects": [],
+  "add_on": null,
+  "not_buildable": "The temperature sensor sends its readings over a one-wire data protocol. It needs an extra Arduino library, and LearnLens only compiles sketches with its two approved libraries.",
+  "identification": "Small black PCB with 3 angled header pins at one end and a black half-round three-legged chip (like a small transistor) standing upright. Looks much like the KY-003 and KY-035, whose chips are flat and lie beyond the board edge.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-001"
+  },
+  "pins": {},
+  "confirmations": [],
+  "facts": [
+    {
+      "id": "ky001-about",
+      "statement": "The DS18B20 reports temperature digitally over a 1-Wire bus. The vendor's example uses the OneWire and DallasTemperature libraries.",
+      "source": "Joy-IT SensorKit, KY-001, technical data and code example",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

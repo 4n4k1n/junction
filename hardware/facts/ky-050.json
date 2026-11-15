@@ -1,0 +1,23 @@
+{
+  "component": "ky-050",
+  "name": "KY-050 ultrasonic distance sensor",
+  "role": "sensor",
+  "senses": "distance",
+  "projects": [],
+  "add_on": null,
+  "not_buildable": "It only works with 5 volts and needs a trigger output pin; the vendor warns that it can damage a lower-voltage board without a level shifter.",
+  "identification": "Blue PCB with two large silver cylinders with mesh fronts side by side, like a pair of eyes, and 4 header pins labelled Vcc, Trig, Echo, GND.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-050"
+  },
+  "pins": {},
+  "confirmations": [],
+  "facts": [
+    {
+      "id": "ky050-about",
+      "statement": "The sensor measures 2 cm to 300 cm. It works only at the 5 V level; the vendor connects it to 3.3 V boards through the KY-051 level shifter and warns of permanent damage otherwise.",
+      "source": "Joy-IT SensorKit, KY-050, technical data and Raspberry Pi notes",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

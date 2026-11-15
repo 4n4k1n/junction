@@ -20,7 +20,7 @@ from typing import Callable, List, Optional, Tuple
 
 from pydantic import ValidationError
 
-from . import codecheck, demo, facts
+from . import codecheck, facts, games, variants
 from .compiler import ArduinoCliCompiler
 from .llm import ask_json, make_client
 from .models import (
@@ -35,6 +35,7 @@ MAX_REPAIRS = 2
 SKETCH_NAME = "learnlens_sketch"  # arduino-cli needs <name>/<name>.ino
 PROJECTS_DIR = Path(os.getenv("LEARNLENS_PROJECTS_DIR", Path(__file__).resolve().parents[2] / "generated"))
 REQUIRED_EVENTS = ["READY", "SOUND_DETECTED", "LED_ON", "LED_OFF"]
+LEVEL_METER_EVENTS = ["READY", "LOUD", "QUIET"]  # LOUD/QUIET let the test step see that the meter reacts
 DEFAULT_DEBOUNCE_MS = 300
 DEFAULT_SAMPLE_WINDOW_MS = 25
 
@@ -95,7 +96,10 @@ def signal_inputs(steps: List[WiringStep]) -> List[InputPin]:
         board_pin = cat[c.to_pin.component]["pins"][header]
         if board_pin["kind"] != "gpio" or bool(board_pin.get("analog")) != analog or not re.fullmatch(r"[AD]\d+", header):
             raise ValueError(f"{header} is not a usable {'analog' if analog else 'digital'} header pin")
-        inputs.append(InputPin(component=c.from_pin.component, name=cat[c.from_pin.component]["name"], header=header,
+        part = cat[c.from_pin.component]
+        several = len((part.get("add_on") or {}).get("signals", [])) > 1  # then the pin says which signal this is
+        inputs.append(InputPin(component=c.from_pin.component,
+                               name=part["name"] + (f", its {c.from_pin.pin} signal" if several else ""), header=header,
                                number=None if analog else int(header[1:]), kind="analog" if analog else "digital",
                                active_level=pin.get("active_level", "")))
     return inputs
@@ -135,7 +139,7 @@ def build_context(spec: ProjectSpec, steps: List[WiringStep], sensor_active_leve
         inputs=inputs, custom_behavior=spec.custom_behavior if custom else "", previous_code=previous_code if custom else "",
         log_object=logging_["object"], log_setup=logging_["setup"],
         allowed_includes=[logging_["include"]] + ([matrix["include"]] if use_matrix else []),
-        required_events=["READY"] if use_matrix else REQUIRED_EVENTS,
+        required_events=["READY"] if custom else LEVEL_METER_EVENTS if analog else REQUIRED_EVENTS,
         facts=[by_id[f] for f in dict.fromkeys(quoted)])
 
 
@@ -177,8 +181,11 @@ REQUIRED LOGIC:
   scale between them, so the meter calibrates itself.
 - for and while loops are allowed here. Every while loop must end by time (millis()).
 
-REQUIRED LOG LINE (exactly this text on its own line):
+REQUIRED LOG LINES (each exactly this text on its own line):
 - READY   once, at the end of setup()
+- LOUD    once each time the bar reaches at least half of the matrix
+- QUIET   once each time the bar has fallen back to empty after a LOUD
+  Print them only on these changes, never on every pass through loop().
 
 THE STATIC ANALYZER REJECTS A SKETCH THAT:
 {COMMON_RULES}
@@ -224,18 +231,20 @@ def custom_task(ctx: CodegenContext, includes: str, logging_: str) -> str:
     for i in ctx.inputs:
         if i.kind == "analog":
             lines.append(f"- Input: {i.name}, analog output on header {i.header}. Read it with analogRead({i.header}) only. "
-                         "It swings around a resting level; do not assume an ADC range.")
+                         "What its voltage means is in the facts below; do not assume an ADC range or a resting level.")
         else:
+            level = (f"It reads {i.active_level} while the sensor reports its event." if i.active_level else
+                     "No level is documented for it: react to changes of the level, as the facts below describe.")
             lines.append(f"- Input: {i.name}, digital output on header {i.header}, Arduino pin number {i.number}. "
-                         f"pinMode INPUT, read with digitalRead. It reads {i.active_level} while the sensor reports its event.")
+                         f"pinMode INPUT, read with digitalRead. {level}")
     previous = (f"\n\nTHE SKETCH THAT IS RUNNING NOW (it works; keep what should stay, change what the new behaviour "
                 f"needs):\n{ctx.previous_code}" if ctx.previous_code else "")
     return f"""
-THE BUILD WAS DEVELOPED FURTHER. WHAT IT MUST DO NOW:
+{"THE BUILD WAS DEVELOPED FURTHER. WHAT IT MUST DO NOW:" if ctx.project.requests else "WHAT THE BUILD MUST DO:"}
 {ctx.custom_behavior}
 
-HOW IT GOT HERE (the user's requests, oldest first):
-{chr(10).join("- " + r for r in ctx.project.requests) or "- (none)"}
+{"HOW IT GOT HERE (the user's requests, oldest first):" if ctx.project.requests else "A new build: there is no earlier sketch."}
+{chr(10).join("- " + r for r in ctx.project.requests)}
 
 APPROVED HARDWARE ACCESS (nothing else may be touched):
 {chr(10).join(lines)}
@@ -253,7 +262,8 @@ THE STATIC ANALYZER REJECTS A SKETCH THAT:
 {COMMON_RULES}
 - reads an analog input with anything but analogRead, or uses analogRead on any other pin
 - sets a digital input to anything but INPUT, or writes to it
-- uses digitalWrite on anything but {ctx.led_symbol}{previous}"""
+- uses digitalWrite on anything but {ctx.led_symbol}
+- is longer than {codecheck.MAX_SOURCE_CHARS} characters, comments included: keep comments short{previous}"""
 
 
 def repair_prompt(ctx: CodegenContext, previous: str, problems: str) -> str:
@@ -272,7 +282,7 @@ PREVIOUS SKETCH:
 def template_sketch(ctx: CodegenContext) -> GeneratedSketch:
     """Rule-based sketch for the same contract. Used without AI, and when no AI attempt passes."""
     if ctx.custom_behavior:
-        return gated_level_meter_template(ctx)
+        return games.template(ctx) if ctx.project.game else gated_level_meter_template(ctx)
     if ctx.signal_kind == "analog":
         return level_meter_template(ctx)
     off = "HIGH" if ctx.led_on_level == "LOW" else "LOW"
@@ -378,6 +388,7 @@ uint8_t frame[{ctx.matrix_rows * ctx.matrix_columns}];
 float quiet = 1e9f;  // smallest swing seen: the room's noise floor
 float loud = 0;      // largest swing seen recently
 float shown = 0;     // bar length on the matrix, in columns
+bool wasLoud = false;  // for the LOUD / QUIET log lines
 
 void setup() {{
   matrix.begin();
@@ -424,6 +435,15 @@ void loop() {{
     }}
   }}
   matrix.draw(frame);
+
+  // Report once when it gets loud and once when it is quiet again.
+  if (!wasLoud && shown >= COLUMNS / 2) {{
+    wasLoud = true;
+    {ctx.log_object}.println("LOUD");
+  }} else if (wasLoud && shown < 1) {{
+    wasLoud = false;
+    {ctx.log_object}.println("QUIET");
+  }}
 }}
 """
     return GeneratedSketch(
@@ -441,7 +461,11 @@ void loop() {{
             "The first seconds are used for calibration, so the bar can jump at the start.",
             f"The READY line is visible only where {ctx.log_object} output is shown (App Lab or IDE console).",
         ],
-        expected_serial_events=[SerialEvent(event="READY", when="once after power-up, when setup() has finished")])
+        expected_serial_events=[
+            SerialEvent(event="READY", when="once after power-up, when setup() has finished"),
+            SerialEvent(event="LOUD", when="each time the bar reaches at least half of the matrix"),
+            SerialEvent(event="QUIET", when="each time the bar has fallen back to empty after that"),
+        ])
 
 
 def display_summary(sketch: GeneratedSketch, limit: int = 180) -> str:
@@ -455,12 +479,12 @@ def display_summary(sketch: GeneratedSketch, limit: int = 180) -> str:
 
 def gated_level_meter_template(ctx: CodegenContext) -> GeneratedSketch:
     """Prevalidated sketches for the level meter plus one digital sensor, in the variants listed in
-    demo.EXTENSION_VARIANTS. Any other change needs the AI service."""
+    variants.EXTENSION_VARIANTS. Any other change needs the AI service."""
     kinds = [i.kind for i in ctx.inputs]
     if kinds != ["analog", "digital"]:
         raise RuntimeError("This change needs the AI service: there is no prevalidated sketch for it.")
     gate = ctx.inputs[1]
-    variant = demo.variant_for(ctx.custom_behavior)
+    variant = variants.variant_for(ctx.custom_behavior)
     base = level_meter_template(ctx)
     code = base.source_code
 
@@ -483,8 +507,8 @@ def gated_level_meter_template(ctx: CodegenContext) -> GeneratedSketch:
               "  }\n")
         new = "While it detects something, the bar is not updated and stays where it is."
     elif variant == "toggle":
-        patch("float shown = 0;     // bar length on the matrix, in columns\n",
-              "float shown = 0;     // bar length on the matrix, in columns\n"
+        patch("bool wasLoud = false;  // for the LOUD / QUIET log lines\n",
+              "bool wasLoud = false;  // for the LOUD / QUIET log lines\n"
               "bool meterOn = true;         // switched by the second sensor\n"
               "bool gateWasActive = false;  // to notice the moment something appears\n")
         patch("  // Light whole columns up to the level",
@@ -503,7 +527,7 @@ def gated_level_meter_template(ctx: CodegenContext) -> GeneratedSketch:
         new = "While it detects nothing, the bar is forced to zero and the matrix stays dark."
     return GeneratedSketch(
         source_code=code,
-        display_summary=demo.EXTENSION_VARIANTS[variant]["summary"],
+        display_summary=variants.EXTENSION_VARIANTS[variant]["summary"],
         explanation=base.explanation + f" New: the sketch also reads the {gate.name} on {gate.header}. {new}",
         assumptions=base.assumptions + [
             f"The {gate.name} reads {gate.active_level} on {gate.header} while it detects something.",
@@ -536,8 +560,7 @@ def save_project(session_id: str, attempt: int, sketch: GeneratedSketch, ctx: Co
 
 class CodeGenerator:
     def __init__(self, mode: Optional[str] = None, client=None, compiler=None) -> None:
-        default = "demo" if demo.enabled() else os.getenv("LEARNLENS_CODEGEN") or os.getenv("LEARNLENS_TUTOR", "auto")
-        self.mode = mode or default  # auto | claude | mock | demo
+        self.mode = mode or os.getenv("LEARNLENS_CODEGEN") or os.getenv("LEARNLENS_TUTOR", "auto")  # auto | claude | mock
         self.compiler = compiler or ArduinoCliCompiler()
         self.client = client
         if self.client is None and self.mode in ("auto", "claude"):
@@ -579,7 +602,7 @@ class CodeGenerator:
 
     def generate(self, session_id: str, ctx: CodegenContext, on_stage: Optional[Callable[[str], None]] = None
                  ) -> Tuple[GeneratedSketch, str, List[GenerationAttempt]]:
-        """Returns (sketch, source, attempts) with source in llm | template | demo. Raises if even the template fails."""
+        """Returns (sketch, source, attempts) with source in llm | template. Raises if even the template fails."""
         attempts: List[GenerationAttempt] = []
         stage = on_stage or (lambda text: None)
         if self.client is not None:
@@ -605,7 +628,7 @@ class CodeGenerator:
         attempts.append(attempt)
         if attempt.issues:
             raise RuntimeError("the template sketch failed its own checks: " + codecheck.summarize(attempt.issues))
-        return sketch, "demo" if self.mode == "demo" else "template", attempts
+        return sketch, "template", attempts
 
 
 def final_compile(attempts: List[GenerationAttempt], fqbn: str) -> CompileReport:

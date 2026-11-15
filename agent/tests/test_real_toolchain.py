@@ -30,7 +30,7 @@ def test_approved_job_compiles_for_real_and_stops_at_the_missing_board(monkeypat
 
         client = TestClient(app)
         inventory = [{"component_id": "uno-q"}, {"component_id": "ky-037", "confirmations": ["ky037-pin-labels"]}]
-        sid = client.post("/sessions", json={"instruction": "Build a clap-activated light",
+        sid = client.post("/sessions", json={"instruction": "Build a sound level meter",
                                              "confirmed_inventory": inventory}).json()["session_id"]
         s = client.post(f"/sessions/{sid}/analyze", data={"confirmed_inventory": "[]"}).json()
         for i in range(len(s["wiring_steps"])):

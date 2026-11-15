@@ -1,0 +1,66 @@
+{
+  "component": "ky-010",
+  "name": "KY-010 light barrier",
+  "role": "sensor",
+  "senses": "something passing through its slot",
+  "projects": [],
+  "add_on": {
+    "signals": [
+      "S"
+    ]
+  },
+  "identification": "Small black PCB with 3 angled header pins at one end and a black U-shaped fork with a narrow slot in the middle of the board.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-010"
+  },
+  "pins": {
+    "S": {
+      "kind": "digital_out",
+      "high_level": "supply",
+      "say": "pin marked S",
+      "fact": "ky010-signal",
+      "active_level": "HIGH"
+    },
+    "middle": {
+      "kind": "supply",
+      "min_v": 3.3,
+      "max_v": 5.0,
+      "show": "middle pin",
+      "say": "middle pin, the one between S and minus",
+      "fact": "ky010-supply"
+    },
+    "-": {
+      "kind": "ground",
+      "show": "minus pin",
+      "say": "pin marked with a minus",
+      "fact": "ky010-pins"
+    }
+  },
+  "confirmations": [
+    {
+      "id": "ky010-pin-labels",
+      "question": "Look at the 3 pins of the light barrier. Is one marked S and one marked with a minus, with the third pin between them?",
+      "reason": "The pin order differs between modules. The wiring plan is only valid if S and minus are the outer pins and the supply pin is the one in the middle."
+    }
+  ],
+  "facts": [
+    {
+      "id": "ky010-pins",
+      "statement": "The module has three pins: signal (printed S), supply (+V, the middle pin) and ground (printed -). The vendor's drawing shows them in the order -, supply, S. Go by the printed markings.",
+      "source": "Joy-IT SensorKit, KY-010, pin drawing (vendor documentation for the Joy-IT module; clones may differ)",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky010-supply",
+      "statement": "The vendor's technical data gives an operating voltage of 3.3 V to 5 V.",
+      "source": "Joy-IT SensorKit, KY-010, technical data",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky010-signal",
+      "statement": "The module gives a signal as long as its light beam is not interrupted. The vendor's example reports HIGH as 'signal detected'. Which level your module gives while the slot is blocked is not confirmed, so a sketch should react to the change. Powered from 3.3 V the signal cannot rise above 3.3 V. The vendor's Arduino example switches on the board's internal pull-up resistor for this pin; LearnLens sketches do not, so whether the signal is stable without it is not confirmed.",
+      "source": "Joy-IT SensorKit, KY-010, description and code example",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "component": "ky-019",
+  "name": "KY-019 relay",
+  "role": "actuator",
+  "senses": "",
+  "projects": [],
+  "add_on": null,
+  "not_buildable": "It needs 5 volts and an output pin, and it switches loads that are outside what LearnLens checks.",
+  "identification": "Larger black PCB with a blue box-shaped relay, a blue screw terminal with three screws and 3 header pins.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-019"
+  },
+  "pins": {},
+  "confirmations": [],
+  "facts": [
+    {
+      "id": "ky019-about",
+      "statement": "A 5 V relay that switches when 5 V is applied to its input and needs about 15 to 20 mA. The vendor warns that work on voltages above 30 V and mains voltage is dangerous.",
+      "source": "Joy-IT SensorKit, KY-019, description and technical data",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

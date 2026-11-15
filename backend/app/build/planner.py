@@ -7,7 +7,7 @@ confirmed plan is written in codegen.py.
 from __future__ import annotations
 
 import hashlib
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from . import facts
 from .models import Behavior, Connection, PinRef, ProjectSpec, Provenance, Sketch, WiringStep
@@ -31,67 +31,87 @@ def level_meter_spec() -> ProjectSpec:
                        components=[BOARD, "ky-037"])
 
 
+def _power(component: str) -> Dict[str, str]:
+    """A module's ground and supply pins, on the board's ground and 3.3 V pins."""
+    pins = facts.catalog()[component]["pins"]
+    board = {"ground": "GND", "supply": "3V3"}
+    return {p: board[pins[p]["kind"]] for p in pins if pins[p]["kind"] in board}
+
+
 def _signal_pin(analog: bool = False) -> str:
     return facts.catalog()[BOARD]["analog_input_preference" if analog else "digital_input_preference"][0]
 
 
-def plan_wiring(spec: ProjectSpec) -> List[WiringStep]:
-    """Wiring steps for a sensor on the board: its digital output, or for a level meter its analog
-    output. The caller must run facts.check_safety."""
-    cat = facts.catalog()
-    sensor, name = spec.input_component, cat[spec.input_component]["name"].split()[0]
-    pins = cat[sensor]["pins"]
-    analog = spec.behavior == Behavior.level_meter
-    signal = "analog_out" if analog else "digital_out"
-    target = {"ground": "GND", "supply": "3V3", signal: _signal_pin(analog)}
-    order = {"ground": 0, "supply": 1, signal: 2}
-
-    steps = [WiringStep(index=0, display_text="Unplug the board's USB cable",
-                        spoken_text="Unplug the USB cable before you wire anything.")]
-    for pin in sorted((p for p in pins if pins[p]["kind"] in target), key=lambda p: order[pins[p]["kind"]]):
-        to = target[pins[pin]["kind"]]
-        label = cat[BOARD]["pins"][to].get("label", to)
-        steps.append(WiringStep(
-            index=len(steps), display_text=f"{name} {pin} to board {label}",
-            spoken_text=f"Connect the sensor pin labelled {pin} to {label} on the board.",
-            connection=Connection(from_pin=PinRef(component=sensor, pin=pin),
-                                  to_pin=PinRef(component=BOARD, pin=to)),
-            fact_ids=[pins[pin]["fact"], cat[BOARD]["pins"][to]["fact"]]))
-    steps.append(WiringStep(index=len(steps), display_text="Plug USB back in. Sensor power LED on?",
-                            spoken_text="Plug the USB cable back in and check that the sensor's power LED lights up."))
-    return steps
-
-
-def plan_extension(steps: List[WiringStep], component: str) -> List[WiringStep]:
-    """Wiring steps that add one more digital sensor to a finished build. The existing wiring stays.
-    The caller must run facts.check_safety on the old and new steps together."""
+def _connection_steps(component: str, target: Dict[str, str], start: int, added: bool) -> List[WiringStep]:
+    """One step per wire in `target` (module pin -> board pin), ground first. Unplugging USB is part of
+    the first step and plugging it back in part of the last, so no wire is connected under power."""
     cat = facts.catalog()
     pins, name = cat[component]["pins"], cat[component]["name"].split()[0]
-    used = {s.connection.to_pin.pin for s in steps if s.connection}
-    free = [p for p in cat[BOARD]["digital_input_preference"] if p not in used]
-    if not free:
-        raise ValueError("no free digital input pin left")
-    target = {"ground": "GND", "supply": "3V3", "digital_out": free[0]}
-    order = {"ground": 0, "supply": 1, "digital_out": 2}
-
-    new = [WiringStep(index=len(steps), display_text="Unplug the board's USB cable",
-                      spoken_text="Unplug the USB cable before you add the new part.")]
-    for pin in sorted((p for p in pins if pins[p]["kind"] in target), key=lambda p: order[pins[p]["kind"]]):
-        to = target[pins[pin]["kind"]]
+    order = {"ground": 0, "supply": 1, "digital_out": 2, "analog_out": 2}
+    wires = sorted(target, key=lambda p: order[pins[p]["kind"]])  # stable: signals keep their order
+    steps = []
+    for n, pin in enumerate(wires):
+        to = target[pin]
         label = cat[BOARD]["pins"][to].get("label", to)
-        shared = pins[pin]["kind"] == "supply"
-        new.append(WiringStep(
-            index=len(steps) + len(new),
-            display_text=f"{name} {pin} to board {label}" + (" (shared)" if shared else ""),
-            spoken_text=f"Connect the new sensor's pin labelled {pin} to {label} on the board."
-                        + (" The board has only one 3.3 volt pin. Share it with the first sensor, for example on "
-                           "a breadboard rail." if shared else ""),
+        shared = added and pins[pin]["kind"] == "supply"
+        # Pins without a printed label (a middle pin, a loose wire) are described instead of named.
+        display = f"{name} {pins[pin].get('show', pin)} to board {label}" + (" (shared)" if shared else "")
+        spoken = (f"Connect the {'new ' if added else ''}sensor's {pins[pin].get('say', 'pin labelled ' + pin)} "
+                  f"to {label} on the board.")
+        if shared:
+            spoken += (" The board has only one 3.3 volt pin. Share it with the first sensor, for example on a "
+                       "breadboard rail.")
+        if n == 0:
+            display = "Unplug USB. " + display
+            spoken = "Unplug the board's USB cable first. Then: " + spoken
+        if n == len(wires) - 1:
+            display += ". Plug USB in"
+            spoken += " Then plug the USB cable back in" + ("." if added else " and check that the sensor's power LED lights up.")
+        steps.append(WiringStep(
+            index=start + n, display_text=display, spoken_text=spoken,
             connection=Connection(from_pin=PinRef(component=component, pin=pin),
                                   to_pin=PinRef(component=BOARD, pin=to)),
             fact_ids=[pins[pin]["fact"], cat[BOARD]["pins"][to]["fact"]]))
-    new.append(WiringStep(index=len(steps) + len(new), display_text="Plug USB back in",
-                          spoken_text="Plug the USB cable back in."))
-    return new
+    return steps
+
+
+def plan_wiring(spec: ProjectSpec) -> List[WiringStep]:
+    """Wiring steps for a new project. A free-form project (a game) wires every part it names, each
+    with the signals the hardware database lists for it. The fixed projects wire one sensor: its
+    digital output, or for a level meter its analog output. The caller must run facts.check_safety."""
+    if spec.behavior == Behavior.custom:
+        steps: List[WiringStep] = []
+        for component in spec.components:
+            if component != spec.board:
+                steps += plan_extension(steps, component, added=bool(steps))
+        return steps
+    analog = spec.behavior == Behavior.level_meter
+    pins = facts.catalog()[spec.input_component]["pins"]
+    signal = next(p for p in pins if pins[p]["kind"] == ("analog_out" if analog else "digital_out"))
+    return _connection_steps(spec.input_component, {**_power(spec.input_component), signal: _signal_pin(analog)},
+                             0, added=False)
+
+
+def plan_extension(steps: List[WiringStep], component: str, added: bool = True) -> List[WiringStep]:
+    """Wiring steps that add one more sensor to a finished build: its ground, its supply and every
+    signal the hardware database lists for it under `add_on`, each on the next free board input of
+    its kind. The existing wiring stays. The caller must run facts.check_safety on the old and new
+    steps together."""
+    cat = facts.catalog()
+    part = cat[component]
+    if not part.get("add_on"):
+        raise ValueError(f"{component} cannot be added to a build")
+    used = {s.connection.to_pin.pin for s in steps if s.connection}
+    target = _power(component)
+    for signal in part["add_on"]["signals"]:
+        analog = part["pins"][signal]["kind"] == "analog_out"
+        free = [p for p in cat[BOARD]["analog_input_preference" if analog else "digital_input_preference"]
+                if p not in used]
+        if not free:
+            raise ValueError(f"no free {'analog' if analog else 'digital'} input pin left")
+        target[signal] = free[0]
+        used.add(free[0])
+    return _connection_steps(component, target, len(steps), added=added)
 
 
 def render_sketch(spec: ProjectSpec) -> Sketch:

@@ -27,7 +27,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from . import engine
-from .build import demo
+from .build import persistence
 from .build.router import agent_status
 from .build.router import router as build_router
 from .build.session_router import router as guide_router
@@ -49,6 +49,15 @@ store = Store()
 tutor = Tutor()
 app.include_router(build_router)
 app.include_router(guide_router)
+persistence.load()  # sessions and builds from before a restart
+
+
+@app.middleware("http")
+async def _keep_state(request, call_next):
+    response = await call_next(request)
+    if request.method != "GET":
+        persistence.save()
+    return response
 
 
 @app.on_event("startup")
@@ -89,11 +98,14 @@ def _load(session_id: str) -> SessionState:
 
 @app.get("/health")
 def health():
-    from .build import session_router  # read at request time: tests swap these objects
+    from .build import llm, session_router  # read at request time: tests swap these objects
 
     return {"ok": True, "tutor": "claude" if tutor.claude else "mock",
-            "demo_mode": demo.enabled(), "analyzer": session_router.analyzer.mode,
-            "codegen": session_router.generator.mode, **agent_status()}
+            "analyzer": session_router.analyzer.mode,
+            "ai_available": session_router.analyzer.claude is not None,  # false: prevalidated projects only
+            "codegen": session_router.generator.mode,
+            "ai_error": llm.last_error,  # why the last AI call failed, e.g. a used-up budget; empty when it worked
+            **agent_status()}
 
 
 @app.get("/lessons")

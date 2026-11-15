@@ -189,6 +189,13 @@ class DeployAgent:
             return {"status": "ok" if code == 0 else "failed", "diagnostics": diagnostics, "log": log[-4000:],
                     "sha256": a["sha256"], "mock": False}
 
+    def has_compiled(self, build_id: str, sketch: dict) -> bool:
+        """True when this agent already compiled exactly this sketch (before the approval)."""
+        state = self.builds.get(build_id) or {}
+        code, sha = sketch.get("code"), sketch.get("sha256")
+        return bool(state.get("compiled")) and isinstance(code, str) and state.get("sha256") == sha \
+            and hashlib.sha256(code.encode()).hexdigest() == sha
+
     # ---------- upload ----------
 
     def flash(self, build_id: str, approval_token: str, expected_events: Optional[List[str]] = None) -> dict:

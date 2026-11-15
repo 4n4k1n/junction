@@ -76,8 +76,20 @@ Any call in the wrong state returns 409.
 
 ## Hardware database
 
-`hardware/facts/uno-q.json` and `ky-037.json`. Each pin has a kind and limits and points at a fact;
-each fact has a source and a confidence (`official_doc`, `vendor_doc`, `secondary`, `unverified`).
+`hardware/facts/uno-q.json` and one file per module of the 41-part KY sensor kit (`ky-001.json` to
+`ky-054.json`). Each pin has a kind and limits and points at a fact; each fact has a source and a
+confidence (`official_doc`, `vendor_doc`, `secondary`, `unverified`).
+
+The kit entries come from the Joy-IT SensorKit pages (technical data, wiring tables, code example,
+pin drawing), so they are `vendor_doc`: none of them was measured on the bench. A part is in one of
+two groups:
+
+- `add_on` set (22 parts plus the KY-037): it has pins and wiring rules and can be added to a
+  finished build. `add_on.signals` lists the signal pins that get wired, each on the next free
+  board input of its kind. All of them run from the 3.3 V pin.
+- `not_buildable` set (18 parts): the part is recognised in a photo and the user is told the reason,
+  but there are no pins and the planner refuses it. These are the output parts (LEDs, buzzers,
+  relay), the parts that need an extra library or a bus, and the parts the vendor specifies for 5 V.
 
 Checked against the official UNO Q datasheet (SKU ABX00162-ABX00173) and the official core source:
 

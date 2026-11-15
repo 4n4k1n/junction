@@ -25,13 +25,14 @@ from __future__ import annotations
 import json
 import os
 import uuid
+from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import TypeAdapter, ValidationError
 
-from . import codegen, demo, facts, planner
-from .analyzer import Analyzer, to_spec
+from . import codegen, facts, games, planner, variants
+from .analyzer import Analyzer, addable_sensors, to_spec
 from .models import (
     AskRequest, StepAnswer, Behavior, BuildStatus, DetectedComponent, ConfirmationKind, ConfirmStepRequest, CreateGuideSessionRequest, ExtendRequest, GenerateRequest,
     GenerationResult, GuideState, GuideStatus, InventoryItem, PendingConfirmation, Provenance, WiringReview,
@@ -48,6 +49,32 @@ REVIEW_DISCLAIMER = ("A photo cannot verify an electrical connection. Check each
 
 # In-memory, like builds: sessions are lost on restart.
 sessions: Dict[str, GuideStatus] = {}
+
+# The sketch depends only on the confirmed plan, so it is written while the user is still wiring.
+PREGENERATE = os.getenv("LEARNLENS_PREGENERATE", "1") not in ("0", "false", "")
+_background = ThreadPoolExecutor(max_workers=2)
+pregenerated: Dict[str, tuple] = {}  # session id -> (plan key, generator, future)
+
+
+def _plan_key(s: GuideStatus) -> str:
+    return json.dumps([s.project.model_dump(mode="json"), [step.model_dump(mode="json") for step in s.wiring_steps]],
+                      sort_keys=True)
+
+
+BACKGROUND_NOTICE = "I am writing the code in the background while you wire."
+
+
+def _pregenerate(s: GuideStatus) -> None:
+    """Start writing, checking and compiling the sketch in the background, and say so. Nothing is uploaded."""
+    s.background_notice = ""
+    if not PREGENERATE:
+        return
+    s.background_notice = BACKGROUND_NOTICE
+    ctx = codegen.build_context(s.project, s.wiring_steps, previous_code=running_code.get(s.session_id, ""))
+    s.generation_progress = []
+    future: Future = _background.submit(generator.generate, s.session_id, ctx, s.generation_progress.append)
+    pregenerated[s.session_id] = (_plan_key(s), generator, future)
+part_seen: Dict[str, str] = {}     # per session: the part a photo of a part to add showed (a suggestion)
 running_code: Dict[str, str] = {}  # per session: the sketch before the build was developed further
 _inventory = TypeAdapter(List[InventoryItem])
 
@@ -89,7 +116,13 @@ def _pending(s: GuideStatus) -> List[PendingConfirmation]:
         name = cat[cid]["name"]
         if cid not in confirmed:
             best = max((d.confidence for d in s.detected_components if d.component_id == cid), default=None)
-            if best is None:
+            if best is None and not s.detected_components:
+                # Goal first: no photo was looked at, so the user says whether the part is there.
+                pending.append(PendingConfirmation(
+                    id=f"{cid}-present", component_id=cid, kind=ConfirmationKind.presence,
+                    question=f"For this you need the {name}. Do you have one on the desk?",
+                    reason="No photo was taken."))
+            elif best is None:
                 pending.append(PendingConfirmation(
                     id=f"{cid}-present", component_id=cid, kind=ConfirmationKind.presence,
                     question=f"I could not find the {name} in the photo. Do you have one on the desk?",
@@ -114,6 +147,7 @@ def _advance(s: GuideStatus) -> None:
         _say(s, "I can't build that yet", s.project.unsupported_reason)
         return
     s.hardware_facts = facts.facts_for(s.project.components)
+    s.parts_needed = [facts.catalog()[c]["name"] for c in s.project.components]
     s.pending_confirmations = _pending(s)
     if s.pending_confirmations:
         s.state = GuideState.needs_confirmation
@@ -121,7 +155,14 @@ def _advance(s: GuideStatus) -> None:
         _say(s, "Please confirm your parts", first.question)
         return
     # A build that is being developed further keeps its confirmed wiring; only the added steps are open.
-    steps = s.wiring_steps if s.project.requests else planner.plan_wiring(s.project)
+    try:
+        steps = s.wiring_steps if s.project.requests else planner.plan_wiring(s.project)
+    except ValueError:
+        # More signals than the board has free inputs of that kind.
+        s.state = GuideState.unsupported
+        _say(s, "I can't build that yet", "These parts need more input pins than the board has free. "
+                                          "Try it with fewer parts.")
+        return
     s.safety_problems = facts.check_safety(steps)
     if s.safety_problems:
         s.state = GuideState.blocked
@@ -130,6 +171,7 @@ def _advance(s: GuideStatus) -> None:
     first_open = next(i for i in range(len(steps)) if i not in s.confirmed_steps)
     s.wiring_steps, s.current_step, s.state = steps, first_open, GuideState.wiring
     _say(s, steps[first_open].display_text, steps[first_open].spoken_text)
+    _pregenerate(s)
 
 
 async def _read_image(image: Optional[UploadFile]):
@@ -147,8 +189,8 @@ async def _read_image(image: Optional[UploadFile]):
 @router.post("/sessions", response_model=GuideStatus)
 def create_session(req: CreateGuideSessionRequest):
     s = GuideStatus(session_id=uuid.uuid4().hex[:12], state=GuideState.awaiting_analysis,
-                    instruction=req.instruction.strip(), display_text="Look at your parts and take a photo",
-                    spoken_text="Look at your parts and take a photo.")
+                    instruction=req.instruction.strip(), display_text="Checking what you need",
+                    spoken_text="Let me check which parts you need.")
     _merge_inventory(s, req.confirmed_inventory)
     sessions[s.session_id] = s
     return s
@@ -156,12 +198,23 @@ def create_session(req: CreateGuideSessionRequest):
 
 @router.post("/sessions/{session_id}/analyze", response_model=GuideStatus)
 async def analyze(session_id: str, image: Optional[UploadFile] = File(None),
-                  confirmed_inventory: Optional[str] = Form(None)):
+                  confirmed_inventory: Optional[str] = Form(None), purpose: Optional[str] = Form(None)):
     s = _load(session_id, GuideState.awaiting_analysis, GuideState.needs_confirmation,
               GuideState.wiring, GuideState.wiring_complete, GuideState.code_generated)
     data, media_type = await _read_image(image)
-    if data is None and demo.enabled():
-        data, media_type = demo.saved_photo()  # demo mode can start from the saved desk photo
+
+    if purpose == "part" and s.state == GuideState.code_generated:
+        # A photo of a part to add to the finished build. It says which part "this sensor" is; the
+        # user still confirms the part and its pin labels before anything is wired.
+        if data is None:
+            raise HTTPException(422, "send an image of the part")
+        s.detected_components, s.analysis_source = analyzer.identify(data, media_type, s.project)
+        seen = [d for d in s.detected_components if d.component_id in facts.catalog()
+                and d.component_id not in s.project.components and d.confidence >= 0.5]
+        part_seen.pop(s.session_id, None)
+        if seen:
+            part_seen[s.session_id] = max(seen, key=lambda d: d.confidence).component_id
+        return s
 
     if s.state in (GuideState.wiring, GuideState.wiring_complete, GuideState.code_generated):
         if data is None:
@@ -171,8 +224,7 @@ async def analyze(session_id: str, image: Optional[UploadFile] = File(None),
                                 electrically_verified=False, disclaimer=REVIEW_DISCLAIMER)
         return s
 
-    if data is None and confirmed_inventory is None and not demo.enabled():
-        raise HTTPException(422, "send an image, a confirmed_inventory (\"[]\" for none), or both")
+    # Goal first: a photo is optional. Without one, every part is confirmed by the user.
     if confirmed_inventory:
         try:
             items = _inventory.validate_python(json.loads(confirmed_inventory))
@@ -186,10 +238,6 @@ async def analyze(session_id: str, image: Optional[UploadFile] = File(None),
         s.detected_components = analysis.components
         if not (s.project and s.project.requests):
             s.project = to_spec(analysis.project)  # a build being developed further keeps its project
-        elif s.analysis_source == "demo":
-            # Demo mode: the saved answer for a photo of the added part.
-            s.detected_components = [DetectedComponent.model_validate(demo.SAVED_PART_DETECTION[c])
-                                     for c in s.project.components if c in demo.SAVED_PART_DETECTION]
     _advance(s)
     return s
 
@@ -211,7 +259,7 @@ def confirm_step(session_id: str, req: ConfirmStepRequest):
         _say(s, nxt.display_text, nxt.spoken_text)
         return s
 
-    s.current_step, s.state = None, GuideState.wiring_complete
+    s.current_step, s.state, s.background_notice = None, GuideState.wiring_complete, ""
     _say(s, "Wiring done. Writing the code", "Wiring is done. I am writing the code now.")
     return s
 
@@ -230,12 +278,23 @@ def generate(session_id: str, req: Optional[GenerateRequest] = None):
 
     ctx = codegen.build_context(s.project, s.wiring_steps, req.sensor_active_level, req.debounce_ms,
                                 req.sample_window_ms, previous_code=running_code.get(s.session_id, ""))
-    try:
-        s.generation_progress = []
-        # Runs in a worker thread; GET /status can be polled meanwhile to show the current stage.
-        generated, source, attempts = generator.generate(s.session_id, ctx, s.generation_progress.append)
-    except RuntimeError as e:
-        raise HTTPException(502, str(e))
+    # Use the sketch that was written during wiring, if it is for exactly this plan and these parameters.
+    result = None
+    early = pregenerated.pop(s.session_id, None)
+    defaults = req.sensor_active_level is None and req.debounce_ms is None and req.sample_window_ms is None
+    if early is not None and defaults and early[0] == _plan_key(s) and early[1] is generator:
+        try:
+            result = early[2].result(timeout=600)  # still running: wait for it; the stages keep showing
+        except Exception:
+            result = None  # the early attempt failed: generate now
+    if result is None:
+        try:
+            s.generation_progress = []
+            # Runs in a worker thread; GET /status can be polled meanwhile to show the current stage.
+            result = generator.generate(s.session_id, ctx, s.generation_progress.append)
+        except RuntimeError as e:
+            raise HTTPException(502, str(e))
+    generated, source, attempts = result
 
     if previous is not None:
         previous.status = BuildStatus.rejected  # replaced by the regenerated sketch
@@ -272,24 +331,43 @@ def extend(session_id: str, req: ExtendRequest):
     if build is not None and build.status in (BuildStatus.approved, BuildStatus.deploying):
         raise HTTPException(409, "an upload is in progress")
 
-    proposal, _ = analyzer.extend(req.instruction.strip(), s.project)
+    proposal, _ = analyzer.extend(req.instruction.strip(), s.project, part_seen.get(s.session_id))
     cat = facts.catalog()
+
+    def cannot(reason: str) -> GuideStatus:
+        """The request cannot be built. Nothing changes; the user is told why and what would work."""
+        ideas = [" ".join(i.split())[:80] for i in proposal.ideas if i.strip()]
+        if not ideas and s.project.game:
+            # What always works for a game: the other game, and the restart by hand.
+            ideas = [f"Play {games.GAMES[g]['title']} instead" for g in games.offered() if g != s.project.game]
+            if games.RESET_SENSOR in addable_sensors(s.project):
+                ideas.append("Add the infrared sensor to restart the game")
+        elif not ideas and s.project.input_component == "ky-037" and "ky-032" in addable_sensors(s.project):
+            ideas = [v["idea"] for v in variants.EXTENSION_VARIANTS.values()]  # these always work
+        s.extension_problem, s.suggestions, s.clarification = reason, ideas[:3], ""
+        return s
+
     if proposal.kind == "unsupported" or proposal.kind not in ("add_part", "change_behavior"):
-        raise HTTPException(422, proposal.reason or "I can't do that with the parts I know.")
+        return cannot(proposal.reason or "I can't do that with the parts I know.")
     steps = list(s.wiring_steps)
     if proposal.kind == "add_part":
         cid = proposal.component_id
-        if cid not in cat or cat[cid]["role"] != "sensor" or cid in s.project.components:
-            raise HTTPException(422, "I don't know a part for that yet.")
+        if cid not in cat:
+            return cannot("I don't know a part for that yet.")
+        if not cat[cid].get("add_on"):
+            return cannot(cat[cid].get("not_buildable") or f"I can't build with the {cat[cid]['name']} yet.")
+        if cid in s.project.components:
+            return cannot(f"The {cat[cid]['name']} is already part of this build.")
         if proposal.needs_purpose or not proposal.behavior.strip():
             # The part is clear, its job is not: ask instead of deciding for the user. Nothing changes yet.
             s.clarification = f"What should the {cat[cid]['name']} do in your build?"
             s.suggestions = [" ".join(i.split())[:80] for i in proposal.ideas if i.strip()][:3]
+            s.extension_problem = ""
             return s
         try:
             steps += planner.plan_extension(steps, cid)
-        except ValueError as e:
-            raise HTTPException(422, str(e))
+        except ValueError:
+            return cannot(f"There is no free input pin left on the board for the {cat[cid]['name']}.")
 
     project = s.project.model_copy(deep=True)
     project.behavior = Behavior.custom
@@ -297,17 +375,31 @@ def extend(session_id: str, req: ExtendRequest):
     project.requests.append(req.instruction.strip())
     if proposal.kind == "add_part":
         project.components.append(proposal.component_id)
+    if project.game:
+        # A game keeps its prevalidated sketch only for the changes that sketch covers: the other
+        # game, and a restart by the infrared sensor. Anything else is free-form and needs the AI.
+        other = games.game_for(req.instruction, project.game)
+        asked = req.instruction  # the user's own words: the model's text describes the whole game
+        if proposal.kind == "change_behavior" and other and other != project.game:
+            project.game, project.title, project.summary = other, games.GAMES[other]["title"], games.GAMES[other]["summary"]
+            project.custom_behavior = games.behavior(other, reset=games.RESET_SENSOR in project.components)
+        elif proposal.kind == "add_part" and proposal.component_id == games.RESET_SENSOR and games.wants_reset(asked):
+            project.custom_behavior = games.behavior(project.game, reset=True)
+        else:
+            project.game = ""
     if generator.client is None:
         # Without the AI service only prevalidated combinations can be built.
         try:
             codegen.template_sketch(codegen.build_context(project, steps))
-        except RuntimeError as e:
-            raise HTTPException(422, str(e))
+        except RuntimeError:
+            return cannot("Changing what the build does needs the AI service, which is not available right now.")
 
     if build is not None and build.sketch is not None:
         running_code[s.session_id] = build.sketch.code
+    part_seen.pop(s.session_id, None)
     s.project, s.wiring_steps = project, steps
     s.build_id, s.review, s.generation_progress, s.clarification, s.suggestions = None, None, [], "", []
+    s.extension_problem = ""
     if proposal.kind == "add_part":
         _advance(s)  # confirmations for the new part, then only the new wiring steps
     else:

@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 os.environ.setdefault("LEARNLENS_TUTOR", "mock")
+os.environ.setdefault("LEARNLENS_STATE_FILE", "none")  # examples leave no state behind
 os.environ.setdefault("LEARNLENS_PROJECTS_DIR", str(Path(tempfile.mkdtemp()) / "generated"))
 
 import example_clap_session as example  # noqa: E402

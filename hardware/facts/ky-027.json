@@ -1,0 +1,23 @@
+{
+  "component": "ky-027",
+  "name": "KY-027 magic light cup",
+  "role": "sensor",
+  "senses": "being tilted",
+  "projects": [],
+  "add_on": null,
+  "not_buildable": "Its LED needs an output pin, and the vendor's tables disagree on its supply voltage.",
+  "identification": "Small black PCB with a black cylinder lying flat, a clear LED standing upright and 4 angled header pins labelled G, +, S, L.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-027"
+  },
+  "pins": {},
+  "confirmations": [],
+  "facts": [
+    {
+      "id": "ky027-about",
+      "statement": "A tilt switch with an LED on the same board. The vendor wires it to 5 V on Arduino and Raspberry Pi and to 3.3 V on the Pico, and lists a 120 ohm series resistor for the LED at 3.3 V.",
+      "source": "Joy-IT SensorKit, KY-027, wiring tables and series resistor",
+      "confidence": "vendor_doc"
+    }
+  ]
+}

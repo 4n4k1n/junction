@@ -7,10 +7,10 @@
 
 import Foundation
 
-/// GET /health: what the backend is running with, so the app can label demo and simulated runs.
+/// GET /health: what the backend is running with, so the app can say when a run is not a full one.
 struct BackendInfo: Decodable, Sendable {
-  let demoMode: Bool        // saved AI answers and the prevalidated sketch: no model calls
-  let analyzer: String      // claude | auto | mock | demo
+  let aiAvailable: Bool     // false: no AI service, so only the projects with a prevalidated sketch work
+  let analyzer: String      // claude | auto | mock
   let agentConnected: Bool  // a Mac deploy agent polled within the last 10 s
   let agentMock: Bool       // that agent runs with --mock: it will not flash a board
 }
@@ -88,6 +88,7 @@ struct Build: Decodable, Sendable {
   let sketch: Sketch?
   let deploy: DeployResult?
   let deployEvents: [DeployEvent]
+  let expectedSerialEvents: [String]  // log lines the sketch prints; some prove that it reacts
   let testPassed: Bool?
   let error: String
 }
@@ -149,7 +150,10 @@ struct GuideStatus: Decodable, Sendable {
   let safetyProblems: [String]
   let generationProgress: [String]  // what code generation is doing; the last entry is current
   let clarification: String         // a question back to the user before a build can be developed further
-  let suggestions: [String]         // example answers to that question
+  let suggestions: [String]         // example answers to that question, or requests that would work
+  let extensionProblem: String      // why the last follow-up request cannot be built
+  let partsNeeded: [String]         // names of the parts the project needs
+  let backgroundNotice: String      // set while the code is written in the background during wiring
   let buildId: String?
 }
 

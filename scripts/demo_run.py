@@ -2,10 +2,10 @@
 """Runs the whole LearnLens flow from the terminal, against a running backend and deploy agent.
 It does what the phone app does, so the flow can be rehearsed and timed without the glasses.
 
-    ./scripts/start.sh --demo            # in one terminal
+    ./scripts/start.sh                   # in one terminal
     python3 scripts/demo_run.py          # in another
 
-    python3 scripts/demo_run.py --photo demo/desk.jpg     # send a real photo (normal mode: analyzed by Claude)
+    python3 scripts/demo_run.py --photo desk.jpg          # send a photo of the parts as an extra check
     python3 scripts/demo_run.py --auto                    # answer every prompt except the upload approval
 
 The upload approval is always typed by a person. Standard library only.
@@ -18,7 +18,7 @@ import urllib.error
 import urllib.request
 import uuid
 
-GOAL = "Build a sound level meter."
+GOAL = "Build a Pong game."
 
 
 class Api:
@@ -71,7 +71,7 @@ def main():
 
     health = api.call("GET", "/health", timeout=5)
     print("== LearnLens run ==")
-    print(f"   AI: {'DEMO MODE (saved answers, prevalidated sketch)' if health['demo_mode'] else health['analyzer']}")
+    print(f"   AI: {'Claude' if health['ai_available'] else 'none (prevalidated sketches only)'}")
     if not health["agent_connected"]:
         sys.exit("STOPPED: no deploy agent is connected to the backend. Start it with ./scripts/start.sh")
     print(f"   Board: {'SIMULATED upload (agent --mock)' if health['agent_mock'] else 'real upload'}\n")
@@ -158,7 +158,7 @@ def main():
     label = "SIMULATED upload" if simulated else "real board"
     if build["status"] == "done":
         glasses(f"Success{' · SIMULATED upload' if simulated else ''}")
-        print(f"\nRESULT: success ({label}{', DEMO MODE AI' if health['demo_mode'] else ''}) in {time.time() - t0:.0f} s")
+        print(f"\nRESULT: success ({label}{'' if health['ai_available'] else ', no AI'}) in {time.time() - t0:.0f} s")
         return 0
     print(f"\nRESULT: failed ({label})")
     return 1

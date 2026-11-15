@@ -1,0 +1,80 @@
+{
+  "component": "ky-040",
+  "name": "KY-040 rotary encoder",
+  "role": "sensor",
+  "senses": "its knob being turned left or right and pressed",
+  "projects": [],
+  "add_on": {
+    "signals": [
+      "CLK",
+      "DT",
+      "SW"
+    ]
+  },
+  "identification": "Black PCB with a tall metal shaft on a square metal body and 5 angled header pins labelled CLK, DT, SW, + and GND.",
+  "sources": {
+    "vendor": "https://sensorkit.joy-it.net/en/sensors/ky-040"
+  },
+  "pins": {
+    "GND": {
+      "kind": "ground",
+      "fact": "ky040-pins"
+    },
+    "+": {
+      "kind": "supply",
+      "min_v": 3.3,
+      "max_v": 5.0,
+      "say": "pin marked with a plus",
+      "fact": "ky040-supply"
+    },
+    "CLK": {
+      "kind": "digital_out",
+      "high_level": "supply",
+      "fact": "ky040-rotation"
+    },
+    "DT": {
+      "kind": "digital_out",
+      "high_level": "supply",
+      "fact": "ky040-rotation"
+    },
+    "SW": {
+      "kind": "digital_out",
+      "high_level": "supply",
+      "active_level": "LOW",
+      "fact": "ky040-button"
+    }
+  },
+  "confirmations": [
+    {
+      "id": "ky040-pin-labels",
+      "question": "Read the 5 pin labels on the rotary encoder. Are they CLK, DT, SW, + and GND?",
+      "reason": "Clone modules differ. The wiring plan is only valid for a module with exactly these labels."
+    }
+  ],
+  "facts": [
+    {
+      "id": "ky040-pins",
+      "statement": "The module has five pins: the two rotation signals (CLK, DT), the button (SW), supply (+) and ground (GND).",
+      "source": "Joy-IT SensorKit, KY-040, pin drawing (vendor documentation for the Joy-IT module; clones may differ)",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky040-supply",
+      "statement": "The vendor wires the module to 3.3 V on Raspberry Pi and to 5 V on a classic Arduino. No supply rating is published.",
+      "source": "Joy-IT SensorKit, KY-040, wiring tables",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky040-rotation",
+      "statement": "With each step of the knob CLK and DT change state one after the other. When CLK changes, the knob was turned one way if DT differs from CLK and the other way if they are equal. Powered from 3.3 V the signals cannot rise above 3.3 V.",
+      "source": "Joy-IT SensorKit, KY-040, description and code example",
+      "confidence": "vendor_doc"
+    },
+    {
+      "id": "ky040-button",
+      "statement": "Pressing the knob pulls SW LOW. The vendor's example switches on the board's internal pull-up resistors for all three signals; LearnLens sketches do not, so whether they read reliably is not confirmed.",
+      "source": "Joy-IT SensorKit, KY-040, code example",
+      "confidence": "vendor_doc"
+    }
+  ]
+}
