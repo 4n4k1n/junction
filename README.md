@@ -159,14 +159,5 @@ encoder, a light meter, a reaction game with the button).
 Reported from use with the glasses and the board: the build flow on the glasses, uploads to the
 board, and the Pong flow. The deploy agent has read log lines from the board after uploads.
 
-Not yet verified:
-
-- Free wishes on the real board. They compile; whether they are playable has not been seen.
-- The hardware facts of the KY kit. They come from the vendor's pages; none was measured.
-- Which way the joystick has to be held. If a direction is reversed, turn it around.
-- The button, the rotary encoder and other switch modules whose vendor example uses a pull-up that
-  LearnLens sketches do not switch on. Their signal may be unreliable.
-- The newest glasses cards (parts list, the three choices at the end) after the latest changes, and
-  hands-free voice commands.
 
 Details: `DEMO_CHECKLIST.md`.
